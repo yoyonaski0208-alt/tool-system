@@ -561,6 +561,34 @@ Object.keys(initData).forEach(function(loc){
 });
 
 var logs=[], serialRecords=[];
+
+// 從 localStorage 讀取記錄（保留7天）
+function loadLogsFromStorage(){
+  try{
+    var saved=localStorage.getItem("tool_logs");
+    if(!saved)return;
+    var all=JSON.parse(saved);
+    var cutoff=Date.now()-7*24*60*60*1000;
+    // 只保留7天內的記錄
+    logs=all.filter(function(l){
+      if(!l.timestamp)return true;
+      return l.timestamp>cutoff;
+    });
+    console.log("Loaded",logs.length,"logs from storage");
+  }catch(e){console.warn("Load logs error",e);}
+}
+
+function saveLogsToStorage(){
+  try{
+    // 只儲存最近7天，最多200筆
+    var cutoff=Date.now()-7*24*60*60*1000;
+    var toSave=logs.filter(function(l){
+      if(!l.timestamp)return false;
+      return l.timestamp>cutoff;
+    }).slice(0,200);
+    localStorage.setItem("tool_logs",JSON.stringify(toSave));
+  }catch(e){console.warn("Save logs error",e);}
+}
 var curUser=null, curBox=null, curPart=null, curAction=null, mQty=1;
 var fVal="all", curLoc="台南", pendingDelPart=null;
 
@@ -713,6 +741,7 @@ function setupHeaderInfo(){
 }
 
 function enterMainApp(){
+  loadLogsFromStorage();
   setupHeaderInfo();
   // 只有「全部」的 admin 才顯示地點切換
   if(curUser.role==="admin" && curUser.location==="全部"){
@@ -990,7 +1019,8 @@ async function confirmAction(){
     var old=stocks[loc][key]||0;logQty=mQty-old;stocks[loc][key]=mQty;
     type="調整";icon="🔧";title="庫存調整完成！";detail=curPart+"（"+loc+"）調整為 "+mQty+" 個";
   }
-  logs.unshift({type:type,box:curBox.name,part:curPart,qty:logQty,name:curUser.name,note:note,time:t,loc:loc,serial:serialVal});
+  logs.unshift({type:type,box:curBox.name,part:curPart,qty:logQty,name:curUser.name,note:note,time:t,loc:loc,serial:serialVal,timestamp:Date.now()});
+  saveLogsToStorage();
   document.getElementById("ok-icon").textContent=icon;
   document.getElementById("ok-title").textContent=title;
   document.getElementById("ok-detail").textContent=detail;
