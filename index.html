@@ -707,9 +707,12 @@ function enterMainApp(){
   // 只有「全部」的 admin 才顯示地點切換
   if(curUser.role==="admin" && curUser.location==="全部"){
     document.getElementById("location-bar").style.display="flex";
-    setLoc(document.getElementById("loc-all"));
+    curLoc="全部";
+    // 設定地點按鈕樣式
+    document.querySelectorAll(".loc-btn").forEach(function(b){b.classList.remove("active");});
+    var locAllBtn=document.getElementById("loc-all");
+    if(locAllBtn)locAllBtn.classList.add("active");
   } else if(curUser.role==="admin"){
-    // 台南/屏東 admin：鎖定自己地點，不顯示切換
     document.getElementById("location-bar").style.display="none";
     curLoc=curUser.location;
   } else {
@@ -739,6 +742,7 @@ document.addEventListener("DOMContentLoaded",function(){
 });
 
 function setLoc(el){
+  if(!el)return;
   var txt=el.textContent;
   curLoc=txt==="全部"?"全部":txt;
   document.querySelectorAll(".loc-btn").forEach(function(b){b.classList.remove("active");});
