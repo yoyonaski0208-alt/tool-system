@@ -115,6 +115,8 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
 .field-lbl{font-size:12px;color:var(--sub);margin-bottom:6px;font-weight:500;}
 .qty-row{display:flex;align-items:center;border:1px solid var(--border);border-radius:13px;overflow:hidden;margin-bottom:14px;}
 .qty-btn{width:52px;height:52px;border:none;background:var(--bg);font-size:22px;color:var(--text);cursor:pointer;flex-shrink:0;font-family:inherit;}
+.qty-val::-webkit-inner-spin-button,.qty-val::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
+.qty-val{-moz-appearance:textfield;}
 .qty-btn:active{background:var(--border);}
 .qty-val{flex:1;text-align:center;font-size:22px;font-weight:700;border:none;outline:none;background:transparent;font-family:inherit;}
 .note-wrap{margin-bottom:14px;}
@@ -349,7 +351,15 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       <div class="admin-stat"><div class="admin-stat-num" id="adm-n-boxes" style="color:var(--green);">0</div><div class="admin-stat-lbl">箱子數量</div></div>
       <div class="admin-stat"><div class="admin-stat-num" id="adm-n-logs" style="color:var(--amber);">0</div><div class="admin-stat-lbl">今日記錄</div></div>
     </div>
-    <div id="adm-alerts"></div>
+    <div id="adm-restock-hdr" class="restock-header" onclick="toggleRestock()" style="margin-top:12px;">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span class="restock-title">需要補貨項目</span>
+        <div class="restock-badges" id="restock-badges"></div>
+      </div>
+      <span id="restock-arrow" style="font-size:11px;color:var(--blue);white-space:nowrap;">▼展開</span>
+    </div>
+    <div id="adm-alerts" class="restock-body"></div>
+    <div class="section-hd" style="margin-top:16px;">所有工具箱</div>
     <div id="adm-boxes"></div>
   </div>
 
@@ -409,7 +419,7 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     <div class="field-lbl" id="qty-lbl">領取數量</div>
     <div class="qty-row">
       <button class="qty-btn" onclick="adjQ(-1)">-</button>
-      <input class="qty-val" id="qty-show" type="number" value="1" min="0" inputmode="numeric">
+      <input class="qty-val" id="qty-show" type="text" value="1" inputmode="numeric" pattern="[0-9]*">
       <button class="qty-btn" onclick="adjQ(1)">+</button>
     </div>
     <div class="serial-wrap">
@@ -954,7 +964,7 @@ function adjQ(d){
   mQty=Math.max(curAction==="adj"?0:1,cur+d);
   el.value=mQty;
 }
-function getQty(){var v=parseInt(document.getElementById("qty-show").value);if(isNaN(v)||v<0)v=0;mQty=v;return mQty;}
+function getQty(){var v=parseInt(document.getElementById("qty-show").value.replace(/[^0-9]/g,""));if(isNaN(v)||v<0)v=0;mQty=v;return mQty;}
 
 async function confirmAction(){
   var loc=getEditLoc();
@@ -1102,16 +1112,11 @@ function renderAdmin(){
   var allP=[];
   BOXES.forEach(function(b){b.parts.forEach(function(p){allP.push({b:b,p:p});});});
 
-  // 計算各地點補貨數
   function getLowCount(targetLoc){
     return allP.filter(function(x){
       var q,min=x.p.minQty;
-      if(targetLoc==="全部"){
-        q=(stocks["台南"][gk(x.b.id,x.p.name)]||0)+(stocks["屏東"][gk(x.b.id,x.p.name)]||0);
-        min=min*2;
-      } else {
-        q=stocks[targetLoc]?stocks[targetLoc][gk(x.b.id,x.p.name)]||0:0;
-      }
+      if(targetLoc==="全部"){q=(stocks["台南"][gk(x.b.id,x.p.name)]||0)+(stocks["屏東"][gk(x.b.id,x.p.name)]||0);min=min*2;}
+      else{q=stocks[targetLoc]?stocks[targetLoc][gk(x.b.id,x.p.name)]||0:0;}
       return min>0&&q<min;
     }).length;
   }
@@ -1125,59 +1130,31 @@ function renderAdmin(){
   document.getElementById("adm-n-boxes").textContent=BOXES.length;
   document.getElementById("adm-n-logs").textContent=logs.length;
 
-  // 補貨區塊 header
-  var alertsContainer=document.getElementById("adm-alerts-wrap");
-  if(!alertsContainer){
-    // 第一次建立 wrap
-    var oldAlerts=document.getElementById("adm-alerts");
-    var wrap=document.createElement("div");wrap.id="adm-alerts-wrap";
-    oldAlerts.parentNode.insertBefore(wrap,oldAlerts);
-    wrap.appendChild(oldAlerts);
+  // 更新補貨 badges
+  var badgesEl=document.getElementById("restock-badges");
+  if(badgesEl){
+    badgesEl.innerHTML="";
+    if(loc==="全部"){
+      var b1=document.createElement("span");b1.className="restock-badge restock-badge-tainan";b1.textContent="台南："+lowTainan+" 項";
+      var b2=document.createElement("span");b2.className="restock-badge restock-badge-pingtung";b2.textContent="屏東："+lowPingtung+" 項";
+      badgesEl.appendChild(b1);badgesEl.appendChild(b2);
+    } else {
+      var bx=document.createElement("span");
+      bx.className="restock-badge "+(loc==="台南"?"restock-badge-tainan":"restock-badge-pingtung");
+      bx.textContent=loc+"："+lowAll+" 項";
+      badgesEl.appendChild(bx);
+    }
   }
 
-  // 建立 header
-  var hdrId="adm-restock-hdr";
-  var existing=document.getElementById(hdrId);
-  if(existing)existing.parentNode.removeChild(existing);
-
-  var hdr=document.createElement("div");hdr.className="restock-header";hdr.id=hdrId;
-  hdr.onclick=function(){toggleRestock();};
-
-  var titleWrap=document.createElement("div");titleWrap.style.cssText="display:flex;align-items:center;gap:8px;flex-wrap:wrap;";
-  var title=document.createElement("span");title.className="restock-title";title.textContent="需要補貨項目";
-  titleWrap.appendChild(title);
-
-  var badges=document.createElement("div");badges.className="restock-badges";
-  if(loc==="全部"){
-    var b1=document.createElement("span");b1.className="restock-badge restock-badge-tainan";b1.textContent="台南："+lowTainan+" 項";
-    var b2=document.createElement("span");b2.className="restock-badge restock-badge-pingtung";b2.textContent="屏東："+lowPingtung+" 項";
-    badges.appendChild(b1);badges.appendChild(b2);
-  } else {
-    var bLoc=document.createElement("span");
-    bLoc.className="restock-badge "+(loc==="台南"?"restock-badge-tainan":"restock-badge-pingtung");
-    bLoc.textContent=loc+"："+lowAll+" 項";
-    badges.appendChild(bLoc);
-  }
-  titleWrap.appendChild(badges);
-
-  var toggle=document.createElement("span");toggle.id="restock-arrow";toggle.textContent="▼展開";toggle.style.cssText="font-size:11px;color:var(--blue);white-space:nowrap;";
-  hdr.appendChild(titleWrap);hdr.appendChild(toggle);
-
-  var sectionHd=document.querySelector(".section-hd");
-  if(sectionHd)sectionHd.parentNode.insertBefore(hdr,sectionHd);
-
-  // 補貨內容 body
+  // 補貨清單
   var alerts=document.getElementById("adm-alerts");
-  alerts.className="restock-body";
   alerts.innerHTML="";
-
   var lowP=allP.filter(function(x){
     var q,min=x.p.minQty;
     if(loc==="全部"){q=(stocks["台南"][gk(x.b.id,x.p.name)]||0)+(stocks["屏東"][gk(x.b.id,x.p.name)]||0);min=min*2;}
     else{q=stocks[loc]?stocks[loc][gk(x.b.id,x.p.name)]||0:0;}
     return min>0&&q<min;
   });
-
   if(!lowP.length){
     var noAlert=document.createElement("div");noAlert.className="no-alert";noAlert.textContent="目前無需補貨項目";alerts.appendChild(noAlert);
   } else {
