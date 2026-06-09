@@ -1,0 +1,25 @@
+{
+  "name": "森清淨-工具系統",
+  "short_name": "森清淨工具",
+  "description": "工具領取與庫存管理系統",
+  "start_url": "/tool-system/",
+  "scope": "/tool-system/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#185FA5",
+  "background_color": "#F5F5F7",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -4,9 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="工具庫存">
+<meta name="apple-mobile-web-app-title" content="森清淨工具">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
+<link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
+<style>
+  /* PWA splash screen */
+  @media (display-mode: standalone) {
+    body { padding-top: env(safe-area-inset-top); }
+  }
+</style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
@@ -319,6 +327,10 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
   </div>
 
   <div id="pg-take" class="page active">
+    <div id="greeting-banner" style="background:linear-gradient(135deg,#185FA5,#0C447C);border-radius:16px;padding:16px 18px;margin-bottom:12px;color:#fff;display:none;">
+      <div style="font-size:18px;font-weight:700;margin-bottom:4px;" id="greeting-name">早安！</div>
+      <div style="font-size:13px;opacity:.85;" id="greeting-text">今天也是美好的一天！</div>
+    </div>
     <div class="notice"><i class="ti ti-brand-google-drive" style="font-size:14px;"></i>每筆操作自動寫入 Google Sheets</div>
     <div class="box-grid" id="box-grid"></div>
   </div>
@@ -617,7 +629,8 @@ function getCarPlate(email){
 }
 function setCarPlate(email,plate){
   localStorage.setItem("car_"+email,plate);
-  document.getElementById("hd-car").textContent = plate||"未設定";
+  var el=document.getElementById("hd-car");
+  if(el)el.textContent=plate||"未設定";
 }
 
 function saveCarPlate(){
@@ -648,6 +661,23 @@ function confirmChangeCar(){
 }
 
 // 登入
+async function getGreeting(){
+  try{
+    var url="https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?tqx=out:json&sheet="+encodeURIComponent("系統設定");
+    var res=await fetch(url,{credentials:"omit",cache:"no-cache"});
+    if(!res.ok)return "今天也是美好的一天！";
+    var text=await res.text();
+    var start=text.indexOf("(");var end=text.lastIndexOf(")");
+    if(start<0||end<0)return "今天也是美好的一天！";
+    var jsonStr=text.slice(start+1,end).replace(/\n/g,"").replace(/\r/g,"");
+    var data=JSON.parse(jsonStr);
+    if(!data.table||!data.table.rows||!data.table.rows[1])return "今天也是美好的一天！";
+    var row=data.table.rows[1];
+    if(row.c&&row.c[1]&&row.c[1].v)return String(row.c[1].v);
+    return "今天也是美好的一天！";
+  }catch(e){return "今天也是美好的一天！";}
+}
+
 async function checkUserBySheet(email){
   var url="https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?tqx=out:json&sheet="+encodeURIComponent("使用者設定");
   var res=await fetch(url, {credentials:"omit", cache:"no-cache"});
@@ -708,12 +738,14 @@ async function verifyEmail(email,isAuto){
         bg:data.role==="admin"?"#FAEEDA":data.role==="senior"?"#EAF3DE":"#E6F1FB",
         fg:data.role==="admin"?"#854F0B":data.role==="senior"?"#3B6D11":"#185FA5"};
       curLoc=curUser.location==="全部"?"全部":curUser.location;
-      // 只有作業員/資深作業員才需要設定車牌
+      // 只有作業員/資深作業員且從未設定車牌才顯示設定畫面
       var plate=getCarPlate(data.email);
       if(curUser.role !== "admin" && !plate && !isAuto){
+        // 第一次登入才需要設定車牌
         setupHeaderInfo();
         pshow("s-car-setup");
       } else {
+        // 有記錄的車牌直接進入（包含 isAuto 自動登入）
         enterMainApp();
       }
     } else {
@@ -768,6 +800,23 @@ function enterMainApp(){
   renderBoxes();
   navTo("take",document.getElementById("nav-take"));
   pshow("s-main");
+  // 顯示早安語
+  showGreeting();
+}
+
+async function showGreeting(){
+  var banner=document.getElementById("greeting-banner");
+  var nameEl=document.getElementById("greeting-name");
+  var textEl=document.getElementById("greeting-text");
+  if(!banner||!nameEl||!textEl)return;
+  // 根據時間決定問候語前綴
+  var h=new Date().getHours();
+  var prefix=h<12?"早安":"下午好";
+  nameEl.textContent=prefix+"！"+curUser.name+" 👋";
+  banner.style.display="block";
+  // 非同步讀取問候語
+  var greeting=await getGreeting();
+  textEl.textContent=greeting;
 }
 
 function showErr(msg){var el=document.getElementById("login-err");el.textContent=msg;el.classList.add("show");setTimeout(function(){el.classList.remove("show");},5000);}
@@ -1242,6 +1291,16 @@ function toggleRestock(){
     body.classList.add("open");
     arrow.textContent="▲收合";
   }
+}
+// 註冊 Service Worker（PWA）
+if("serviceWorker" in navigator){
+  window.addEventListener("load",function(){
+    navigator.serviceWorker.register("sw.js").then(function(reg){
+      console.log("SW registered");
+    }).catch(function(e){
+      console.log("SW error",e);
+    });
+  });
 }
 </script>
 </body>
