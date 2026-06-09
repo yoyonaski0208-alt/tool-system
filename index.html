@@ -417,10 +417,10 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       <div><div class="auto-label">身份自動帶入</div><div class="auto-name" id="mod-who"></div></div>
     </div>
     <div class="field-lbl" id="qty-lbl">領取數量</div>
-    <div class="qty-row">
-      <button class="qty-btn" onclick="adjQ(-1)">-</button>
-      <input class="qty-val" id="qty-show" type="text" value="1" inputmode="numeric" pattern="[0-9]*">
-      <button class="qty-btn" onclick="adjQ(1)">+</button>
+    <div style="display:flex;align-items:center;border:1px solid var(--border);border-radius:13px;overflow:hidden;margin-bottom:14px;width:100%;">
+      <button onclick="adjQ(-1)" style="width:56px;height:56px;border:none;background:var(--bg);font-size:28px;font-weight:300;color:var(--text);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;">−</button>
+      <input id="qty-show" type="text" value="1" inputmode="numeric" pattern="[0-9]*" style="flex:1;text-align:center;font-size:24px;font-weight:700;border:none;outline:none;background:transparent;font-family:inherit;min-width:0;padding:0;">
+      <button onclick="adjQ(1)" style="width:56px;height:56px;border:none;background:var(--bg);font-size:28px;font-weight:300;color:var(--text);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;">＋</button>
     </div>
     <div class="serial-wrap">
       <div class="serial-label"><i class="ti ti-qrcode" style="font-size:13px;"></i> 序號（選填，有序號的工具請填寫）</div>
