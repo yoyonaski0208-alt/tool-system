@@ -687,7 +687,8 @@ async function verifyEmail(email,isAuto){
   }catch(e){
     localStorage.removeItem("saved_email");
     pshow("s-login");
-    if(!isAuto)showErr("連線失敗，請稍後再試");
+    if(!isAuto)showErr("連線失敗："+e.message);
+    console.error("Login error:",e);
   }
 }
 
