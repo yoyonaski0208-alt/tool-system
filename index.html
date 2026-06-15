@@ -407,7 +407,9 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     <div class="add-form" id="add-form">
       <div class="field-lbl" style="margin-bottom:6px;color:var(--blue);font-weight:600;">新增工具名稱</div>
       <input class="add-input" id="add-input" placeholder="輸入工具名稱" maxlength="30">
-      <div class="add-row">
+      <div class="field-lbl" style="margin-bottom:6px;color:var(--blue);font-weight:600;">分類標籤（選填，例：A0、A1、副F1）</div>
+      <input class="add-input" id="add-sub-input" placeholder="輸入分類標籤" maxlength="10" style="margin-bottom:0;">
+      <div class="add-row" style="margin-top:8px;">
         <button class="btn-add-cancel" onclick="toggleAddForm()">取消</button>
         <button class="btn-add-confirm" onclick="confirmAddPart()">確認新增</button>
       </div>
@@ -852,12 +854,13 @@ function showMain(pg){pshow("s-main");navTo(pg,document.getElementById("nav-"+pg
 
 function renderBoxes(){
   var loc=curUser&&curUser.role==="admin"?curLoc:curUser?curUser.location:"台南";
+  var showWarning=curUser&&curUser.role==="admin";
   var grid=document.getElementById("box-grid");
   grid.innerHTML="";
   BOXES.forEach(function(b){
     var hasP=b.parts.length>0;
     var low=0;
-    if(hasP){
+    if(hasP&&showWarning){
       b.parts.forEach(function(p){
         var q,min=p.minQty;
         if(loc==="全部"){q=(stocks["台南"][gk(b.id,p.name)]||0)+(stocks["屏東"][gk(b.id,p.name)]||0);min=min*2;}
@@ -955,27 +958,60 @@ function renderAdmPartList(){
     var minCheck=curLoc==="全部"?p.minQty*2:p.minQty;
     var low=minCheck>0&&qCheck<minCheck;
     var item=document.createElement("div");item.className="part-item";
+    item.style.flexWrap="wrap";
     var info=document.createElement("div");info.className="part-info";
     var nm=document.createElement("div");nm.className="part-name";nm.textContent=p.name;
     var sb=document.createElement("div");sb.className="part-sub";
-    var st=document.createElement("span");st.className="sub-tag";st.textContent=p.sub;
+    if(p.sub){
+      var st=document.createElement("span");st.className="sub-tag";st.textContent=p.sub;
+      sb.appendChild(st);
+    }
     var bdg=document.createElement("span");bdg.className="badge "+(low?"badge-low":"badge-ok");bdg.textContent=(low?"需補":"正常");
-    sb.appendChild(st);
     sb.appendChild(document.createTextNode(" 庫存："+qShow+" "));
     sb.appendChild(bdg);
     info.appendChild(nm);info.appendChild(sb);
-    var btns=document.createElement("div");btns.style.cssText="display:flex;gap:5px;";
+    var btns=document.createElement("div");btns.style.cssText="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;";
     var b1=document.createElement("button");b1.className="btn-sm btn-sm-green";b1.style.fontSize="11px";b1.textContent="進貨";
     b1.onclick=(function(pn){return function(){openModal("in",pn,true);};})(p.name);
     var b2=document.createElement("button");b2.className="btn-sm btn-sm-amber";b2.style.fontSize="11px";b2.textContent="調整";
     b2.onclick=(function(pn){return function(){openModal("adj",pn,true);};})(p.name);
+    var b4=document.createElement("button");b4.className="btn-sm";b4.style.cssText="font-size:11px;background:var(--blue-light);color:var(--blue);";b4.textContent="編輯";
+    b4.onclick=(function(pn){return function(){openEditPart(pn);};})(p.name);
     var b3=document.createElement("button");b3.className="adm-del-btn";
     var ic=document.createElement("i");ic.className="ti ti-trash";b3.appendChild(ic);
     b3.onclick=(function(pn){return function(){askDel(pn);};})(p.name);
-    btns.appendChild(b1);btns.appendChild(b2);btns.appendChild(b3);
+    btns.appendChild(b1);btns.appendChild(b2);btns.appendChild(b4);btns.appendChild(b3);
     item.appendChild(info);item.appendChild(btns);
     container.appendChild(item);
   });
+}
+
+function openEditPart(partName){
+  var p=curBox.parts.find(function(x){return x.name===partName;});
+  if(!p)return;
+  var newName=prompt("修改工具名稱：",p.name);
+  if(newName===null)return;
+  newName=newName.trim();
+  if(!newName){alert("名稱不能為空");return;}
+  var newSub=prompt("修改分類標籤（例：A0、A1，留空則無標籤）：",p.sub||"");
+  if(newSub===null)return;
+  newSub=newSub.trim();
+
+  // 如果名稱改變，需要搬移庫存資料
+  if(newName!==p.name){
+    var oldKey=gk(curBox.id,p.name);
+    var newKey=gk(curBox.id,newName);
+    stocks["台南"][newKey]=stocks["台南"][oldKey]||0;
+    stocks["屏東"][newKey]=stocks["屏東"][oldKey]||0;
+    delete stocks["台南"][oldKey];
+    delete stocks["屏東"][oldKey];
+  }
+  var oldName=p.name;
+  p.name=newName;
+  p.sub=newSub;
+  renderAdmPartList();renderBoxes();
+  sendToSheets({type:"編輯工具",box:curBox.name,part:oldName+"→"+newName,qty:0,name:curUser.name,email:curUser.email,note:"分類:"+newSub,time:nowStr(),loc:curLoc});
+  alert("已更新「"+newName+"」");
 }
 
 function toggleAddForm(){
@@ -984,16 +1020,18 @@ function toggleAddForm(){
 }
 function confirmAddPart(){
   var name=document.getElementById("add-input").value.trim();
+  var sub=document.getElementById("add-sub-input").value.trim();
   if(!name){alert("請輸入工具名稱");return;}
   var exists=curBox.parts.find(function(p){return p.name===name;});
   if(exists){alert("此工具已存在！");return;}
-  curBox.parts.push({name:name,sub:"",minQty:1});
+  curBox.parts.push({name:name,sub:sub,minQty:1});
   stocks["台南"][gk(curBox.id,name)]=0;
   stocks["屏東"][gk(curBox.id,name)]=0;
   document.getElementById("add-input").value="";
+  document.getElementById("add-sub-input").value="";
   document.getElementById("add-form").classList.remove("open");
   renderAdmPartList();renderBoxes();
-  sendToSheets({type:"新增工具",box:curBox.name,part:name,qty:0,name:curUser.name,email:curUser.email,note:"管理者新增",time:nowStr(),loc:curLoc});
+  sendToSheets({type:"新增工具",box:curBox.name,part:name,qty:0,name:curUser.name,email:curUser.email,note:"管理者新增"+(sub?"，分類:"+sub:""),time:nowStr(),loc:curLoc});
   alert("已新增「"+name+"」");
 }
 function askDel(part){
