@@ -249,6 +249,32 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
 .restock-toggle{font-size:12px;color:var(--sub);background:none;border:none;cursor:pointer;padding:2px 6px;}
 .restock-body{display:none;margin-top:8px;}
 .restock-body.open{display:block;}
+
+/* 報修管理 */
+.repair-form-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px;}
+.repair-form-title{font-size:14px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:7px;}
+.repair-field{margin-bottom:11px;}
+.repair-field label{font-size:12px;color:var(--sub);font-weight:500;display:block;margin-bottom:5px;}
+.repair-select{width:100%;padding:11px 13px;border:1.5px solid var(--border);border-radius:11px;font-size:14px;background:var(--bg);color:var(--text);font-family:inherit;}
+.repair-select:focus{outline:none;border-color:var(--blue);}
+.repair-textarea{width:100%;padding:11px 13px;border:1.5px solid var(--border);border-radius:11px;font-size:14px;background:var(--bg);color:var(--text);font-family:inherit;resize:vertical;min-height:80px;}
+.repair-textarea:focus{outline:none;border-color:var(--blue);}
+.repair-submit-btn{width:100%;padding:14px;background:var(--red);color:#fff;border:none;border-radius:13px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;}
+.repair-submit-btn:active{background:#8B2020;}
+.repair-list-item{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:12px;margin-bottom:7px;}
+.repair-list-hd{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;}
+.repair-list-title{font-size:13px;font-weight:600;flex:1;}
+.repair-status{font-size:10px;padding:3px 8px;border-radius:20px;font-weight:600;white-space:nowrap;margin-left:8px;}
+.repair-status-open{background:var(--red-light);color:var(--red);}
+.repair-status-inprog{background:var(--amber-light);color:var(--amber);}
+.repair-status-done{background:var(--green-light);color:var(--green);}
+.repair-list-meta{font-size:11px;color:var(--sub);margin-bottom:4px;}
+.repair-list-desc{font-size:12px;color:var(--text);line-height:1.5;}
+.repair-adm-btns{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
+.repair-adm-btn{font-size:11px;padding:5px 10px;border-radius:8px;border:none;cursor:pointer;font-family:inherit;font-weight:500;}
+.repair-tabs{display:flex;gap:6px;margin-bottom:12px;}
+.repair-tab{flex:1;padding:8px;border:1.5px solid var(--border);border-radius:10px;background:none;font-size:12px;font-family:inherit;cursor:pointer;color:var(--sub);}
+.repair-tab.active{background:var(--red);color:#fff;border-color:var(--red);font-weight:700;}
 </style>
 </head>
 <body>
@@ -356,12 +382,64 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     <div id="serial-list"></div>
   </div>
 
+  <div id="pg-repair" class="page">
+    <!-- 報修頁面 -->
+    <div class="repair-tabs">
+      <button class="repair-tab active" id="repair-tab-form" onclick="switchRepairTab('form',this)"><i class="ti ti-plus"></i> 新增報修</button>
+      <button class="repair-tab" id="repair-tab-list" onclick="switchRepairTab('list',this)"><i class="ti ti-list"></i> 報修清單</button>
+    </div>
+    <!-- 新增報修表單 -->
+    <div id="repair-panel-form">
+      <div class="repair-form-box">
+        <div class="repair-form-title"><i class="ti ti-alert-triangle" style="color:var(--red);"></i> 報修單</div>
+        <div class="repair-field">
+          <label>位置／地點</label>
+          <select class="repair-select" id="repair-loc">
+            <option value="台南">台南</option>
+            <option value="屏東">屏東</option>
+            <option value="倉庫">倉庫</option>
+            <option value="其他">其他</option>
+          </select>
+        </div>
+        <div class="repair-field">
+          <label>設備／工具名稱</label>
+          <input class="note-input" id="repair-device" placeholder="例：高壓清洗機、水龜、延長線…" style="width:100%;padding:11px 13px;">
+        </div>
+        <div class="repair-field">
+          <label>損壞狀況描述</label>
+          <textarea class="repair-textarea" id="repair-desc" placeholder="請描述損壞情況、發現時間或相關細節…"></textarea>
+        </div>
+        <div class="repair-field">
+          <label>緊急程度</label>
+          <select class="repair-select" id="repair-urgency">
+            <option value="一般">一般（可繼續使用）</option>
+            <option value="緊急">緊急（影響作業）</option>
+            <option value="嚴重">嚴重（立即停止使用）</option>
+          </select>
+        </div>
+        <button class="repair-submit-btn" onclick="submitRepair()">
+          <i class="ti ti-send"></i> 送出報修
+        </button>
+      </div>
+    </div>
+    <!-- 報修清單 -->
+    <div id="repair-panel-list" style="display:none;">
+      <div style="display:flex;gap:6px;margin-bottom:11px;overflow-x:auto;padding-bottom:2px;">
+        <button class="filter-chip on" onclick="filterRepair('all',this)">全部</button>
+        <button class="filter-chip" onclick="filterRepair('待處理',this)">待處理</button>
+        <button class="filter-chip" onclick="filterRepair('處理中',this)">處理中</button>
+        <button class="filter-chip" onclick="filterRepair('已完成',this)">已完成</button>
+      </div>
+      <div id="repair-list-container"></div>
+    </div>
+  </div>
+
   <div id="pg-admin" class="page">
     <div class="admin-stat-grid">
       <div class="admin-stat"><div class="admin-stat-num" id="adm-n-total" style="color:var(--blue);">0</div><div class="admin-stat-lbl">總項目數</div></div>
       <div class="admin-stat"><div class="admin-stat-num" id="adm-n-low" style="color:var(--red);">0</div><div class="admin-stat-lbl">需補貨</div></div>
       <div class="admin-stat"><div class="admin-stat-num" id="adm-n-boxes" style="color:var(--green);">0</div><div class="admin-stat-lbl">箱子數量</div></div>
-      <div class="admin-stat"><div class="admin-stat-num" id="adm-n-logs" style="color:var(--amber);">0</div><div class="admin-stat-lbl">今日記錄</div></div>
+      <div class="admin-stat"><div class="admin-stat-num" id="adm-n-logs" style="color:var(--red);">0</div><div class="admin-stat-lbl">待處理報修</div></div>
     </div>
     <div id="adm-restock-hdr" class="restock-header" onclick="toggleRestock()" style="margin-top:12px;">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -378,7 +456,7 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
   <div class="bottom-nav">
     <button class="nav-btn active" id="nav-take" onclick="navTo('take',this)"><i class="ti ti-package"></i>領取</button>
     <button class="nav-btn" id="nav-log" onclick="navTo('log',this)"><i class="ti ti-list-details"></i>記錄</button>
-
+    <button class="nav-btn" id="nav-repair" onclick="navTo('repair',this)"><i class="ti ti-tool"></i>報修</button>
     <button class="nav-btn" id="nav-serial" onclick="navTo('serial',this)" style="display:none;"><i class="ti ti-qrcode"></i>序號</button>
     <button class="nav-btn" id="nav-admin" onclick="navTo('admin',this)" style="display:none;"><i class="ti ti-settings"></i>後台</button>
   </div>
@@ -529,45 +607,425 @@ var BOXES = [
     {name:"塵蟎機吸頭", sub:"副D0", minQty:0},
     {name:"塵蟎機管", sub:"副D0", minQty:0}
   ]},
-  {id:"D",  name:"D 冷氣箱",      icon:"ti-wind",               parts:[]},
-  {id:"E1", name:"藥水箱",         icon:"ti-bottle",             parts:[]},
-  {id:"E",  name:"E 灰色冷氣包",   icon:"ti-briefcase",          parts:[]},
-  {id:"F",  name:"F 藍色工具包",   icon:"ti-tool",               parts:[]},
-  {id:"G",  name:"G 洗衣箱",       icon:"ti-shirt",              parts:[]},
-  {id:"H",  name:"H 置物箱",       icon:"ti-box",                parts:[]},
-  {id:"I",  name:"I 工具箱",       icon:"ti-tools",              parts:[]},
-  {id:"J",  name:"J 左車備用箱",   icon:"ti-car",                parts:[]},
-  {id:"K",  name:"K 水管箱",       icon:"ti-line",               parts:[]},
-  {id:"L",  name:"L 床墊箱",       icon:"ti-bed",                parts:[]},
-  {id:"M",  name:"M 冷卻水管箱",   icon:"ti-ripple",             parts:[]},
-  {id:"N",  name:"N 侷限空間箱",   icon:"ti-lock",               parts:[]},
-  {id:"P",  name:"P 倉庫工具箱",   icon:"ti-building-warehouse", parts:[]},
-  {id:"Q",  name:"Q 洗車耗材箱",   icon:"ti-car-garage",         parts:[]},
-  {id:"Z1", name:"常用工具箱",      icon:"ti-hammer",             parts:[]},
+  {id:"D", name:"D 塵蟎機", icon:"ti-wind", parts:[
+    {name:"床墊塵蟎機",  sub:"主D0", minQty:1},
+    {name:"塵蟎機吸頭",  sub:"主D0", minQty:1},
+    {name:"塵蟎機管",    sub:"主D0", minQty:1}
+  ]},
+  {id:"E1", name:"藥水箱", icon:"ti-bottle", parts:[
+    {name:"冷氣藥水1號",  sub:"主E", minQty:4},
+    {name:"床墊藥水3號",  sub:"主E", minQty:2},
+    {name:"床墊藥水4號",  sub:"主E", minQty:2},
+    {name:"床墊藥水5號",  sub:"主E", minQty:2},
+    {name:"青苔藥水7號",  sub:"主E", minQty:2}
+  ]},
+  {id:"F", name:"F 冷氣箱", icon:"ti-wind", parts:[
+    {name:"冷氣藥水1號",    sub:"副E",  minQty:1},
+    {name:"冷氣噴頭",       sub:"F2",   minQty:2},
+    {name:"冷氣高壓黃管5m", sub:"F1",   minQty:2},
+    {name:"冷氣高壓黑管10m",sub:"F1",   minQty:2},
+    {name:"冷氣高壓藍管15m",sub:"主F1", minQty:4},
+    {name:"冷氣噴瓶長嘴",   sub:"主F2", minQty:4},
+    {name:"冷氣噴瓶組",     sub:"副A",  minQty:0}
+  ]},
+  {id:"G", name:"G 灰色冷氣包", icon:"ti-briefcase", parts:[
+    {name:"灰色冷氣包",    sub:"G1",   minQty:1},
+    {name:"洗衣袋33x38",  sub:"副N1", minQty:0},
+    {name:"衝擊起子電池",  sub:"G2",   minQty:1},
+    {name:"衝擊起子充電器",sub:"G2",   minQty:1},
+    {name:"螺絲盒",        sub:"副H2", minQty:0},
+    {name:"短螺絲1mm*50",  sub:"主G2", minQty:2},
+    {name:"長螺絲2mm",     sub:"G2",   minQty:2},
+    {name:"自攻螺絲1.3mm", sub:"G2",   minQty:2},
+    {name:"頭燈",          sub:"G2",   minQty:2},
+    {name:"手電筒電池",    sub:"G2",   minQty:3},
+    {name:"手電筒充電器",  sub:"G2",   minQty:3},
+    {name:"絕緣白膠帶",    sub:"主G2", minQty:4},
+    {name:"RBU手套*20",   sub:"G2",   minQty:4},
+    {name:"斷電器組",      sub:"G2",   minQty:3},
+    {name:"現金拉鍊袋",    sub:"主G2", minQty:2},
+    {name:"收據拉鍊袋",    sub:"副G2", minQty:0},
+    {name:"筆",            sub:"G2",   minQty:2},
+    {name:"收據",          sub:"G2",   minQty:4},
+    {name:"包名片",        sub:"G2",   minQty:4},
+    {name:"名片空盒",      sub:"G2",   minQty:1},
+    {name:"靜電貼*100",    sub:"主G2", minQty:4},
+    {name:"二氧化氯*20",   sub:"主G2", minQty:4},
+    {name:"束帶*100",      sub:"G2",   minQty:4},
+    {name:"活動束帶*10",   sub:"G2",   minQty:4},
+    {name:"兩斤塑膠袋",    sub:"主G3", minQty:4},
+    {name:"大毛巾",        sub:"G5",   minQty:4},
+    {name:"中毛巾",        sub:"G5",   minQty:6},
+    {name:"小毛巾",        sub:"G5",   minQty:6}
+  ]},
+  {id:"H", name:"H 藍色工具包", icon:"ti-tool", parts:[
+    {name:"藍色工具包",    sub:"H1",   minQty:2},
+    {name:"工具腰包",      sub:"H1",   minQty:1},
+    {name:"工具腰帶",      sub:"H1",   minQty:1},
+    {name:"工具腰帶快扣",  sub:"H1",   minQty:2},
+    {name:"工具起子袋",    sub:"H1",   minQty:1},
+    {name:"衝擊起子機",    sub:"H1",   minQty:2},
+    {name:"十字螺絲起子",  sub:"H2",   minQty:2},
+    {name:"一字螺絲起子",  sub:"H2",   minQty:2},
+    {name:"手電筒",        sub:"H2",   minQty:2},
+    {name:"WD-40",         sub:"H2",   minQty:2},
+    {name:"測溫槍",        sub:"H2",   minQty:2},
+    {name:"測溫槍電池",    sub:"H2",   minQty:4},
+    {name:"剪刀",          sub:"主H2", minQty:2},
+    {name:"小螺絲起子",    sub:"H2",   minQty:2},
+    {name:"美工刀",        sub:"主H2", minQty:2},
+    {name:"尖錐子",        sub:"H2",   minQty:2},
+    {name:"尖嘴鉗",        sub:"H2",   minQty:2},
+    {name:"短起子頭5cm",   sub:"H2",   minQty:2},
+    {name:"短螺絲起子",    sub:"H2",   minQty:2},
+    {name:"衝磁器",        sub:"H2",   minQty:1},
+    {name:"長起子頭10cm",  sub:"H2",   minQty:2},
+    {name:"螺絲盒",        sub:"主H2", minQty:1}
+  ]},
+  {id:"I", name:"I 藥粉箱", icon:"ti-bottle", parts:[
+    {name:"檸檬酸2號",     sub:"I",   minQty:12},
+    {name:"水垢藥粉6號",   sub:"主I", minQty:6},
+    {name:"地下水藥粉8號", sub:"主I", minQty:4}
+  ]},
+  {id:"J", name:"J 水管箱", icon:"ti-line", parts:[
+    {name:"水管空壓機",              sub:"J0",   minQty:2},
+    {name:"水管空壓機透明管組3m",    sub:"J1",   minQty:2},
+    {name:"水管抽液機組",            sub:"J0",   minQty:1},
+    {name:"水管抽液機吸檸檬酸組3m",  sub:"J1",   minQty:2},
+    {name:"水管抽液機入檸檬酸組3m",  sub:"J1",   minQty:2},
+    {name:"水管週波機",              sub:"J0",   minQty:1},
+    {name:"水管週波機透明管組3m",    sub:"J1",   minQty:2},
+    {name:"水管Y字接頭組",           sub:"J1",   minQty:1},
+    {name:"水管高壓軟管0.45m",       sub:"J2",   minQty:8},
+    {name:"止水帶",                  sub:"主J3", minQty:8},
+    {name:"4分墊片*30",              sub:"J3",   minQty:2},
+    {name:"6分墊片*20",              sub:"J3",   minQty:2},
+    {name:"水管螺母六母轉四公母",    sub:"J3",   minQty:2},
+    {name:"水管螺母六公轉四公母",    sub:"J3",   minQty:2},
+    {name:"三角反爾",                sub:"J3",   minQty:8}
+  ]},
+  {id:"K", name:"K 左車備用箱", icon:"ti-car", parts:[
+    {name:"套筒30mm",     sub:"K1", minQty:1},
+    {name:"套筒44mm",     sub:"K1", minQty:1},
+    {name:"套筒46mm",     sub:"K1", minQty:1},
+    {name:"速利康槍",     sub:"K1", minQty:1},
+    {name:"高空排水器",   sub:"K1", minQty:2},
+    {name:"球閥4分1號",   sub:"K2", minQty:8},
+    {name:"球閥6分2號",   sub:"K2", minQty:8},
+    {name:"球閥1寸3號",   sub:"K2", minQty:8},
+    {name:"汽車故障三腳", sub:"K1", minQty:1},
+    {name:"水龍頭",       sub:"K3", minQty:4},
+    {name:"退牙器",       sub:"K3", minQty:4},
+    {name:"水管膠",       sub:"K3", minQty:4},
+    {name:"水管膠刷",     sub:"K3", minQty:4},
+    {name:"拆解特規濾嘴", sub:"K2", minQty:1}
+  ]},
+  {id:"L", name:"L 床墊水洗箱", icon:"ti-bed", parts:[
+    {name:"床墊水洗機",     sub:"L0", minQty:1},
+    {name:"床墊水洗機吸頭", sub:"L0", minQty:1},
+    {name:"床墊水洗機管",   sub:"L0", minQty:1},
+    {name:"床墊刷子",       sub:"L1", minQty:2},
+    {name:"床墊噴瓶",       sub:"L1", minQty:1}
+  ]},
+  {id:"M",  name:"M 冷卻水管箱",   icon:"ti-ripple",             parts:[
+    {name:"鹽酸水龜",       sub:"M0", minQty:1},
+    {name:"鹽酸水龜鎖環2號", sub:"M0", minQty:3},
+    {name:"黑水管2m1\"",    sub:"M0", minQty:2},
+    {name:"消泡劑",          sub:"M0", minQty:1},
+    {name:"鹽酸藥水2號",    sub:"M0", minQty:2},
+    {name:"冷卻水塔氯錠",   sub:"M0", minQty:1}
+  ]},
+  {id:"NS", name:"NS 侷限空間箱", icon:"ti-lock", parts:[
+    {name:"安全帽",        sub:"NS0", minQty:2},
+    {name:"排風扇",        sub:"NS0", minQty:1},
+    {name:"排風管",        sub:"NS0", minQty:1},
+    {name:"氧氣瓶",        sub:"NS0", minQty:1},
+    {name:"反光背心",      sub:"NS0", minQty:0},
+    {name:"背負式安全帶",  sub:"NS0", minQty:2},
+    {name:"小金剛",        sub:"NS0", minQty:1},
+    {name:"三腳架",        sub:"NS0", minQty:1},
+    {name:"防墜器",        sub:"NS0", minQty:1},
+    {name:"照明燈",        sub:"NS0", minQty:1},
+    {name:"照明燈充電線",  sub:"NS0", minQty:0},
+    {name:"生命探測儀",    sub:"NS0", minQty:1},
+    {name:"四用氣體偵測儀",sub:"NS0", minQty:1}
+  ]},
+  {id:"N", name:"N 洗衣箱", icon:"ti-shirt", parts:[
+    {name:"洗衣機水槍組",      sub:"N2",   minQty:1},
+    {name:"洗衣機高壓管",      sub:"N2",   minQty:1},
+    {name:"洗衣機拔輪器4\"",   sub:"N2",   minQty:1},
+    {name:"洗衣機套筒38mm",    sub:"N2",   minQty:1},
+    {name:"洗衣機套筒41mm",    sub:"N2",   minQty:1},
+    {name:"洗衣機套筒轉接頭",  sub:"N2",   minQty:1},
+    {name:"洗衣機套筒17/19mm", sub:"N2",   minQty:1},
+    {name:"洗衣機延長桿75mm",  sub:"N2",   minQty:1},
+    {name:"洗衣機撞錘組",      sub:"N1",   minQty:1},
+    {name:"白色水桶",          sub:"N0",   minQty:3},
+    {name:"消毒噴瓶短嘴",      sub:"副D2", minQty:2},
+    {name:"小板凳",            sub:"N0",   minQty:1},
+    {name:"黑水管組2m4\"",     sub:"N1",   minQty:1},
+    {name:"止滑墊",            sub:"N1",   minQty:1},
+    {name:"洗衣袋33*38",       sub:"主N1", minQty:1},
+    {name:"菜瓜布",            sub:"N2",   minQty:2},
+    {name:"冷氣噴桿組",        sub:"N2",   minQty:2},
+    {name:"冷氣清洗機轉接組",  sub:"N2",   minQty:1},
+    {name:"水管鎖環1號4\"",    sub:"N2",   minQty:2},
+    {name:"蓮蓬頭快接公頭",    sub:"N2",   minQty:2},
+    {name:"蓮蓬頭快接母頭",    sub:"N2",   minQty:2},
+    {name:"水龍頭快接",        sub:"N2",   minQty:2},
+    {name:"珠鍊4.5mm20cm",     sub:"N2",   minQty:2}
+  ]},
+  {id:"O", name:"O 工具箱", icon:"ti-tools", parts:[
+    {name:"工具箱",        sub:"O0", minQty:1},
+    {name:"長起子頭30cm",  sub:"O1", minQty:1},
+    {name:"起子機加長桿",  sub:"O1", minQty:1},
+    {name:"六角2.5\"長桿", sub:"O1", minQty:1},
+    {name:"六角3\"長桿",   sub:"O1", minQty:1},
+    {name:"六角4\"長桿",   sub:"O1", minQty:1},
+    {name:"六角5\"長桿",   sub:"O1", minQty:1},
+    {name:"套筒組",        sub:"O1", minQty:1},
+    {name:"鋸子",          sub:"O1", minQty:1},
+    {name:"水管剪",        sub:"O1", minQty:1},
+    {name:"橡膠槌",        sub:"O1", minQty:1},
+    {name:"老虎鉗",        sub:"O1", minQty:1},
+    {name:"板手8\"",       sub:"O1", minQty:1},
+    {name:"水管鉗10\"",    sub:"O1", minQty:1},
+    {name:"寬版一字起子",  sub:"O1", minQty:1},
+    {name:"包邊鉗",        sub:"O1", minQty:1}
+  ]},
+  {id:"P",  name:"P 倉庫工具箱",   icon:"ti-building-warehouse", parts:[
+    {name:"四方吹清洗槽",   sub:"P0", minQty:1},
+    {name:"10呎梯",         sub:"P0", minQty:1},
+    {name:"12呎梯",         sub:"P0", minQty:1},
+    {name:"二氧化碳鋼瓶",   sub:"P0", minQty:1},
+    {name:"球閥1.5吋4號",   sub:"P0", minQty:1}
+  ]},
+  {id:"Q",  name:"Q 洗車耗材箱",   icon:"ti-car-garage",         parts:[
+    {name:"洗車海綿",         sub:"Q0", minQty:1},
+    {name:"洗車清潔劑",       sub:"Q0", minQty:1},
+    {name:"防撥水",           sub:"Q0", minQty:1},
+    {name:"去油墨",           sub:"Q0", minQty:1},
+    {name:"雨刷條45cm",       sub:"Q0", minQty:5},
+    {name:"雨刷條40cm",       sub:"Q0", minQty:5},
+    {name:"車杯架",           sub:"Q0", minQty:1},
+    {name:"安全帶扣",         sub:"Q0", minQty:1},
+    {name:"電瓶梅花板手10號", sub:"Q0", minQty:1},
+    {name:"電瓶救車線",       sub:"Q0", minQty:1},
+    {name:"電池斷電器",       sub:"Q0", minQty:1},
+    {name:"雨刷45cm",         sub:"Q0", minQty:1},
+    {name:"雨刷40cm",         sub:"Q0", minQty:1}
+  ]},
+  {id:"Z1", name:"常用工具箱",      icon:"ti-hammer",             parts:[
+    {name:"清洗機黑油",       sub:"A",   minQty:1},
+    {name:"清洗機黑油紙杯",   sub:"A",   minQty:1},
+    {name:"捲尺",             sub:"A",   minQty:1},
+    {name:"小板手",           sub:"A",   minQty:1},
+    {name:"一字起子",         sub:"E",   minQty:1},
+    {name:"十字起子",         sub:"E",   minQty:1},
+    {name:"斜口鉗",           sub:"E",   minQty:1},
+    {name:"物流箱名稱墊板",   sub:"E",   minQty:1},
+    {name:"4斤塑膠袋",        sub:"G",   minQty:1},
+    {name:"小夾鏈袋6*10",     sub:"G",   minQty:1},
+    {name:"大夾鏈袋15*22",    sub:"H",   minQty:1},
+    {name:"止水帶",           sub:"H",   minQty:1},
+    {name:"絕緣白膠帶",       sub:"I",   minQty:1},
+    {name:"束帶*100",         sub:"18",  minQty:1},
+    {name:"活動束帶*10",      sub:"主K1", minQty:1},
+    {name:"標籤束帶",         sub:"主K1", minQty:1},
+    {name:"標籤貼紙",         sub:"主K1", minQty:1},
+    {name:"水管機器貼紙",     sub:"主K1", minQty:1},
+    {name:"清洗機黑油(K)",    sub:"主K1", minQty:1},
+    {name:"清洗機黑油紙杯(K)",sub:"主K1", minQty:1},
+    {name:"水管快拆頭",       sub:"H1",  minQty:1}
+  ]},
+  {id:"RS", name:"維修備品箱",      icon:"ti-tool",               parts:[
+    {name:"水管抽液機智能款4\"72w", sub:"", minQty:1},
+    {name:"水管抽液機快接頭PCF8-04",sub:"", minQty:1},
+    {name:"水管抽液機變壓器",       sub:"", minQty:0},
+    {name:"夾鏈袋",                 sub:"", minQty:300},
+    {name:"束帶",                   sub:"", minQty:300},
+    {name:"活動束帶",               sub:"", minQty:10},
+    {name:"標籤束帶",               sub:"", minQty:50},
+    {name:"工作手套",               sub:"", minQty:3},
+    {name:"隔音膠條",               sub:"", minQty:4},
+    {name:"物流箱字卡",             sub:"", minQty:20},
+    {name:"美工刀更換刀片",         sub:"", minQty:4},
+    {name:"洗衣機火焰扳手備用零件", sub:"", minQty:4}
+  ]},
   {id:"Z2", name:"其他",            icon:"ti-dots",               parts:[]}
 ];
 
 var stocks = { "台南":{}, "屏東":{} };
 var initData = {
   "台南":{
+    // A 清洗工具箱
     "A-高壓清洗機":3,"A-清洗機轉接頭6分":3,"A-六呎鋁梯":1,"A-八呎鋁梯":3,
     "A-鋁梯彈力繩0.6m":3,"A-手推車":2,"A-手推車彈力繩1.5m":2,"A-綠水塔刷":2,
-    "A-白水塔刷頭":4,"A-白水塔伸縮桿3m":6,"A-冷氣清洗槽":8,"A-冷氣清洗槽墊板":37,
-    "A-藍色室內工作鞋42":3,"A-黑色室外工作鞋42":4,"A-噴瓶組":0,"A-推水掃把":5,
+    "A-白水塔刷頭":4,"A-白水塔伸縮桿3m":6,"A-冷氣清洗槽":8,"A-冷氣清洗槽墊板":42,
+    "A-藍色室內工作鞋42":4,"A-黑色室外工作鞋42":4,"A-噴瓶組":1,"A-推水掃把":5,
+    // B 水塔箱
     "B-畚箕":0,"B-水龍帶2吋15m":12,"B-水龍帶1.5吋轉接頭":8,"B-水龜鎖環3號":39,
     "B-延長線15m":3,"B-水塔水龜":3,"B-水龜繩子5m":13,"B-水塔刮板":0,
     "B-黑雨鞋11.5":4,"B-繩梯3m":5,"B-水塔耐酸鹼管3m":2,"B-背負式安全帶":3,
-    "C-冷氣排水管4吋10m":6,"C-冷氣高壓藍管15m":0,"C-塵蟎機吸頭":0,"C-塵蟎機管":0
+    // C 右車備用箱
+    "C-冷氣排水管4吋10m":6,"C-冷氣高壓藍管15m":0,"C-塵蟎機吸頭":0,"C-塵蟎機管":0,
+    // D 塵蟎機
+    "D-床墊塵蟎機":2,"D-塵蟎機吸頭":2,"D-塵蟎機管":2,
+    // E1 藥水箱
+    "E1-冷氣藥水1號":12,"E1-床墊藥水3號":0,"E1-床墊藥水4號":0,"E1-床墊藥水5號":1,"E1-青苔藥水7號":1,
+    // F 冷氣箱
+    "F-冷氣藥水1號":0,"F-冷氣噴頭":6,"F-冷氣高壓黃管5m":4,"F-冷氣高壓黑管10m":4,
+    "F-冷氣高壓藍管15m":2,"F-冷氣噴瓶長嘴":21,"F-冷氣噴瓶組":0,
+    // G 灰色冷氣包
+    "G-灰色冷氣包":1,"G-洗衣袋33x38":0,"G-衝擊起子電池":2,"G-衝擊起子充電器":3,
+    "G-螺絲盒":0,"G-短螺絲1mm*50":8,"G-長螺絲2mm":2,"G-自攻螺絲1.3mm":2,
+    "G-頭燈":3,"G-手電筒電池":6,"G-手電筒充電器":16,"G-絕緣白膠帶":23,
+    "G-RBU手套*20":19,"G-斷電器組":2,"G-現金拉鍊袋":16,"G-收據拉鍊袋":0,
+    "G-筆":24,"G-收據":1,"G-包名片":21,"G-名片空盒":0,
+    "G-靜電貼*100":25,"G-二氧化氯*20":14,"G-束帶*100":5,"G-活動束帶*10":1,
+    "G-兩斤塑膠袋":44,"G-大毛巾":2,"G-中毛巾":14,"G-小毛巾":44,
+    // H 藍色工具包
+    "H-藍色工具包":2,"H-工具腰包":2,"H-工具腰帶":2,"H-工具腰帶快扣":6,
+    "H-工具起子袋":2,"H-衝擊起子機":1,"H-十字螺絲起子":2,"H-一字螺絲起子":4,
+    "H-手電筒":4,"H-WD-40":10,"H-測溫槍":3,"H-測溫槍電池":1,
+    "H-剪刀":6,"H-小螺絲起子":2,"H-美工刀":5,"H-尖錐子":3,
+    "H-尖嘴鉗":2,"H-短起子頭5cm":3,"H-短螺絲起子":1,"H-衝磁器":1,
+    "H-長起子頭10cm":14,"H-螺絲盒":3,
+    // I 藥粉箱
+    "I-檸檬酸2號":30,"I-水垢藥粉6號":6,"I-地下水藥粉8號":7,
+    // J 水管箱
+    "J-水管空壓機":2,"J-水管空壓機透明管組3m":2,"J-水管抽液機組":2,
+    "J-水管抽液機吸檸檬酸組3m":0,"J-水管抽液機入檸檬酸組3m":4,
+    "J-水管週波機":1,"J-水管週波機透明管組3m":0,"J-水管Y字接頭組":2,
+    "J-水管高壓軟管0.45m":13,"J-止水帶":28,
+    "J-4分墊片*30":15,"J-6分墊片*20":0,"J-水管螺母六母轉四公母":1,
+    "J-水管螺母六公轉四公母":2,"J-三角反爾":8,
+    // K 左車備用箱
+    "K-套筒30mm":4,"K-套筒44mm":3,"K-套筒46mm":1,"K-速利康槍":5,
+    "K-高空排水器":0,"K-球閥4分1號":34,"K-球閥6分2號":22,"K-球閥1寸3號":3,
+    "K-汽車故障三腳":7,"K-水龍頭":4,"K-退牙器":4,"K-水管膠":9,
+    "K-水管膠刷":9,"K-拆解特規濾嘴":0,
+    // L 床墊水洗箱
+    "L-床墊水洗機":0,"L-床墊水洗機吸頭":0,"L-床墊水洗機管":0,"L-床墊刷子":7,"L-床墊噴瓶":0,
+    // M 冷卻水管箱
+    "M-鹽酸水龜":1,"M-鹽酸水龜鎖環2號":5,"M-黑水管2m1\"":0,"M-消泡劑":0,"M-鹽酸藥水2號":0,"M-冷卻水塔氯錠":0,
+    // N 洗衣箱
+    "N-洗衣機水槍組":3,"N-洗衣機高壓管":3,"N-洗衣機拔輪器4\"":4,
+    "N-洗衣機套筒38mm":4,"N-洗衣機套筒41mm":3,"N-洗衣機套筒轉接頭":1,
+    "N-洗衣機套筒17/19mm":13,"N-洗衣機延長桿75mm":2,"N-洗衣機撞錘組":6,
+    "N-白色水桶":7,"N-消毒噴瓶短嘴":5,"N-小板凳":0,"N-黑水管組2m4\"":0,
+    "N-止滑墊":4,"N-洗衣袋33*38":3,"N-菜瓜布":28,"N-冷氣噴桿組":8,
+    "N-冷氣清洗機轉接組":1,"N-水管鎖環1號4\"":9,"N-蓮蓬頭快接公頭":1,
+    "N-蓮蓬頭快接母頭":13,"N-水龍頭快接":13,"N-珠鍊4.5mm20cm":2,
+    // NS 侷限空間箱
+    "NS-安全帽":2,"NS-排風扇":1,"NS-排風管":1,"NS-氧氣瓶":1,"NS-反光背心":0,"NS-背負式安全帶":2,
+    "NS-小金剛":1,"NS-三腳架":1,"NS-防墜器":1,"NS-照明燈":1,"NS-照明燈充電線":0,"NS-生命探測儀":1,"NS-四用氣體偵測儀":1,
+    // O 工具箱
+    "O-工具箱":3,"O-長起子頭30cm":4,"O-起子機加長桿":4,"O-六角2.5\"長桿":3,
+    "O-六角3\"長桿":2,"O-六角4\"長桿":3,"O-六角5\"長桿":4,"O-套筒組":3,
+    "O-鋸子":2,"O-水管剪":7,"O-橡膠槌":8,"O-老虎鉗":7,
+    "O-板手8\"":5,"O-水管鉗10\"":4,"O-寬版一字起子":0,"O-包邊鉗":2,
+    // P 倉庫工具箱
+    "P-四方吹清洗槽":1,"P-10呎梯":0,"P-12呎梯":0,"P-二氧化碳鋼瓶":1,"P-球閥1.5吋4號":0,
+    // Q 洗車耗材箱
+    "Q-洗車海綿":0,"Q-洗車清潔劑":1,"Q-防撥水":2,"Q-去油墨":0,"Q-雨刷條45cm":5,"Q-雨刷條40cm":9,
+    "Q-車杯架":4,"Q-安全帶扣":3,"Q-電瓶梅花板手10號":1,"Q-電瓶救車線":1,"Q-電池斷電器":1,
+    "Q-雨刷45cm":1,"Q-雨刷40cm":1,
+    // Z1 常用工具箱
+    "Z1-清洗機黑油":2,"Z1-清洗機黑油紙杯":1,"Z1-捲尺":1,"Z1-小板手":2,
+    "Z1-一字起子":0,"Z1-十字起子":2,"Z1-斜口鉗":0,"Z1-物流箱名稱墊板":0,
+    "Z1-4斤塑膠袋":0,"Z1-小夾鏈袋6*10":0,"Z1-大夾鏈袋15*22":0,"Z1-止水帶":4,
+    "Z1-絕緣白膠帶":2,"Z1-束帶*100":10,"Z1-活動束帶*10":4,"Z1-標籤束帶":4,"Z1-標籤貼紙":4,
+    "Z1-水管機器貼紙":0,"Z1-清洗機黑油(K)":4,"Z1-清洗機黑油紙杯(K)":2,"Z1-水管快拆頭":33,
+    // RS 維修備品箱
+    "RS-水管抽液機智能款4\"72w":1,"RS-水管抽液機快接頭PCF8-04":20,"RS-水管抽液機變壓器":0,
+    "RS-夾鏈袋":300,"RS-束帶":300,"RS-活動束帶":10,"RS-標籤束帶":50,
+    "RS-工作手套":3,"RS-隔音膠條":4,"RS-物流箱字卡":20,"RS-美工刀更換刀片":4,"RS-洗衣機火焰扳手備用零件":4
   },
   "屏東":{
+    // A 清洗工具箱
     "A-高壓清洗機":1,"A-清洗機轉接頭6分":1,"A-六呎鋁梯":0,"A-八呎鋁梯":0,
-    "A-鋁梯彈力繩0.6m":1,"A-手推車":0,"A-手推車彈力繩1.5m":1,"A-綠水塔刷":0,
-    "A-白水塔刷頭":2,"A-白水塔伸縮桿3m":1,"A-冷氣清洗槽":2,"A-冷氣清洗槽墊板":5,
-    "A-藍色室內工作鞋42":2,"A-黑色室外工作鞋42":0,"A-噴瓶組":2,"A-推水掃把":1,
-    "B-畚箕":1,"B-水龍帶2吋15m":1,"B-水龍帶1.5吋轉接頭":1,"B-水龜鎖環3號":2,
-    "B-延長線15m":1,"B-水塔水龜":1,"B-水龜繩子5m":1,"B-水塔刮板":1,
+    "A-鋁梯彈力繩0.6m":1,"A-手推車":0,"A-手推車彈力繩1.5m":2,"A-綠水塔刷":1,
+    "A-白水塔刷頭":2,"A-白水塔伸縮桿3m":2,"A-冷氣清洗槽":3,"A-冷氣清洗槽墊板":10,
+    "A-藍色室內工作鞋42":2,"A-黑色室外工作鞋42":1,"A-噴瓶組":4,"A-推水掃把":2,
+    // B 水塔箱
+    "B-畚箕":0,"B-水龍帶2吋15m":1,"B-水龍帶1.5吋轉接頭":1,"B-水龜鎖環3號":2,
+    "B-延長線15m":1,"B-水塔水龜":1,"B-水龜繩子5m":1,"B-水塔刮板":2,
     "B-黑雨鞋11.5":0,"B-繩梯3m":0,"B-水塔耐酸鹼管3m":2,"B-背負式安全帶":0,
-    "C-冷氣排水管4吋10m":2,"C-冷氣高壓藍管15m":0,"C-塵蟎機吸頭":0,"C-塵蟎機管":0
+    // C 右車備用箱
+    "C-冷氣排水管4吋10m":2,"C-冷氣高壓藍管15m":0,"C-塵蟎機吸頭":0,"C-塵蟎機管":0,
+    // D 塵蟎機
+    "D-床墊塵蟎機":0,"D-塵蟎機吸頭":0,"D-塵蟎機管":0,
+    // E1 藥水箱
+    "E1-冷氣藥水1號":2,"E1-床墊藥水3號":2,"E1-床墊藥水4號":2,"E1-床墊藥水5號":1,"E1-青苔藥水7號":1,
+    // F 冷氣箱
+    "F-冷氣藥水1號":1,"F-冷氣噴頭":5,"F-冷氣高壓黃管5m":0,"F-冷氣高壓黑管10m":1,
+    "F-冷氣高壓藍管15m":1,"F-冷氣噴瓶長嘴":1,"F-冷氣噴瓶組":0,
+    // G 灰色冷氣包
+    "G-灰色冷氣包":1,"G-洗衣袋33x38":0,"G-衝擊起子電池":0,"G-衝擊起子充電器":0,
+    "G-螺絲盒":0,"G-短螺絲1mm*50":1,"G-長螺絲2mm":0,"G-自攻螺絲1.3mm":0,
+    "G-頭燈":1,"G-手電筒電池":1,"G-手電筒充電器":2,"G-絕緣白膠帶":3,
+    "G-RBU手套*20":2,"G-斷電器組":1,"G-現金拉鍊袋":2,"G-收據拉鍊袋":0,
+    "G-筆":2,"G-收據":1,"G-包名片":3,"G-名片空盒":1,
+    "G-靜電貼*100":3,"G-二氧化氯*20":2,"G-束帶*100":2,"G-活動束帶*10":2,
+    "G-兩斤塑膠袋":7,"G-大毛巾":2,"G-中毛巾":3,"G-小毛巾":3,
+    // H 藍色工具包
+    "H-藍色工具包":1,"H-工具腰包":1,"H-工具腰帶":0,"H-工具腰帶快扣":2,
+    "H-工具起子袋":0,"H-衝擊起子機":2,"H-十字螺絲起子":1,"H-一字螺絲起子":1,
+    "H-手電筒":1,"H-WD-40":1,"H-測溫槍":1,"H-測溫槍電池":0,
+    "H-剪刀":0,"H-小螺絲起子":1,"H-美工刀":1,"H-尖錐子":2,
+    "H-尖嘴鉗":0,"H-短起子頭5cm":1,"H-短螺絲起子":0,"H-衝磁器":0,
+    "H-長起子頭10cm":0,"H-螺絲盒":0,
+    // I 藥粉箱
+    "I-檸檬酸2號":8,"I-水垢藥粉6號":5,"I-地下水藥粉8號":8,
+    // J 水管箱
+    "J-水管空壓機":0,"J-水管空壓機透明管組3m":0,"J-水管抽液機組":0,
+    "J-水管抽液機吸檸檬酸組3m":0,"J-水管抽液機入檸檬酸組3m":0,
+    "J-水管週波機":0,"J-水管週波機透明管組3m":0,"J-水管Y字接頭組":0,
+    "J-水管高壓軟管0.45m":0,"J-止水帶":23,
+    "J-4分墊片*30":3,"J-6分墊片*20":1,"J-水管螺母六母轉四公母":3,
+    "J-水管螺母六公轉四公母":3,"J-三角反爾":11,
+    // K 左車備用箱
+    "K-套筒30mm":1,"K-套筒44mm":0,"K-套筒46mm":1,"K-速利康槍":3,
+    "K-高空排水器":0,"K-球閥4分1號":17,"K-球閥6分2號":15,"K-球閥1寸3號":2,
+    "K-汽車故障三腳":1,"K-水龍頭":6,"K-退牙器":4,"K-水管膠":1,
+    "K-水管膠刷":0,"K-拆解特規濾嘴":0,
+    // L 床墊水洗箱
+    "L-床墊水洗機":0,"L-床墊水洗機吸頭":0,"L-床墊水洗機管":0,"L-床墊刷子":1,"L-床墊噴瓶":0,
+    // M 冷卻水管箱
+    "M-鹽酸水龜":1,"M-鹽酸水龜鎖環2號":0,"M-黑水管2m1\"":2,"M-消泡劑":1,"M-鹽酸藥水2號":0,"M-冷卻水塔氯錠":0,
+    // N 洗衣箱
+    "N-洗衣機水槍組":1,"N-洗衣機高壓管":1,"N-洗衣機拔輪器4\"":1,
+    "N-洗衣機套筒38mm":1,"N-洗衣機套筒41mm":1,"N-洗衣機套筒轉接頭":1,
+    "N-洗衣機套筒17/19mm":1,"N-洗衣機延長桿75mm":1,"N-洗衣機撞錘組":1,
+    "N-白色水桶":3,"N-消毒噴瓶短嘴":0,"N-小板凳":1,"N-黑水管組2m4\"":1,
+    "N-止滑墊":1,"N-洗衣袋33*38":1,"N-菜瓜布":2,"N-冷氣噴桿組":2,
+    "N-冷氣清洗機轉接組":0,"N-水管鎖環1號4\"":2,"N-蓮蓬頭快接公頭":2,
+    "N-蓮蓬頭快接母頭":2,"N-水龍頭快接":2,"N-珠鍊4.5mm20cm":4,
+    // NS 侷限空間箱
+    "NS-安全帽":2,"NS-排風扇":1,"NS-排風管":1,"NS-氧氣瓶":1,"NS-反光背心":0,"NS-背負式安全帶":0,
+    "NS-小金剛":1,"NS-三腳架":1,"NS-防墜器":1,"NS-照明燈":1,"NS-照明燈充電線":1,"NS-生命探測儀":1,"NS-四用氣體偵測儀":1,
+    // O 工具箱
+    "O-工具箱":1,"O-長起子頭30cm":2,"O-起子機加長桿":1,"O-六角2.5\"長桿":0,
+    "O-六角3\"長桿":1,"O-六角4\"長桿":1,"O-六角5\"長桿":2,"O-套筒組":0,
+    "O-鋸子":1,"O-水管剪":0,"O-橡膠槌":0,"O-老虎鉗":1,
+    "O-板手8\"":1,"O-水管鉗10\"":2,"O-寬版一字起子":0,"O-包邊鉗":0,
+    // P 倉庫工具箱
+    "P-四方吹清洗槽":1,"P-10呎梯":1,"P-12呎梯":1,"P-二氧化碳鋼瓶":1,"P-球閥1.5吋4號":2,
+    // Q 洗車耗材箱
+    "Q-洗車海綿":0,"Q-洗車清潔劑":0,"Q-防撥水":0,"Q-去油墨":0,"Q-雨刷條45cm":0,"Q-雨刷條40cm":0,
+    "Q-車杯架":0,"Q-安全帶扣":0,"Q-電瓶梅花板手10號":0,"Q-電瓶救車線":0,"Q-電池斷電器":0,
+    "Q-雨刷45cm":0,"Q-雨刷40cm":0,
+    // Z1 常用工具箱
+    "Z1-清洗機黑油":11,"Z1-清洗機黑油紙杯":22,"Z1-捲尺":2,"Z1-小板手":8,
+    "Z1-一字起子":5,"Z1-十字起子":2,"Z1-斜口鉗":5,"Z1-物流箱名稱墊板":0,
+    "Z1-4斤塑膠袋":0,"Z1-小夾鏈袋6*10":0,"Z1-大夾鏈袋15*22":10,"Z1-止水帶":4,
+    "Z1-絕緣白膠帶":2,"Z1-束帶*100":2,"Z1-活動束帶*10":3,"Z1-標籤束帶":5,"Z1-標籤貼紙":4,
+    "Z1-水管機器貼紙":0,"Z1-清洗機黑油(K)":1,"Z1-清洗機黑油紙杯(K)":4,"Z1-水管快拆頭":0,
+    // RS 維修備品箱
+    "RS-水管抽液機智能款4\"72w":0,"RS-水管抽液機快接頭PCF8-04":0,"RS-水管抽液機變壓器":0,
+    "RS-夾鏈袋":0,"RS-束帶":0,"RS-活動束帶":0,"RS-標籤束帶":0,
+    "RS-工作手套":0,"RS-隔音膠條":0,"RS-物流箱字卡":0,"RS-美工刀更換刀片":0,"RS-洗衣機火焰扳手備用零件":0
   }
 };
 Object.keys(initData).forEach(function(loc){
@@ -776,6 +1234,7 @@ function setupHeaderInfo(){
 
 function enterMainApp(){
   loadLogsFromStorage();
+  loadRepairsFromStorage();
   setupHeaderInfo();
   // 只有「全部」的 admin 才顯示地點切換
   if(curUser.role==="admin" && curUser.location==="全部"){
@@ -849,6 +1308,7 @@ function navTo(pg,el){
   if(pg==="log")renderLogs();
   if(pg==="serial")renderSerial();
   if(pg==="admin")renderAdmin();
+  if(pg==="repair"){ renderRepairList(); }
 }
 function showMain(pg){pshow("s-main");navTo(pg,document.getElementById("nav-"+pg));}
 
@@ -1245,7 +1705,7 @@ function renderAdmin(){
   document.getElementById("adm-n-total").textContent=allP.length;
   document.getElementById("adm-n-low").textContent=lowAll;
   document.getElementById("adm-n-boxes").textContent=BOXES.length;
-  document.getElementById("adm-n-logs").textContent=logs.length;
+  document.getElementById("adm-n-logs").textContent=repairRecords.filter(function(r){return r.status!=="已完成";}).length;
 
   // 更新補貨 badges
   var badgesEl=document.getElementById("restock-badges");
@@ -1330,6 +1790,161 @@ function toggleRestock(){
     arrow.textContent="▲收合";
   }
 }
+// ─────────────────────────────────────────────
+// 報修管理
+// ─────────────────────────────────────────────
+var repairRecords = [];
+var repairFilter = "all";
+
+function loadRepairsFromStorage(){
+  try{
+    var saved = localStorage.getItem("repair_records");
+    if(!saved) return;
+    repairRecords = JSON.parse(saved);
+  }catch(e){ repairRecords = []; }
+}
+
+function saveRepairsToStorage(){
+  try{
+    localStorage.setItem("repair_records", JSON.stringify(repairRecords));
+  }catch(e){}
+}
+
+function switchRepairTab(tab, el){
+  document.querySelectorAll(".repair-tab").forEach(function(b){ b.classList.remove("active"); });
+  el.classList.add("active");
+  document.getElementById("repair-panel-form").style.display = tab === "form" ? "block" : "none";
+  document.getElementById("repair-panel-list").style.display = tab === "list" ? "block" : "none";
+  if(tab === "list") renderRepairList();
+}
+
+function submitRepair(){
+  var loc = document.getElementById("repair-loc").value;
+  var device = document.getElementById("repair-device").value.trim();
+  var desc = document.getElementById("repair-desc").value.trim();
+  var urgency = document.getElementById("repair-urgency").value;
+  if(!device){ alert("請填寫設備名稱"); return; }
+  if(!desc){ alert("請描述損壞狀況"); return; }
+  var t = nowStr();
+  var record = {
+    id: Date.now(),
+    loc: loc,
+    device: device,
+    desc: desc,
+    urgency: urgency,
+    status: "待處理",
+    reporter: curUser ? curUser.name : "未知",
+    reporterEmail: curUser ? curUser.email : "",
+    time: t,
+    timestamp: Date.now(),
+    resolvedBy: "",
+    resolvedNote: "",
+    resolvedTime: ""
+  };
+  repairRecords.unshift(record);
+  saveRepairsToStorage();
+  // 送至 Sheets
+  sendToSheets({type:"報修",box:loc,part:device,qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"【"+urgency+"】"+desc,time:t,loc:loc,serial:""});
+  // 清空表單
+  document.getElementById("repair-device").value = "";
+  document.getElementById("repair-desc").value = "";
+  document.getElementById("repair-urgency").value = "一般";
+  // 切到清單看結果
+  switchRepairTab("list", document.getElementById("repair-tab-list"));
+  alert("✅ 報修已送出！");
+}
+
+function filterRepair(f, el){
+  repairFilter = f;
+  document.querySelectorAll("#repair-panel-list .filter-chip").forEach(function(b){ b.classList.remove("on"); });
+  el.classList.add("on");
+  renderRepairList();
+}
+
+function renderRepairList(){
+  var container = document.getElementById("repair-list-container");
+  container.innerHTML = "";
+  var list = repairFilter === "all" ? repairRecords : repairRecords.filter(function(r){ return r.status === repairFilter; });
+  if(!list.length){
+    var em = document.createElement("div");
+    em.className = "empty-msg";
+    em.textContent = "目前無報修記錄";
+    container.appendChild(em);
+    return;
+  }
+  list.forEach(function(r){
+    var item = document.createElement("div");
+    item.className = "repair-list-item";
+    var urgencyColors = { "一般":"#185FA5", "緊急":"#854F0B", "嚴重":"#A32D2D" };
+    var statusClass = r.status === "待處理" ? "repair-status-open" : r.status === "處理中" ? "repair-status-inprog" : "repair-status-done";
+    var hd = document.createElement("div"); hd.className = "repair-list-hd";
+    var title = document.createElement("div"); title.className = "repair-list-title";
+    title.innerHTML = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+urgencyColors[r.urgency]+';;margin-right:5px;"></span>'+r.device;
+    var statusEl = document.createElement("span");
+    statusEl.className = "repair-status "+statusClass;
+    statusEl.textContent = r.status;
+    hd.appendChild(title); hd.appendChild(statusEl);
+    var meta = document.createElement("div"); meta.className = "repair-list-meta";
+    meta.textContent = r.loc+" ｜ "+r.urgency+" ｜ "+r.reporter+" ｜ "+r.time;
+    var desc = document.createElement("div"); desc.className = "repair-list-desc";
+    desc.textContent = r.desc;
+    item.appendChild(hd); item.appendChild(meta); item.appendChild(desc);
+    // 已完成顯示處理結果
+    if(r.status === "已完成" && r.resolvedNote){
+      var res = document.createElement("div");
+      res.style.cssText = "margin-top:7px;padding:7px 10px;background:var(--green-light);border-radius:9px;font-size:11px;color:var(--green);";
+      res.textContent = "✅ "+r.resolvedNote+" （"+r.resolvedBy+" "+r.resolvedTime+"）";
+      item.appendChild(res);
+    }
+    // 管理者可以修改狀態
+    if(curUser && curUser.role === "admin" && r.status !== "已完成"){
+      var btns = document.createElement("div"); btns.className = "repair-adm-btns";
+      if(r.status === "待處理"){
+        var b1 = document.createElement("button");
+        b1.className = "repair-adm-btn";
+        b1.style.cssText = "background:var(--amber-light);color:var(--amber);";
+        b1.textContent = "標記處理中";
+        b1.onclick = (function(rid){ return function(){ updateRepairStatus(rid,"處理中",""); }; })(r.id);
+        btns.appendChild(b1);
+      }
+      var b2 = document.createElement("button");
+      b2.className = "repair-adm-btn";
+      b2.style.cssText = "background:var(--green-light);color:var(--green);";
+      b2.textContent = "標記已完成";
+      b2.onclick = (function(rid){ return function(){ markRepairDone(rid); }; })(r.id);
+      btns.appendChild(b2);
+      var b3 = document.createElement("button");
+      b3.className = "repair-adm-btn";
+      b3.style.cssText = "background:var(--red-light);color:var(--red);";
+      b3.textContent = "刪除";
+      b3.onclick = (function(rid){ return function(){
+        if(confirm("確定刪除此報修單？")) { repairRecords = repairRecords.filter(function(x){ return x.id !== rid; }); saveRepairsToStorage(); renderRepairList(); }
+      }; })(r.id);
+      btns.appendChild(b3);
+      item.appendChild(btns);
+    }
+    container.appendChild(item);
+  });
+}
+
+function updateRepairStatus(id, status, note){
+  var r = repairRecords.find(function(x){ return x.id === id; });
+  if(!r) return;
+  r.status = status;
+  if(note){ r.resolvedNote = note; r.resolvedBy = curUser?curUser.name:""; r.resolvedTime = nowStr(); }
+  saveRepairsToStorage();
+  sendToSheets({type:"報修更新",box:r.loc,part:r.device,qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"狀態更新→"+status+(note?"："+note:""),time:nowStr(),loc:r.loc,serial:""});
+  renderRepairList();
+}
+
+function markRepairDone(id){
+  var note = prompt("請輸入處理結果說明（選填）：", "");
+  if(note === null) return; // 取消
+  updateRepairStatus(id, "已完成", note || "已處理完成");
+}
+
+// ─────────────────────────────────────────────
+
 // 註冊 Service Worker（PWA）
 if("serviceWorker" in navigator){
   window.addEventListener("load",function(){
