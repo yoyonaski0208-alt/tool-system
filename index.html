@@ -7,6 +7,8 @@
 <meta name="apple-mobile-web-app-title" content="森清淨工具">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
+<!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
+<meta name="app-version" content="20260624-01">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -238,7 +240,12 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
 
 .spin{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:sp .8s linear infinite;}
 @keyframes sp{to{transform:rotate(360deg);}}
-/* 補貨收合 */
+/* 自動更新 Banner */
+.update-banner{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#185FA5;color:#fff;padding:12px 16px;z-index:9999;display:none;align-items:center;gap:10px;box-shadow:0 2px 12px rgba(0,0,0,.25);}
+.update-banner.show{display:flex;}
+.update-banner-text{flex:1;font-size:13px;font-weight:600;line-height:1.4;}
+.update-banner-btn{background:#fff;color:#185FA5;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;}
+.update-banner-btn:active{opacity:.85;}
 .restock-header{display:flex;align-items:center;justify-content:space-between;margin:12px 0 0;cursor:pointer;user-select:none;}
 .restock-title{font-size:12px;font-weight:600;color:var(--sub);}
 .restock-badges{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
@@ -334,6 +341,12 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
 </style>
 </head>
 <body>
+
+<!-- 自動更新提示 Banner -->
+<div class="update-banner" id="update-banner">
+  <div class="update-banner-text">🔄 系統已更新，點此取得最新版本</div>
+  <button class="update-banner-btn" onclick="doAppUpdate()">立即更新</button>
+</div>
 
 <!-- 載入中 -->
 <div id="s-loading" class="screen active">
@@ -1417,8 +1430,10 @@ function enterMainApp(){
   pshow("s-main");
   // 顯示早安語
   showGreeting();
-  // 背景同步器具狀態（非阻塞，完成後自動更新頁面）
+  // 背景同步器具狀態
   syncEquipFromSheets();
+  // 啟動自動更新檢查
+  startUpdateChecker();
 }
 
 async function showGreeting(){
@@ -2610,15 +2625,64 @@ function markRepairDone(id){
 
 // ─────────────────────────────────────────────
 
+// ─────────────────────────────────────────────
+// 自動更新偵測
+// ─────────────────────────────────────────────
+var APP_VERSION = document.querySelector('meta[name="app-version"]').content;
+var swReg = null;
+
+function doAppUpdate(){
+  if("caches" in window){
+    caches.keys().then(function(names){
+      return Promise.all(names.map(function(n){ return caches.delete(n); }));
+    }).then(function(){
+      window.location.reload(true);
+    });
+  } else {
+    window.location.reload(true);
+  }
+}
+
+function checkForUpdate(){
+  fetch(window.location.pathname + "?_nc=" + Date.now(), { cache:"no-store" })
+    .then(function(res){ return res.text(); })
+    .then(function(html){
+      var match = html.match(/name="app-version"\s+content="([^"]+)"/);
+      if(!match) return;
+      var serverVer = match[1];
+      if(serverVer !== APP_VERSION){
+        document.getElementById("update-banner").classList.add("show");
+        document.body.style.paddingTop = "46px";
+      }
+    })
+    .catch(function(){});
+}
+
 // 註冊 Service Worker（PWA）
 if("serviceWorker" in navigator){
-  window.addEventListener("load",function(){
+  window.addEventListener("load", function(){
     navigator.serviceWorker.register("sw.js").then(function(reg){
-      console.log("SW registered");
-    }).catch(function(e){
-      console.log("SW error",e);
-    });
+      swReg = reg;
+      reg.addEventListener("updatefound", function(){
+        var nw = reg.installing;
+        nw.addEventListener("statechange", function(){
+          if(nw.state === "installed" && navigator.serviceWorker.controller){
+            document.getElementById("update-banner").classList.add("show");
+            document.body.style.paddingTop = "46px";
+          }
+        });
+      });
+      navigator.serviceWorker.addEventListener("controllerchange", function(){
+        window.location.reload(true);
+      });
+    }).catch(function(e){ console.log("SW error:", e); });
   });
+}
+
+// 進入 App 後定期檢查版本（30秒後第一次，之後每5分鐘）
+function startUpdateChecker(){
+  setTimeout(checkForUpdate, 30000);
+  setInterval(checkForUpdate, 5 * 60 * 1000);
 }
 </script>
 </body>
