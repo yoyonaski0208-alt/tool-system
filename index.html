@@ -1480,7 +1480,10 @@ function navTo(pg,el){
   if(pg==="serial")renderSerial();
   if(pg==="admin")renderAdmin();
   if(pg==="repair"){ renderRepairList(); }
-  if(pg==="equip"){ renderEquip(); }
+  if(pg==="equip"){
+    renderEquip();  // 先用快取立即渲染
+    syncEquipFromSheets();  // 強制從 Sheets 同步（每次都抓，確保管理者看到最新待審核）
+  }
 }
 function showMain(pg){pshow("s-main");navTo(pg,document.getElementById("nav-"+pg));}
 
@@ -1525,12 +1528,52 @@ function renderBoxes(){
   });
 }
 
-function openBox(id){
+// 庫存同步狀態
+var stockSyncTime = {};   // { loc: timestamp } 記錄上次同步時間
+var STOCK_CACHE_MS = 30000; // 30秒內不重複抓
+
+async function openBox(id){
   curBox=BOXES.find(function(b){return b.id===id;});
   document.getElementById("parts-h2").textContent=curBox.name;
+  pshow("s-parts");  // 先顯示畫面
+  var loc=getEditLoc();
+  // 先用本地快取渲染（立即顯示）
+  renderPartList(loc);
+  // 再從 Sheets 同步最新庫存（背景更新）
+  await syncStocksFromSheets(loc);
+  renderPartList(loc);  // 更新後重繪
+}
+
+// 從 Sheets 拉最新庫存並更新本地 stocks
+async function syncStocksFromSheets(loc){
+  if(!GAS_URL) return;
+  var now = Date.now();
+  // 30秒內同一地點不重複抓
+  if(stockSyncTime[loc] && (now - stockSyncTime[loc]) < STOCK_CACHE_MS) return;
+  try{
+    var res = await fetch(GAS_URL + "?action=readStocks&loc=" + encodeURIComponent(loc), {
+      mode: "cors", cache: "no-cache"
+    });
+    if(!res.ok) return;
+    var json = await res.json();
+    if(!json.ok || !json.data) return;
+    // 把 Sheets 的庫存寫回 stocks
+    var sheetsData = json.data;
+    Object.keys(sheetsData).forEach(function(key){
+      if(!stocks[loc]) stocks[loc] = {};
+      stocks[loc][key] = sheetsData[key];
+    });
+    stockSyncTime[loc] = now;
+    console.log("庫存已從 Sheets 同步：" + loc + "，" + Object.keys(sheetsData).length + " 筆");
+  }catch(err){
+    console.warn("庫存同步失敗（使用本地快取）:", err.message);
+  }
+}
+
+// 抽出純渲染邏輯（不含同步）
+function renderPartList(loc){
   var container=document.getElementById("part-list");
   container.innerHTML="";
-  var loc=getEditLoc();
   curBox.parts.forEach(function(p){
     var q=stocks[loc]?stocks[loc][gk(curBox.id,p.name)]||0:0;
     var outOfStock=q<=0;
@@ -1541,7 +1584,6 @@ function openBox(id){
     var sub=document.createElement("div");sub.className="part-sub";
     var subTag=document.createElement("span");subTag.className="sub-tag";subTag.textContent=p.sub;
     sub.appendChild(subTag);
-    // 庫存為0時顯示「無庫存」提示
     if(outOfStock){
       var noStock=document.createElement("span");
       noStock.className="badge badge-low";
@@ -1552,7 +1594,7 @@ function openBox(id){
     info.appendChild(name);info.appendChild(sub);
     var btn=document.createElement("button");
     btn.className="take-btn";
-    btn.textContent=outOfStock?"無庫存":"領取";
+    btn.textContent=outOfStock?"無庫存":"領取 ("+q+")";
     if(outOfStock){
       btn.disabled=true;
       btn.style.cssText="background:var(--border);color:var(--sub);cursor:not-allowed;border:none;border-radius:9px;padding:8px 13px;font-size:12px;font-weight:500;flex-shrink:0;";
@@ -1562,7 +1604,6 @@ function openBox(id){
     item.appendChild(info);item.appendChild(btn);
     container.appendChild(item);
   });
-  pshow("s-parts");
 }
 
 function admOpenBox(el){
@@ -1801,13 +1842,17 @@ async function confirmAction(){
     var old=stocks[loc][key]||0;logQty=mQty-old;stocks[loc][key]=mQty;
     type="調整";icon="🔧";title="庫存調整完成！";detail=curPart+"（"+loc+"）調整為 "+mQty+" 個";
   }
+  // 操作後讓快取失效，下次開箱強制重抓
+  stockSyncTime[loc] = 0;
+
   logs.unshift({type:type,box:curBox.name,part:curPart,qty:logQty,name:curUser.name,note:note,time:t,loc:loc,serial:serialVal,timestamp:Date.now()});
   saveLogsToStorage();
   document.getElementById("ok-icon").textContent=icon;
   document.getElementById("ok-title").textContent=title;
   document.getElementById("ok-detail").textContent=detail;
   pshow("s-ok");
-  sendToSheets({type:type,box:curBox.name,part:curPart,qty:logQty,name:curUser.name,email:curUser.email,note:note,time:t,loc:loc,serial:serialVal});
+  // 傳送時附上 newQty（給 Sheets 直接覆寫）和 boxId
+  sendToSheets({type:type,box:curBox.name,boxId:curBox.id,part:curPart,qty:logQty,newQty:stocks[loc][key],name:curUser.name,email:curUser.email,note:note,time:t,loc:loc,serial:serialVal});
 }
 
 function afterOk(){
@@ -2225,12 +2270,26 @@ function renderEquip(){
     var actionRow = document.createElement("div"); actionRow.className = "equip-action-row";
 
     if(isPending){
-      // 待審核：一般人只看到等待狀態
-      var waitBtn = document.createElement("button");
-      waitBtn.className = "equip-btn-disabled";
-      waitBtn.innerHTML = '<i class="ti ti-clock"></i> 等待管理者審核中';
-      // 管理者在上方已有核准按鈕，此處不重複
-      actionRow.appendChild(waitBtn);
+      if(curUser && curUser.role === "admin"){
+        // 管理者：直接在卡片上顯示核准/拒絕
+        var approveBtn = document.createElement("button");
+        approveBtn.className = "equip-btn-in";
+        approveBtn.innerHTML = '<i class="ti ti-check"></i> 核准借出';
+        approveBtn.onclick = (function(eid){ return function(){ adminApproveFromCard(eid); }; })(eq.id);
+        var rejectBtn = document.createElement("button");
+        rejectBtn.className = "equip-btn-out";
+        rejectBtn.style.cssText = "max-width:80px;font-size:12px;background:var(--red);";
+        rejectBtn.innerHTML = '<i class="ti ti-x"></i> 拒絕';
+        rejectBtn.onclick = (function(eid){ return function(){ adminRejectFromCard(eid); }; })(eq.id);
+        actionRow.appendChild(approveBtn);
+        actionRow.appendChild(rejectBtn);
+      } else {
+        // 一般人：等待提示
+        var waitBtn = document.createElement("button");
+        waitBtn.className = "equip-btn-disabled";
+        waitBtn.innerHTML = '<i class="ti ti-clock"></i> 等待管理者審核中';
+        actionRow.appendChild(waitBtn);
+      }
     } else if(isOut){
       // 借出中：所有人可以歸還
       var returnBtn = document.createElement("button");
@@ -2380,7 +2439,47 @@ function adminDirectBorrow(){
   alert("✅ 已登記借出：" + who);
 }
 
-// 管理者核准申請
+// 管理者從卡片直接核准（申請資料從 equipStatus 取得）
+function adminApproveFromCard(equipId){
+  var st = equipStatus[equipId];
+  if(!st) return;
+  // 構造一個 req 物件從 equipStatus 拿資料
+  var fakeReq = {
+    id: Date.now(),
+    equipId: equipId,
+    requester: st.borrower || "",
+    requesterEmail: st.borrowerEmail || "",
+    loc: st.loc || "",
+    returnDue: st.returnDue || "",
+    note: st.note || ""
+  };
+  approveEquip(fakeReq);
+}
+
+// 管理者從卡片直接拒絕
+function adminRejectFromCard(equipId){
+  var st = equipStatus[equipId];
+  var borrower = st ? (st.borrower || "申請人") : "申請人";
+  if(!confirm("確定拒絕「" + borrower + "」的借出申請？")) return;
+  // 直接把狀態改回 in
+  if(equipStatus[equipId]){
+    equipStatus[equipId].status = "in";
+    equipStatus[equipId].borrower = "";
+    equipStatus[equipId].borrowTime = "";
+    equipStatus[equipId].returnDue = "";
+    equipStatus[equipId].note = "";
+  }
+  // 從 pendingRequests 移除
+  equipPendingRequests = equipPendingRequests.filter(function(r){ return r.equipId !== equipId; });
+  saveEquipToStorage();
+  // 通知 Sheets 器具回到在庫
+  var eq = SPECIAL_EQUIP.find(function(e){ return e.id === equipId; });
+  sendToSheets({type:"器具歸還",box:eq?eq.name:"",equipId:equipId,equipName:eq?eq.name:"",
+    part:borrower,qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",
+    note:"管理者拒絕申請，狀態回在庫",time:nowStr(),loc:"",serial:""});
+  renderEquip();
+  showToast("已拒絕申請，器具回到在庫");
+}
 function approveEquip(req){
   var t = nowStr();
   var st = equipStatus[req.equipId] || { history:[] };
