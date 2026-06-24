@@ -275,6 +275,62 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
 .repair-tabs{display:flex;gap:6px;margin-bottom:12px;}
 .repair-tab{flex:1;padding:8px;border:1.5px solid var(--border);border-radius:10px;background:none;font-size:12px;font-family:inherit;cursor:pointer;color:var(--sub);}
 .repair-tab.active{background:var(--red);color:#fff;border-color:var(--red);font-weight:700;}
+
+/* 特殊器具追蹤 */
+.equip-card{background:var(--card);border:1.5px solid var(--border);border-radius:16px;padding:14px;margin-bottom:10px;transition:border-color .15s;}
+.equip-card.out{border-color:#E9A825;}
+.equip-card.overdue{border-color:var(--red);}
+.equip-card.in{border-color:#3B9E5A;}
+.equip-hd{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.equip-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.equip-icon.in{background:var(--green-light);}
+.equip-icon.out{background:#FEF3CD;}
+.equip-icon.overdue{background:var(--red-light);}
+.equip-name{font-size:14px;font-weight:700;flex:1;}
+.equip-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;}
+.equip-badge-in{background:var(--green-light);color:var(--green);}
+.equip-badge-out{background:#FEF3CD;color:#854F0B;}
+.equip-badge-overdue{background:var(--red-light);color:var(--red);}
+.equip-meta-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+.equip-meta-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--sub);background:var(--bg);border-radius:8px;padding:4px 8px;}
+.equip-meta-item i{font-size:12px;}
+.equip-meta-item.warn{color:var(--red);background:var(--red-light);}
+.equip-action-row{display:flex;gap:7px;}
+.equip-btn-out{flex:1;padding:11px;background:var(--amber);color:#fff;border:none;border-radius:11px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;}
+.equip-btn-out:active{background:#6B3E09;}
+.equip-btn-in{flex:1;padding:11px;background:var(--green);color:#fff;border:none;border-radius:11px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;}
+.equip-btn-in:active{background:#285008;}
+.equip-btn-disabled{flex:1;padding:11px;background:var(--border);color:var(--sub);border:none;border-radius:11px;font-size:13px;font-weight:600;cursor:not-allowed;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;}
+.equip-history{border-top:1px solid var(--border);margin-top:10px;padding-top:8px;}
+.equip-history-title{font-size:10px;font-weight:600;color:var(--sub);margin-bottom:6px;letter-spacing:.5px;}
+.equip-history-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px;}
+.equip-history-row:last-child{border-bottom:none;}
+.equip-history-who{color:var(--text);font-weight:500;}
+.equip-history-time{color:var(--sub);}
+.equip-pending-banner{background:var(--amber-light);border:1px solid #E9A825;border-radius:11px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:var(--amber);display:flex;align-items:center;gap:7px;}
+.equip-section-hd{font-size:11px;font-weight:700;color:var(--sub);letter-spacing:.5px;margin:14px 0 8px;padding:0 2px;}
+/* 借出申請 overlay */
+.equip-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:300;align-items:flex-end;justify-content:center;}
+.equip-overlay.show{display:flex;}
+.equip-sheet{background:var(--card);border-radius:22px 22px 0 0;padding:22px 18px 40px;width:100%;max-width:480px;}
+.equip-sheet-title{font-size:17px;font-weight:700;margin-bottom:5px;}
+.equip-sheet-sub{font-size:12px;color:var(--sub);margin-bottom:18px;line-height:1.5;}
+.equip-field{margin-bottom:13px;}
+.equip-field label{font-size:12px;color:var(--sub);font-weight:500;display:block;margin-bottom:5px;}
+.equip-input{width:100%;padding:12px 13px;border:1.5px solid var(--border);border-radius:11px;font-size:14px;background:var(--bg);color:var(--text);font-family:inherit;}
+.equip-input:focus{outline:none;border-color:var(--amber);}
+.equip-select{width:100%;padding:12px 13px;border:1.5px solid var(--border);border-radius:11px;font-size:14px;background:var(--bg);color:var(--text);font-family:inherit;}
+.equip-select:focus{outline:none;border-color:var(--amber);}
+.equip-submit-btn{width:100%;padding:14px;background:var(--amber);color:#fff;border:none;border-radius:13px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px;}
+.equip-submit-btn:active{background:#6B3E09;}
+.equip-cancel-btn{width:100%;padding:12px;background:none;color:var(--sub);border:none;border-radius:13px;font-size:14px;cursor:pointer;font-family:inherit;margin-top:6px;}
+/* 管理者待審核 */
+.equip-pending-item{background:var(--amber-light);border:1px solid #E9A825;border-radius:13px;padding:12px;margin-bottom:8px;}
+.equip-pending-name{font-size:13px;font-weight:700;margin-bottom:4px;}
+.equip-pending-meta{font-size:11px;color:var(--amber);margin-bottom:8px;}
+.equip-pending-btns{display:flex;gap:7px;}
+.equip-approve-btn{flex:1;padding:9px;background:var(--green);color:#fff;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;}
+.equip-reject-btn{flex:1;padding:9px;background:var(--red-light);color:var(--red);border:none;border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;}
 </style>
 </head>
 <body>
@@ -434,6 +490,18 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     </div>
   </div>
 
+  <!-- ── 特殊器具借出追蹤 ── -->
+  <div id="pg-equip" class="page">
+    <!-- 管理者：待審核區塊 -->
+    <div id="equip-pending-section" style="display:none;">
+      <div class="equip-section-hd">⏳ 待審核申請</div>
+      <div id="equip-pending-list"></div>
+    </div>
+    <!-- 器具清單 -->
+    <div class="equip-section-hd">特殊器具狀態</div>
+    <div id="equip-list"></div>
+  </div>
+
   <div id="pg-admin" class="page">
     <div class="admin-stat-grid">
       <div class="admin-stat"><div class="admin-stat-num" id="adm-n-total" style="color:var(--blue);">0</div><div class="admin-stat-lbl">總項目數</div></div>
@@ -456,6 +524,7 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
   <div class="bottom-nav">
     <button class="nav-btn active" id="nav-take" onclick="navTo('take',this)"><i class="ti ti-package"></i>領取</button>
     <button class="nav-btn" id="nav-log" onclick="navTo('log',this)"><i class="ti ti-list-details"></i>記錄</button>
+    <button class="nav-btn" id="nav-equip" onclick="navTo('equip',this)"><i class="ti ti-key"></i>器具</button>
     <button class="nav-btn" id="nav-repair" onclick="navTo('repair',this)"><i class="ti ti-tool"></i>報修</button>
     <button class="nav-btn" id="nav-serial" onclick="navTo('serial',this)" style="display:none;"><i class="ti ti-qrcode"></i>序號</button>
     <button class="nav-btn" id="nav-admin" onclick="navTo('admin',this)" style="display:none;"><i class="ti ti-settings"></i>後台</button>
@@ -561,6 +630,62 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       <button class="btn-primary" onclick="confirmChangeCar()">確認換車</button>
       <button class="btn-safe" onclick="closeOverlay('car-overlay')">取消</button>
     </div>
+  </div>
+</div>
+
+<!-- 特殊器具：申請借出 overlay -->
+<div class="equip-overlay" id="equip-borrow-overlay">
+  <div class="equip-sheet">
+    <div class="equip-sheet-title" id="equip-borrow-title">申請借出</div>
+    <div class="equip-sheet-sub">借出申請將送交管理者審核，核准後即可帶走器具</div>
+    <div class="equip-field">
+      <label>借出地點</label>
+      <select class="equip-select" id="equip-borrow-loc">
+        <option value="台南">台南</option>
+        <option value="屏東">屏東</option>
+        <option value="其他">其他</option>
+      </select>
+    </div>
+    <div class="equip-field">
+      <label>預計歸還日期</label>
+      <input type="date" class="equip-input" id="equip-borrow-date">
+    </div>
+    <div class="equip-field">
+      <label>用途說明（選填）</label>
+      <input class="equip-input" id="equip-borrow-note" placeholder="例：冷卻水塔清洗工程…">
+    </div>
+    <button class="equip-submit-btn" onclick="submitBorrowRequest()"><i class="ti ti-send"></i> 送出申請</button>
+    <button class="equip-cancel-btn" onclick="closeEquipOverlay()">取消</button>
+  </div>
+</div>
+
+<!-- 特殊器具：管理者直接借出 overlay -->
+<div class="equip-overlay" id="equip-admin-borrow-overlay">
+  <div class="equip-sheet">
+    <div class="equip-sheet-title" id="equip-admin-borrow-title">登記借出</div>
+    <div class="equip-sheet-sub">管理者直接登記，不需審核</div>
+    <div class="equip-field">
+      <label>借出人</label>
+      <input class="equip-input" id="equip-admin-who" placeholder="輸入借出人姓名">
+    </div>
+    <div class="equip-field">
+      <label>借出地點</label>
+      <select class="equip-select" id="equip-admin-loc">
+        <option value="台南">台南</option>
+        <option value="屏東">屏東</option>
+        <option value="其他">其他</option>
+      </select>
+    </div>
+    <div class="equip-field">
+      <label>預計歸還日期</label>
+      <input type="date" class="equip-input" id="equip-admin-date">
+    </div>
+    <div class="equip-field">
+      <label>用途說明（選填）</label>
+      <input class="equip-input" id="equip-admin-note" placeholder="例：冷卻水塔清洗工程…">
+    </div>
+    <button class="equip-submit-btn" onclick="adminDirectBorrow()"><i class="ti ti-check"></i> 確認借出</button>
+    <button class="equip-cancel-btn" onclick="closeEquipOverlay()">取消</button>
   </div>
 </div>
 
@@ -1235,6 +1360,7 @@ function setupHeaderInfo(){
 function enterMainApp(){
   loadLogsFromStorage();
   loadRepairsFromStorage();
+  loadEquipFromStorage();
   setupHeaderInfo();
   // 只有「全部」的 admin 才顯示地點切換
   if(curUser.role==="admin" && curUser.location==="全部"){
@@ -1309,6 +1435,7 @@ function navTo(pg,el){
   if(pg==="serial")renderSerial();
   if(pg==="admin")renderAdmin();
   if(pg==="repair"){ renderRepairList(); }
+  if(pg==="equip"){ renderEquip(); }
 }
 function showMain(pg){pshow("s-main");navTo(pg,document.getElementById("nav-"+pg));}
 
@@ -1790,6 +1917,360 @@ function toggleRestock(){
     arrow.textContent="▲收合";
   }
 }
+// ─────────────────────────────────────────────
+// 特殊器具借出追蹤
+// ─────────────────────────────────────────────
+
+// 特殊器具主清單（固定）
+var SPECIAL_EQUIP = [
+  { id:"SE-P",  name:"四方吹清洗槽",  icon:"💨", desc:"P 倉庫工具箱" },
+  { id:"SE-M",  name:"冷卻水管箱",    icon:"💧", desc:"M 冷卻水管箱" },
+  { id:"SE-NS", name:"侷限空間箱",    icon:"⛑️",  desc:"NS 侷限空間箱" },
+  { id:"SE-L",  name:"床墊水洗機",    icon:"🛏️",  desc:"L 床墊水洗箱" },
+  { id:"SE-D",  name:"塵蟎機",        icon:"🌬️",  desc:"D 塵蟎機" }
+];
+
+// equipStatus[id] = { status:"in"|"out"|"pending", borrower, borrowerEmail, loc, borrowTime, returnDue, note, history:[] }
+var equipStatus = {};
+var equipPendingRequests = []; // [{id, equipId, requester, requesterEmail, loc, returnDue, note, time}]
+var curEquipId = null; // 目前操作中的器具 id
+
+function loadEquipFromStorage(){
+  try{
+    var s = localStorage.getItem("equip_status");
+    if(s) equipStatus = JSON.parse(s);
+    var p = localStorage.getItem("equip_pending");
+    if(p) equipPendingRequests = JSON.parse(p);
+  }catch(e){ equipStatus={}; equipPendingRequests=[]; }
+  // 確保每個器具都有初始資料
+  SPECIAL_EQUIP.forEach(function(e){
+    if(!equipStatus[e.id]){
+      equipStatus[e.id] = { status:"in", borrower:"", borrowerEmail:"", loc:"", borrowTime:"", returnDue:"", note:"", history:[] };
+    }
+  });
+}
+
+function saveEquipToStorage(){
+  try{
+    localStorage.setItem("equip_status", JSON.stringify(equipStatus));
+    localStorage.setItem("equip_pending", JSON.stringify(equipPendingRequests));
+  }catch(e){}
+}
+
+// 計算是否逾期
+function isOverdue(returnDue){
+  if(!returnDue) return false;
+  var due = new Date(returnDue);
+  due.setHours(23,59,59,999);
+  return Date.now() > due.getTime();
+}
+
+// 幾天前/幾天後
+function relativeDay(dateStr){
+  if(!dateStr) return "";
+  var d = new Date(dateStr);
+  d.setHours(0,0,0,0);
+  var today = new Date(); today.setHours(0,0,0,0);
+  var diff = Math.round((d - today) / 86400000);
+  if(diff === 0) return "今天到期";
+  if(diff < 0) return "逾期 " + Math.abs(diff) + " 天";
+  return "還有 " + diff + " 天";
+}
+
+function renderEquip(){
+  var list = document.getElementById("equip-list");
+  if(!list) return;
+  list.innerHTML = "";
+
+  // 管理者：顯示待審核
+  var pendingSec = document.getElementById("equip-pending-section");
+  var pendingList = document.getElementById("equip-pending-list");
+  if(curUser && curUser.role === "admin" && equipPendingRequests.length > 0){
+    pendingSec.style.display = "block";
+    pendingList.innerHTML = "";
+    equipPendingRequests.forEach(function(req){
+      var eq = SPECIAL_EQUIP.find(function(e){ return e.id === req.equipId; });
+      var item = document.createElement("div");
+      item.className = "equip-pending-item";
+      item.innerHTML = '<div class="equip-pending-name">' + (eq?eq.icon+" "+eq.name:"") + '</div>'
+        + '<div class="equip-pending-meta">申請人：' + req.requester + '　地點：' + req.loc + '　預計還回：' + (req.returnDue||"未填") + '</div>'
+        + (req.note ? '<div style="font-size:11px;color:var(--amber);margin-bottom:6px;">用途：'+req.note+'</div>' : '')
+        + '<div style="font-size:10px;color:var(--sub);margin-bottom:8px;">申請時間：' + req.time + '</div>';
+      var btns = document.createElement("div");
+      btns.className = "equip-pending-btns";
+      var ab = document.createElement("button");
+      ab.className = "equip-approve-btn";
+      ab.innerHTML = '<i class="ti ti-check"></i> 核准';
+      ab.onclick = (function(r){ return function(){ approveEquip(r); }; })(req);
+      var rb = document.createElement("button");
+      rb.className = "equip-reject-btn";
+      rb.innerHTML = '<i class="ti ti-x"></i> 拒絕';
+      rb.onclick = (function(r){ return function(){ rejectEquip(r); }; })(req);
+      btns.appendChild(ab); btns.appendChild(rb);
+      item.appendChild(btns);
+      pendingList.appendChild(item);
+    });
+  } else {
+    pendingSec.style.display = "none";
+  }
+
+  // 器具卡片
+  SPECIAL_EQUIP.forEach(function(eq){
+    var st = equipStatus[eq.id] || { status:"in", history:[] };
+    var isOut = st.status === "out";
+    var isPending = st.status === "pending";
+    var overdue = isOut && isOverdue(st.returnDue);
+    var cardClass = "equip-card " + (overdue ? "overdue" : isOut ? "out" : isPending ? "out" : "in");
+    var card = document.createElement("div");
+    card.className = cardClass;
+
+    // header
+    var hd = document.createElement("div"); hd.className = "equip-hd";
+    var iconDiv = document.createElement("div");
+    iconDiv.className = "equip-icon " + (overdue?"overdue":isOut||isPending?"out":"in");
+    iconDiv.textContent = eq.icon;
+    var nameDiv = document.createElement("div"); nameDiv.className = "equip-name"; nameDiv.textContent = eq.name;
+    var badgeDiv = document.createElement("span");
+    badgeDiv.className = "equip-badge " + (overdue?"equip-badge-overdue":isOut?"equip-badge-out":isPending?"equip-badge-out":"equip-badge-in");
+    badgeDiv.textContent = overdue ? "⚠ 逾期" : isOut ? "借出中" : isPending ? "待審核" : "在庫";
+    hd.appendChild(iconDiv); hd.appendChild(nameDiv); hd.appendChild(badgeDiv);
+    card.appendChild(hd);
+
+    // meta
+    if(isOut || isPending){
+      var metaRow = document.createElement("div"); metaRow.className = "equip-meta-row";
+      function metaItem(icon, text, warn){
+        var m = document.createElement("div");
+        m.className = "equip-meta-item" + (warn ? " warn" : "");
+        m.innerHTML = '<i class="ti '+icon+'"></i> ' + text;
+        return m;
+      }
+      if(st.borrower) metaRow.appendChild(metaItem("ti-user", st.borrower));
+      if(st.loc) metaRow.appendChild(metaItem("ti-map-pin", st.loc));
+      if(st.borrowTime) metaRow.appendChild(metaItem("ti-clock", st.borrowTime.slice(0,10)));
+      if(st.returnDue){
+        var rd = relativeDay(st.returnDue);
+        metaRow.appendChild(metaItem("ti-calendar-due", rd, overdue));
+      }
+      if(st.note) metaRow.appendChild(metaItem("ti-note", st.note));
+      card.appendChild(metaRow);
+    } else {
+      var infoDiv = document.createElement("div");
+      infoDiv.style.cssText = "font-size:11px;color:var(--sub);margin-bottom:10px;";
+      infoDiv.textContent = eq.desc + "　目前在庫";
+      card.appendChild(infoDiv);
+    }
+
+    // 操作按鈕
+    var actionRow = document.createElement("div"); actionRow.className = "equip-action-row";
+
+    if(isPending){
+      // 待審核：一般人只看到等待狀態
+      var waitBtn = document.createElement("button");
+      waitBtn.className = "equip-btn-disabled";
+      waitBtn.innerHTML = '<i class="ti ti-clock"></i> 等待管理者審核中';
+      // 管理者在上方已有核准按鈕，此處不重複
+      actionRow.appendChild(waitBtn);
+    } else if(isOut){
+      // 借出中：所有人可以歸還
+      var returnBtn = document.createElement("button");
+      returnBtn.className = "equip-btn-in";
+      returnBtn.innerHTML = '<i class="ti ti-corner-down-left"></i> 登記歸還';
+      returnBtn.onclick = (function(eid){ return function(){ confirmReturnEquip(eid); }; })(eq.id);
+      actionRow.appendChild(returnBtn);
+      // 管理者多一個強制收回
+      if(curUser && curUser.role === "admin"){
+        var forceBtn = document.createElement("button");
+        forceBtn.className = "equip-btn-out";
+        forceBtn.style.cssText = "max-width:90px;font-size:11px;";
+        forceBtn.innerHTML = '<i class="ti ti-rotate"></i> 重新借出';
+        forceBtn.onclick = (function(eid,ename){ return function(){ openAdminBorrow(eid,ename); }; })(eq.id,eq.name);
+        actionRow.appendChild(forceBtn);
+      }
+    } else {
+      // 在庫：管理者直接借出，一般人申請
+      if(curUser && curUser.role === "admin"){
+        var admBtn = document.createElement("button");
+        admBtn.className = "equip-btn-out";
+        admBtn.innerHTML = '<i class="ti ti-arrow-right"></i> 登記借出';
+        admBtn.onclick = (function(eid,ename){ return function(){ openAdminBorrow(eid,ename); }; })(eq.id,eq.name);
+        actionRow.appendChild(admBtn);
+      } else {
+        var reqBtn = document.createElement("button");
+        reqBtn.className = "equip-btn-out";
+        reqBtn.innerHTML = '<i class="ti ti-send"></i> 申請借出';
+        reqBtn.onclick = (function(eid,ename){ return function(){ openBorrowRequest(eid,ename); }; })(eq.id,eq.name);
+        actionRow.appendChild(reqBtn);
+      }
+    }
+    card.appendChild(actionRow);
+
+    // 近期記錄（最多3筆）
+    if(st.history && st.history.length > 0){
+      var hist = document.createElement("div"); hist.className = "equip-history";
+      var htitle = document.createElement("div"); htitle.className = "equip-history-title"; htitle.textContent = "近期記錄";
+      hist.appendChild(htitle);
+      st.history.slice(0,3).forEach(function(h){
+        var row = document.createElement("div"); row.className = "equip-history-row";
+        var who = document.createElement("div"); who.className = "equip-history-who";
+        who.innerHTML = '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+(h.action==="歸還"?"var(--green)":"var(--amber)")+';;margin-right:4px;"></span>'
+          + h.action + "　" + (h.who||"") + (h.loc?" @ "+h.loc:"");
+        var tm = document.createElement("div"); tm.className = "equip-history-time"; tm.textContent = (h.time||"").slice(0,10);
+        row.appendChild(who); row.appendChild(tm);
+        hist.appendChild(row);
+      });
+      card.appendChild(hist);
+    }
+
+    list.appendChild(card);
+  });
+}
+
+// 一般人申請借出
+function openBorrowRequest(equipId, equipName){
+  curEquipId = equipId;
+  document.getElementById("equip-borrow-title").textContent = "申請借出：" + equipName;
+  // 預設歸還日期為7天後
+  var d = new Date(); d.setDate(d.getDate()+7);
+  document.getElementById("equip-borrow-date").value = d.toISOString().slice(0,10);
+  document.getElementById("equip-borrow-note").value = "";
+  document.getElementById("equip-borrow-overlay").classList.add("show");
+}
+
+// 管理者直接借出
+function openAdminBorrow(equipId, equipName){
+  curEquipId = equipId;
+  document.getElementById("equip-admin-borrow-title").textContent = "登記借出：" + equipName;
+  document.getElementById("equip-admin-who").value = "";
+  var d = new Date(); d.setDate(d.getDate()+7);
+  document.getElementById("equip-admin-date").value = d.toISOString().slice(0,10);
+  document.getElementById("equip-admin-note").value = "";
+  document.getElementById("equip-admin-borrow-overlay").classList.add("show");
+}
+
+function closeEquipOverlay(){
+  document.getElementById("equip-borrow-overlay").classList.remove("show");
+  document.getElementById("equip-admin-borrow-overlay").classList.remove("show");
+}
+
+// 送出借出申請（一般人）
+function submitBorrowRequest(){
+  var loc = document.getElementById("equip-borrow-loc").value;
+  var returnDue = document.getElementById("equip-borrow-date").value;
+  var note = document.getElementById("equip-borrow-note").value.trim();
+  var t = nowStr();
+  var req = {
+    id: Date.now(),
+    equipId: curEquipId,
+    requester: curUser ? curUser.name : "",
+    requesterEmail: curUser ? curUser.email : "",
+    loc: loc,
+    returnDue: returnDue,
+    note: note,
+    time: t
+  };
+  // 將器具標為 pending
+  if(!equipStatus[curEquipId]) equipStatus[curEquipId] = { history:[] };
+  equipStatus[curEquipId].status = "pending";
+  equipStatus[curEquipId].borrower = curUser ? curUser.name : "";
+  equipStatus[curEquipId].loc = loc;
+  equipStatus[curEquipId].borrowTime = t;
+  equipStatus[curEquipId].returnDue = returnDue;
+  equipStatus[curEquipId].note = note;
+  equipPendingRequests.push(req);
+  saveEquipToStorage();
+  closeEquipOverlay();
+  renderEquip();
+  var eq = SPECIAL_EQUIP.find(function(e){ return e.id === curEquipId; });
+  sendToSheets({type:"器具申請借出",box:eq?eq.name:"",part:loc,qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"預計"+returnDue+"歸還"+(note?"，"+note:""),time:t,loc:loc,serial:""});
+  alert("✅ 申請已送出，等待管理者審核！");
+}
+
+// 管理者直接借出
+function adminDirectBorrow(){
+  var who = document.getElementById("equip-admin-who").value.trim();
+  var loc = document.getElementById("equip-admin-loc").value;
+  var returnDue = document.getElementById("equip-admin-date").value;
+  var note = document.getElementById("equip-admin-note").value.trim();
+  if(!who){ alert("請填寫借出人姓名"); return; }
+  var t = nowStr();
+  var st = equipStatus[curEquipId] || { history:[] };
+  st.history = st.history || [];
+  st.status = "out";
+  st.borrower = who;
+  st.borrowerEmail = "";
+  st.loc = loc;
+  st.borrowTime = t;
+  st.returnDue = returnDue;
+  st.note = note;
+  st.history.unshift({ action:"借出", who:who, loc:loc, time:t });
+  equipStatus[curEquipId] = st;
+  saveEquipToStorage();
+  closeEquipOverlay();
+  renderEquip();
+  var eq = SPECIAL_EQUIP.find(function(e){ return e.id === curEquipId; });
+  sendToSheets({type:"器具借出",box:eq?eq.name:"",part:who,qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"地點:"+loc+"，預計"+returnDue+"歸還"+(note?"，"+note:""),time:t,loc:loc,serial:""});
+  alert("✅ 已登記借出：" + who);
+}
+
+// 管理者核准申請
+function approveEquip(req){
+  var t = nowStr();
+  var st = equipStatus[req.equipId] || { history:[] };
+  st.history = st.history || [];
+  st.status = "out";
+  st.borrower = req.requester;
+  st.borrowerEmail = req.requesterEmail;
+  st.loc = req.loc;
+  st.borrowTime = t;
+  st.returnDue = req.returnDue;
+  st.note = req.note;
+  st.history.unshift({ action:"借出", who:req.requester, loc:req.loc, time:t });
+  equipStatus[req.equipId] = st;
+  equipPendingRequests = equipPendingRequests.filter(function(r){ return r.id !== req.id; });
+  saveEquipToStorage();
+  renderEquip();
+  var eq = SPECIAL_EQUIP.find(function(e){ return e.id === req.equipId; });
+  sendToSheets({type:"器具核准借出",box:eq?eq.name:"",part:req.requester,qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"核准借出，地點:"+req.loc,time:t,loc:req.loc,serial:""});
+  alert("✅ 已核准「" + req.requester + "」借出！");
+}
+
+// 管理者拒絕申請
+function rejectEquip(req){
+  var st = equipStatus[req.equipId];
+  if(st && st.status === "pending"){ st.status = "in"; st.borrower=""; st.borrowTime=""; st.returnDue=""; st.note=""; }
+  equipPendingRequests = equipPendingRequests.filter(function(r){ return r.id !== req.id; });
+  saveEquipToStorage();
+  renderEquip();
+  alert("已拒絕申請。");
+}
+
+// 歸還確認
+function confirmReturnEquip(equipId){
+  var eq = SPECIAL_EQUIP.find(function(e){ return e.id === equipId; });
+  var st = equipStatus[equipId];
+  var msg = "確認「" + (eq?eq.name:"") + "」已歸還？\n借出人：" + (st?st.borrower:"");
+  if(!confirm(msg)) return;
+  var t = nowStr();
+  st.history = st.history || [];
+  st.history.unshift({ action:"歸還", who:curUser?curUser.name:"", loc:st.loc, time:t });
+  var oldBorrower = st.borrower;
+  var oldLoc = st.loc;
+  st.status = "in";
+  st.borrower = "";
+  st.borrowerEmail = "";
+  st.loc = "";
+  st.borrowTime = "";
+  st.returnDue = "";
+  st.note = "";
+  saveEquipToStorage();
+  renderEquip();
+  sendToSheets({type:"器具歸還",box:eq?eq.name:"",part:oldBorrower,qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"已歸還",time:t,loc:oldLoc,serial:""});
+  alert("✅ 已登記歸還！");
+}
+
+// ─────────────────────────────────────────────
+
 // ─────────────────────────────────────────────
 // 報修管理
 // ─────────────────────────────────────────────
