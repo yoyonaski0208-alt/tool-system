@@ -548,21 +548,9 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
   </div>
   <div style="padding:10px 13px 100px;">
     <div id="adm-part-list"></div>
-    <button class="confirm-btn" style="background:var(--blue);color:#fff;padding:12px;font-size:14px;border-radius:12px;margin-top:4px;" onclick="toggleAddForm()">
+    <button class="confirm-btn" style="background:var(--blue);color:#fff;padding:12px;font-size:14px;border-radius:12px;margin-top:4px;" onclick="openPartForm('add')">
       <i class="ti ti-plus"></i> 新增工具到此箱
     </button>
-    <div class="add-form" id="add-form">
-      <div class="field-lbl" style="margin-bottom:6px;color:var(--blue);font-weight:600;">新增工具名稱</div>
-      <input class="add-input" id="add-input" placeholder="輸入工具名稱" maxlength="30">
-      <div class="field-lbl" style="margin-bottom:6px;color:var(--blue);font-weight:600;">分類標籤（選填，例：A0、A1、副F1）</div>
-      <input class="add-input" id="add-sub-input" placeholder="輸入分類標籤" maxlength="10">
-      <div class="field-lbl" style="margin-bottom:6px;color:var(--blue);font-weight:600;">最低安全量（每個地點）</div>
-      <input class="add-input" id="add-min-input" type="number" min="0" placeholder="例：2（低於此數量會提示補貨）" style="margin-bottom:0;">
-      <div class="add-row" style="margin-top:8px;">
-        <button class="btn-add-cancel" onclick="toggleAddForm()">取消</button>
-        <button class="btn-add-confirm" onclick="confirmAddPart()">確認新增</button>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -688,6 +676,42 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     </div>
     <button class="equip-submit-btn" onclick="adminDirectBorrow()"><i class="ti ti-check"></i> 確認借出</button>
     <button class="equip-cancel-btn" onclick="closeEquipOverlay()">取消</button>
+  </div>
+</div>
+
+<!-- 新增/編輯工具 Overlay -->
+<div class="overlay" id="part-form-overlay" style="z-index:250;">
+  <div class="overlay-sheet" style="padding:22px 18px 36px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div class="overlay-title" id="part-form-title" style="margin-bottom:0;">新增工具</div>
+      <button onclick="closePartForm()" style="background:none;border:none;font-size:22px;color:var(--sub);cursor:pointer;padding:2px 6px;">✕</button>
+    </div>
+    <!-- 工具名稱 -->
+    <div style="margin-bottom:12px;">
+      <div class="field-lbl" style="margin-bottom:5px;">工具名稱 <span style="color:var(--red);">*</span></div>
+      <input class="overlay-input" id="pf-name" placeholder="例：高壓清洗機" maxlength="30" style="margin-bottom:0;">
+    </div>
+    <!-- 分類標籤 -->
+    <div style="margin-bottom:12px;">
+      <div class="field-lbl" style="margin-bottom:5px;">分類標籤 <span style="color:var(--sub);font-weight:400;">（選填）</span></div>
+      <input class="overlay-input" id="pf-sub" placeholder="例：A0、A1、副F1" maxlength="10" style="margin-bottom:0;">
+    </div>
+    <!-- 最低安全量 -->
+    <div style="margin-bottom:6px;">
+      <div class="field-lbl" style="margin-bottom:5px;">最低安全量（每個地點）<span style="color:var(--sub);font-weight:400;">（填 0 表示不追蹤）</span></div>
+      <div style="display:flex;align-items:center;border:1.5px solid var(--border);border-radius:11px;overflow:hidden;background:var(--bg);">
+        <button onclick="adjMinQty(-1)" style="width:52px;height:50px;border:none;background:none;font-size:24px;color:var(--text);cursor:pointer;flex-shrink:0;">−</button>
+        <input id="pf-min" type="number" min="0" value="1" inputmode="numeric"
+          style="flex:1;text-align:center;font-size:22px;font-weight:700;border:none;outline:none;background:transparent;font-family:inherit;padding:0;">
+        <button onclick="adjMinQty(1)" style="width:52px;height:50px;border:none;background:none;font-size:24px;color:var(--text);cursor:pointer;flex-shrink:0;">＋</button>
+      </div>
+      <div style="font-size:11px;color:var(--sub);margin-top:5px;padding:0 2px;">低於此數量時會顯示「需補」警示</div>
+    </div>
+    <!-- 按鈕 -->
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:18px;">
+      <button class="btn-primary" id="part-form-confirm-btn" onclick="confirmPartForm()">確認新增</button>
+      <button class="btn-safe" onclick="closePartForm()">取消</button>
+    </div>
   </div>
 </div>
 
@@ -1585,59 +1609,110 @@ function renderAdmPartList(){
 }
 
 function openEditPart(partName){
-  var p=curBox.parts.find(function(x){return x.name===partName;});
-  if(!p)return;
-  var newName=prompt("修改工具名稱：",p.name);
-  if(newName===null)return;
-  newName=newName.trim();
-  if(!newName){alert("名稱不能為空");return;}
-  var newSub=prompt("修改分類標籤（例：A0、A1，留空則無標籤）：",p.sub||"");
-  if(newSub===null)return;
-  newSub=newSub.trim();
-  var newMinStr=prompt("修改最低安全量（每個地點，填 0 表示不追蹤）：",p.minQty||0);
-  if(newMinStr===null)return;
-  var newMin=parseInt(newMinStr);
-  if(isNaN(newMin)||newMin<0)newMin=0;
+  openPartForm("edit", partName);
+}
 
-  // 如果名稱改變，需要搬移庫存資料
-  if(newName!==p.name){
-    var oldKey=gk(curBox.id,p.name);
-    var newKey=gk(curBox.id,newName);
-    stocks["台南"][newKey]=stocks["台南"][oldKey]||0;
-    stocks["屏東"][newKey]=stocks["屏東"][oldKey]||0;
-    delete stocks["台南"][oldKey];
-    delete stocks["屏東"][oldKey];
+// ── 新增/編輯工具 Overlay ──
+var partFormMode = "add"; // "add" | "edit"
+var partFormEditName = ""; // 編輯時的原始名稱
+
+function adjMinQty(d){
+  var el = document.getElementById("pf-min");
+  var v = parseInt(el.value)||0;
+  el.value = Math.max(0, v + d);
+}
+
+function openPartForm(mode, partName){
+  partFormMode = mode;
+  var overlay = document.getElementById("part-form-overlay");
+  var title   = document.getElementById("part-form-title");
+  var btn     = document.getElementById("part-form-confirm-btn");
+
+  if(mode === "add"){
+    title.textContent = "新增工具到「" + curBox.name + "」";
+    btn.textContent = "確認新增";
+    document.getElementById("pf-name").value = "";
+    document.getElementById("pf-sub").value  = "";
+    document.getElementById("pf-min").value  = 1;
+    partFormEditName = "";
+  } else {
+    // 編輯模式：帶入現有資料
+    var p = curBox.parts.find(function(x){ return x.name === partName; });
+    if(!p) return;
+    partFormEditName = partName;
+    title.textContent = "編輯工具";
+    btn.textContent = "確認修改";
+    document.getElementById("pf-name").value = p.name;
+    document.getElementById("pf-sub").value  = p.sub  || "";
+    document.getElementById("pf-min").value  = p.minQty !== undefined ? p.minQty : 1;
   }
-  var oldName=p.name;
-  p.name=newName;
-  p.sub=newSub;
-  p.minQty=newMin;
-  renderAdmPartList();renderBoxes();
-  sendToSheets({type:"編輯工具",box:curBox.name,part:oldName+"→"+newName,qty:0,name:curUser.name,email:curUser.email,note:"分類:"+newSub+"，安全量:"+newMin,time:nowStr(),loc:curLoc});
-  alert("已更新「"+newName+"」（安全量："+newMin+"）");
+
+  overlay.classList.add("show");
+  setTimeout(function(){ document.getElementById("pf-name").focus(); }, 200);
 }
 
-function toggleAddForm(){
-  var f=document.getElementById("add-form");f.classList.toggle("open");
-  if(f.classList.contains("open"))document.getElementById("add-input").focus();
+function closePartForm(){
+  document.getElementById("part-form-overlay").classList.remove("show");
 }
-function confirmAddPart(){
-  var name=document.getElementById("add-input").value.trim();
-  var sub=document.getElementById("add-sub-input").value.trim();
-  var minQty=parseInt(document.getElementById("add-min-input").value)||0;
-  if(!name){alert("請輸入工具名稱");return;}
-  var exists=curBox.parts.find(function(p){return p.name===name;});
-  if(exists){alert("此工具已存在！");return;}
-  curBox.parts.push({name:name,sub:sub,minQty:minQty});
-  stocks["台南"][gk(curBox.id,name)]=0;
-  stocks["屏東"][gk(curBox.id,name)]=0;
-  document.getElementById("add-input").value="";
-  document.getElementById("add-sub-input").value="";
-  document.getElementById("add-min-input").value="";
-  document.getElementById("add-form").classList.remove("open");
-  renderAdmPartList();renderBoxes();
-  sendToSheets({type:"新增工具",box:curBox.name,part:name,qty:0,name:curUser.name,email:curUser.email,note:"管理者新增"+(sub?"，分類:"+sub:"")+"，最低安全量:"+minQty,time:nowStr(),loc:curLoc});
-  alert("已新增「"+name+"」（最低安全量："+minQty+"）");
+
+function confirmPartForm(){
+  var name   = document.getElementById("pf-name").value.trim();
+  var sub    = document.getElementById("pf-sub").value.trim();
+  var minQty = parseInt(document.getElementById("pf-min").value) || 0;
+
+  if(!name){ alert("請輸入工具名稱"); return; }
+
+  if(partFormMode === "add"){
+    var exists = curBox.parts.find(function(p){ return p.name === name; });
+    if(exists){ alert("此工具已存在！"); return; }
+    curBox.parts.push({ name:name, sub:sub, minQty:minQty });
+    stocks["台南"][gk(curBox.id, name)] = 0;
+    stocks["屏東"][gk(curBox.id, name)] = 0;
+    closePartForm();
+    renderAdmPartList(); renderBoxes();
+    sendToSheets({type:"新增工具",box:curBox.name,part:name,qty:0,name:curUser.name,email:curUser.email,
+      note:"新增，分類:"+(sub||"無")+"，安全量:"+minQty,time:nowStr(),loc:curLoc});
+    // 輕量提示，不用 alert 打斷流程
+    showToast("已新增「" + name + "」");
+
+  } else {
+    // 編輯
+    var p = curBox.parts.find(function(x){ return x.name === partFormEditName; });
+    if(!p) return;
+    var oldName = p.name;
+    // 名稱改變時搬移庫存
+    if(name !== oldName){
+      var oldKey = gk(curBox.id, oldName);
+      var newKey = gk(curBox.id, name);
+      stocks["台南"][newKey] = stocks["台南"][oldKey] || 0;
+      stocks["屏東"][newKey] = stocks["屏東"][oldKey] || 0;
+      delete stocks["台南"][oldKey];
+      delete stocks["屏東"][oldKey];
+    }
+    p.name   = name;
+    p.sub    = sub;
+    p.minQty = minQty;
+    closePartForm();
+    renderAdmPartList(); renderBoxes();
+    sendToSheets({type:"編輯工具",box:curBox.name,part:oldName+"→"+name,qty:0,name:curUser.name,email:curUser.email,
+      note:"分類:"+sub+"，安全量:"+minQty,time:nowStr(),loc:curLoc});
+    showToast("已更新「" + name + "」");
+  }
+}
+
+// 輕量 Toast 提示（不阻斷操作）
+function showToast(msg){
+  var t = document.getElementById("toast-msg");
+  if(!t){
+    t = document.createElement("div");
+    t.id = "toast-msg";
+    t.style.cssText = "position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1C1C1E;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:500;z-index:9999;opacity:0;transition:opacity .3s;white-space:nowrap;";
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = "1";
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function(){ t.style.opacity = "0"; }, 2200);
 }
 function askDel(part){
   pendingDelPart=part;
