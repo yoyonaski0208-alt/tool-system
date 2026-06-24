@@ -1,2534 +1,407 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="森清淨工具">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#185FA5">
-<link rel="manifest" href="manifest.json">
-<title>森清淨-工具系統</title>
-<style>
-  /* PWA splash screen */
-  @media (display-mode: standalone) {
-    body { padding-top: env(safe-area-inset-top); }
-  }
-</style>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
-<style>
-:root{
-  --blue:#185FA5;--blue-light:#E6F1FB;
-  --green:#3B6D11;--green-light:#EAF3DE;
-  --amber:#854F0B;--amber-light:#FAEEDA;
-  --red:#A32D2D;--red-light:#FCEBEB;
-  --purple:#6B3FA0;--purple-light:#F3EEFF;
-  --bg:#F5F5F7;--card:#FFFFFF;--border:#E5E5EA;
-  --text:#1C1C1E;--sub:#6C6C70;
-}
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text);max-width:480px;margin:0 auto;min-height:100vh;}
-.screen{display:none;min-height:100vh;}.screen.active{display:block;}
+// =====================================================
+// 森清淨工具系統 — Apps Script
+// Google Sheets ID: 1opNIZ3_bqbk4sJQ8QMw-a7U4IjFPFXiIJqqOHsbtMMA
+// 更新日期：2026/06
+// =====================================================
 
-/* LOGIN */
-.login-wrap{padding:60px 28px 40px;display:flex;flex-direction:column;align-items:center;}
-.login-logo{text-align:center;margin-bottom:36px;}
-.login-logo i{font-size:52px;color:var(--blue);}
-.login-title{font-size:24px;font-weight:700;margin-top:12px;}
-.login-sub{font-size:13px;color:var(--sub);margin-top:6px;text-align:center;line-height:1.6;}
-.login-box{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:22px;width:100%;margin-bottom:14px;}
-.login-box-title{font-size:12px;font-weight:600;color:var(--sub);margin-bottom:12px;}
-.email-input{width:100%;padding:13px 15px;border:1.5px solid var(--border);border-radius:13px;font-size:15px;background:var(--bg);color:var(--text);font-family:inherit;}
-.email-input:focus{outline:none;border-color:var(--blue);}
-.remember-row{display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;}
-.remember-row input{width:17px;height:17px;accent-color:var(--blue);}
-.remember-label{font-size:13px;color:var(--sub);}
-.login-btn{width:100%;padding:15px;background:var(--blue);color:#fff;border:none;border-radius:13px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:14px;display:flex;align-items:center;justify-content:center;gap:8px;}
-.login-btn:active{background:#0C447C;}
-.login-err{background:var(--red-light);border:1px solid #F7C1C1;border-radius:11px;padding:11px 13px;font-size:13px;color:var(--red);margin-top:10px;display:none;text-align:center;line-height:1.5;}
-.login-err.show{display:block;}
+var SS = SpreadsheetApp.openById("1opNIZ3_bqbk4sJQ8QMw-a7U4IjFPFXiIJqqOHsbtMMA");
 
-/* HEADER */
-.app-header{background:var(--card);border-bottom:1px solid var(--border);padding:12px 14px 10px;position:sticky;top:0;z-index:100;}
-.app-title{font-size:18px;font-weight:700;}
-.app-date{font-size:11px;color:var(--sub);margin-top:1px;}
-.user-chip{display:flex;align-items:center;gap:9px;margin-top:9px;background:var(--bg);border-radius:13px;padding:9px 11px;}
-.chip-info{flex:1;min-width:0;}
-.chip-name{font-size:14px;font-weight:600;}
-.chip-sub{font-size:11px;color:var(--sub);margin-top:1px;}
-.chip-car{display:flex;align-items:center;gap:6px;margin-top:5px;}
-.chip-car-txt{font-size:12px;color:var(--text);font-weight:500;}
-.chip-car-no{font-size:11px;color:var(--sub);}
-.car-change-btn{font-size:11px;color:var(--blue);background:var(--blue-light);border:none;border-radius:7px;padding:3px 8px;cursor:pointer;font-family:inherit;white-space:nowrap;}
-.logout-btn{font-size:12px;color:var(--sub);background:none;border:1px solid var(--border);border-radius:8px;padding:5px 9px;cursor:pointer;white-space:nowrap;}
-.avatar{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;}
+// ── 工作表名稱常數 ──
+var SHEET_LOG     = "操作記錄";
+var SHEET_EQUIP   = "器具狀態";
+var SHEET_EQUIP_H = "器具記錄";
+var SHEET_REPAIR  = "報修單";
 
-/* 地點切換 */
-.location-bar{display:flex;gap:6px;padding:9px 14px 0;background:var(--card);}
-.loc-btn{flex:1;padding:7px;border:1px solid var(--border);border-radius:9px;background:none;font-size:13px;font-family:inherit;cursor:pointer;color:var(--sub);}
-.loc-btn.active{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:600;}
+// =====================================================
+// 主入口：GET 請求
+// 用途：1) 讀取器具狀態  2) 讀取報修單  3) 健康檢查
+// 部署設定：執行身分=我、存取權=任何人（含匿名）
+// =====================================================
+function doGet(e) {
+  var params = (e && e.parameter) ? e.parameter : {};
+  var action = params.action || "";
 
-/* BOTTOM NAV */
-.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:100;}
-.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 2px 14px;border:none;background:none;cursor:pointer;gap:2px;color:var(--sub);font-size:10px;font-family:inherit;}
-.nav-btn i{font-size:21px;}
-.nav-btn.active{color:var(--blue);}
-
-/* PAGE */
-.page{padding:12px 13px 80px;display:none;}.page.active{display:block;}
-.notice{background:var(--green-light);border-radius:11px;padding:8px 11px;display:flex;align-items:center;gap:7px;font-size:11px;color:var(--green);margin-bottom:11px;}
-
-/* BOX GRID */
-.box-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.box-card{background:var(--card);border:1px solid var(--border);border-radius:15px;padding:13px 11px;cursor:pointer;transition:transform .1s;}
-.box-card:active{transform:scale(.97);}
-.box-card.warn{border-color:#E24B4A;}
-.box-card.empty{opacity:.4;cursor:default;}
-.box-card i.box-icon{font-size:22px;color:var(--blue);margin-bottom:7px;display:block;}
-.box-name{font-size:12px;font-weight:600;line-height:1.3;margin-bottom:3px;}
-.box-meta{font-size:10px;color:var(--sub);}
-.warn-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:#E24B4A;margin-right:2px;vertical-align:middle;}
-
-/* BACK BAR */
-.back-bar{background:var(--card);border-bottom:1px solid var(--border);padding:10px 13px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:90;}
-.back-circle{width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--text);flex-shrink:0;}
-.back-title{font-size:15px;font-weight:600;flex:1;}
-
-/* PARTS */
-.part-item{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:11px 12px;display:flex;align-items:center;gap:8px;margin-bottom:7px;}
-.part-info{flex:1;min-width:0;}
-.part-name{font-size:13px;font-weight:500;}
-.part-sub{font-size:10px;color:var(--sub);margin-top:2px;}
-.badge{display:inline-block;font-size:10px;padding:2px 6px;border-radius:20px;font-weight:600;}
-.badge-ok{background:var(--green-light);color:var(--green);}
-.badge-low{background:var(--red-light);color:var(--red);}
-.badge-take{background:var(--red-light);color:var(--red);}
-.badge-in{background:var(--blue-light);color:var(--blue);}
-.badge-adj{background:var(--amber-light);color:var(--amber);}
-.badge-serial{background:var(--purple-light);color:var(--purple);}
-.take-btn{background:var(--blue);color:#fff;border:none;border-radius:9px;padding:8px 13px;font-size:12px;font-weight:500;cursor:pointer;flex-shrink:0;font-family:inherit;}
-.take-btn:active{background:#0C447C;}
-.adm-del-btn{background:var(--red-light);color:var(--red);border:none;border-radius:7px;padding:5px 8px;font-size:12px;cursor:pointer;font-family:inherit;}
-.sub-tag{display:inline-block;font-size:10px;padding:1px 5px;border-radius:7px;background:var(--bg);color:var(--sub);border:1px solid var(--border);margin-right:3px;}
-
-/* MODAL */
-.modal-body{padding:14px 14px 0;}
-.modal-part{font-size:18px;font-weight:700;margin-bottom:3px;}
-.modal-box-lbl{font-size:12px;color:var(--sub);margin-bottom:14px;}
-.auto-chip{background:var(--bg);border-radius:11px;padding:9px 11px;display:flex;align-items:center;gap:8px;margin-bottom:14px;}
-.auto-label{font-size:10px;color:var(--sub);}
-.auto-name{font-size:13px;font-weight:600;margin-top:1px;}
-.field-lbl{font-size:12px;color:var(--sub);margin-bottom:6px;font-weight:500;}
-.qty-row{display:flex;align-items:center;border:1px solid var(--border);border-radius:13px;overflow:hidden;margin-bottom:14px;}
-.qty-btn{width:52px;height:52px;border:none;background:var(--bg);font-size:22px;color:var(--text);cursor:pointer;flex-shrink:0;font-family:inherit;}
-.qty-val::-webkit-inner-spin-button,.qty-val::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
-.qty-val{-moz-appearance:textfield;}
-.qty-btn:active{background:var(--border);}
-.qty-val{flex:1;text-align:center;font-size:22px;font-weight:700;border:none;outline:none;background:transparent;font-family:inherit;}
-.note-wrap{margin-bottom:14px;}
-.note-input{width:100%;padding:11px 13px;border:1px solid var(--border);border-radius:11px;font-size:14px;background:var(--card);color:var(--text);font-family:inherit;}
-.note-input:focus{outline:none;border-color:var(--blue);}
-.serial-wrap{margin-bottom:14px;background:var(--purple-light);border-radius:11px;padding:11px 13px;}
-.serial-label{font-size:11px;color:var(--purple);font-weight:600;margin-bottom:6px;}
-.serial-input{width:100%;padding:9px 11px;border:1px solid #C9B3E8;border-radius:9px;font-size:14px;background:var(--card);color:var(--text);font-family:inherit;}
-.serial-input:focus{outline:none;border-color:var(--purple);}
-.modal-footer{position:sticky;bottom:0;background:var(--card);padding:11px 14px 24px;border-top:1px solid var(--border);}
-.confirm-btn{width:100%;padding:15px;border:none;border-radius:13px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;}
-
-/* SUCCESS */
-.success-wrap{padding:56px 22px 36px;text-align:center;}
-.success-icon{font-size:52px;margin-bottom:14px;}
-.success-title{font-size:20px;font-weight:700;margin-bottom:6px;}
-.success-detail{font-size:13px;color:var(--sub);margin-bottom:18px;line-height:1.6;}
-.gs-chip{display:inline-flex;align-items:center;gap:6px;background:var(--green-light);border-radius:20px;padding:6px 13px;font-size:12px;color:var(--green);font-weight:500;margin-bottom:22px;}
-.gs-dot{width:6px;height:6px;border-radius:50%;background:var(--green);}
-.ok-back-btn{background:var(--blue);color:#fff;border:none;border-radius:13px;padding:13px 32px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;}
-
-/* LOG */
-.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:11px;}
-.stat-box{background:var(--card);border-radius:11px;padding:11px 6px;text-align:center;border:1px solid var(--border);}
-.stat-num{font-size:20px;font-weight:700;}
-.stat-lbl{font-size:10px;color:var(--sub);margin-top:2px;}
-.filter-row{display:flex;gap:6px;margin-bottom:11px;overflow-x:auto;padding-bottom:2px;}
-.filter-row::-webkit-scrollbar{display:none;}
-.filter-chip{padding:6px 13px;border-radius:20px;border:1px solid var(--border);background:var(--card);font-size:12px;color:var(--sub);cursor:pointer;white-space:nowrap;flex-shrink:0;font-family:inherit;}
-.filter-chip.on{background:var(--blue);color:#fff;border-color:var(--blue);}
-.log-item{background:var(--card);border:1px solid var(--border);border-radius:11px;padding:10px 12px;margin-bottom:7px;display:flex;align-items:center;gap:8px;}
-.log-left{flex:1;min-width:0;}
-.log-who{font-size:12px;font-weight:600;display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
-.log-box-name{font-size:10px;color:var(--sub);font-weight:400;}
-.log-part{font-size:11px;color:var(--sub);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.log-time{font-size:10px;color:var(--sub);opacity:.7;margin-top:1px;}
-.log-qty{font-size:17px;font-weight:700;white-space:nowrap;}
-.empty-msg{font-size:13px;color:var(--sub);text-align:center;padding:26px 0;}
-
-/* STOCK */
-.stock-item{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:12px;margin-bottom:7px;}
-.stock-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
-.stock-name{font-size:13px;font-weight:600;}
-.stock-sub{font-size:10px;color:var(--sub);margin-top:2px;}
-.progress{height:5px;background:#E5E5EA;border-radius:10px;overflow:hidden;}
-.progress-fill{height:100%;border-radius:10px;}
-
-/* ADMIN */
-.admin-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px;}
-.admin-stat{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:13px 10px;text-align:center;}
-.admin-stat-num{font-size:24px;font-weight:700;}
-.admin-stat-lbl{font-size:11px;color:var(--sub);margin-top:3px;}
-.section-hd{font-size:12px;font-weight:600;color:var(--sub);margin:12px 0 7px;}
-.alert-item{background:var(--red-light);border:1px solid #F7C1C1;border-radius:11px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:8px;}
-.alert-item i{font-size:17px;color:var(--red);flex-shrink:0;}
-.alert-name{font-size:12px;font-weight:600;color:var(--red);}
-.alert-box{font-size:10px;color:var(--red);opacity:.8;margin-top:1px;}
-.alert-qty{font-size:15px;font-weight:700;color:var(--red);margin-left:auto;}
-.adm-box{background:var(--card);border:1px solid var(--border);border-radius:13px;margin-bottom:8px;overflow:hidden;}
-.adm-box-hd{padding:12px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
-.adm-box-title{font-size:13px;font-weight:600;}
-.adm-box-meta{font-size:10px;color:var(--sub);margin-top:2px;}
-.btn-sm{border:none;border-radius:8px;padding:6px 10px;font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;}
-.btn-sm-green{background:var(--green);color:#fff;}
-.btn-sm-amber{background:var(--amber);color:#fff;}
-.no-alert{background:var(--green-light);border-radius:11px;padding:11px;font-size:12px;color:var(--green);text-align:center;font-weight:500;}
-.adm-parts{border-top:1px solid var(--border);padding:7px 12px;display:none;}
-.adm-parts.open{display:block;}
-.adm-part-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);}
-.adm-part-row:last-child{border-bottom:none;}
-.adm-part-name{font-size:12px;flex:1;}
-.adm-part-qty{font-size:12px;font-weight:600;margin-right:7px;}
-.add-form{background:var(--blue-light);border:1px dashed var(--blue);border-radius:11px;padding:12px;margin-top:7px;display:none;}
-.add-form.open{display:block;}
-.add-input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:9px;font-size:14px;background:var(--card);color:var(--text);font-family:inherit;margin-bottom:7px;}
-.add-row{display:flex;gap:7px;}
-.btn-add-confirm{flex:1;background:var(--blue);color:#fff;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;}
-.btn-add-cancel{background:none;border:1px solid var(--border);border-radius:9px;padding:10px 12px;font-size:13px;cursor:pointer;font-family:inherit;color:var(--sub);}
-
-/* 序號追蹤 */
-.serial-card{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:12px;margin-bottom:7px;}
-.serial-tool-name{font-size:13px;font-weight:600;margin-bottom:7px;color:var(--purple);}
-.serial-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);}
-.serial-row:last-child{border-bottom:none;}
-.serial-num{font-size:13px;font-weight:700;color:var(--purple);}
-.serial-holder{font-size:12px;color:var(--text);margin-top:1px;}
-.serial-time{font-size:10px;color:var(--sub);}
-
-/* OVERLAY */
-.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end;justify-content:center;}
-.overlay.show{display:flex;}
-.overlay-sheet{background:var(--card);border-radius:20px 20px 0 0;padding:20px 17px 36px;width:100%;max-width:480px;}
-.overlay-title{font-size:16px;font-weight:700;margin-bottom:6px;}
-.overlay-sub{font-size:13px;color:var(--sub);margin-bottom:16px;line-height:1.5;}
-.overlay-input{width:100%;padding:12px 13px;border:1.5px solid var(--border);border-radius:11px;font-size:15px;background:var(--bg);color:var(--text);font-family:inherit;margin-bottom:11px;}
-.overlay-input:focus{outline:none;border-color:var(--blue);}
-.overlay-btns{display:flex;flex-direction:column;gap:8px;}
-.btn-danger{background:var(--red);color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;}
-.btn-safe{background:var(--bg);color:var(--text);border:none;border-radius:12px;padding:14px;font-size:15px;cursor:pointer;font-family:inherit;}
-.btn-primary{background:var(--blue);color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;}
-
-/* 車牌設定 */
-.car-setup-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;}
-.car-setup-box{background:var(--card);border-radius:20px;padding:28px 22px;width:100%;max-width:360px;text-align:center;}
-.car-setup-icon{font-size:44px;color:var(--blue);margin-bottom:14px;}
-.car-setup-title{font-size:18px;font-weight:700;margin-bottom:7px;}
-.car-setup-sub{font-size:13px;color:var(--sub);margin-bottom:20px;line-height:1.5;}
-.car-plate-input{width:100%;padding:14px;border:2px solid var(--border);border-radius:13px;font-size:18px;font-weight:700;text-align:center;letter-spacing:3px;background:var(--bg);color:var(--text);font-family:inherit;text-transform:uppercase;margin-bottom:14px;}
-.car-plate-input:focus{outline:none;border-color:var(--blue);}
-.car-skip-btn{font-size:13px;color:var(--sub);background:none;border:none;cursor:pointer;text-decoration:underline;margin-top:10px;font-family:inherit;}
-
-.spin{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:sp .8s linear infinite;}
-@keyframes sp{to{transform:rotate(360deg);}}
-/* 補貨收合 */
-.restock-header{display:flex;align-items:center;justify-content:space-between;margin:12px 0 0;cursor:pointer;user-select:none;}
-.restock-title{font-size:12px;font-weight:600;color:var(--sub);}
-.restock-badges{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
-.restock-badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;}
-.restock-badge-tainan{background:var(--blue-light);color:var(--blue);}
-.restock-badge-pingtung{background:var(--purple-light);color:var(--purple);}
-.restock-badge-all{background:var(--red-light);color:var(--red);}
-.restock-toggle{font-size:12px;color:var(--sub);background:none;border:none;cursor:pointer;padding:2px 6px;}
-.restock-body{display:none;margin-top:8px;}
-.restock-body.open{display:block;}
-
-/* 報修管理 */
-.repair-form-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px;}
-.repair-form-title{font-size:14px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:7px;}
-.repair-field{margin-bottom:11px;}
-.repair-field label{font-size:12px;color:var(--sub);font-weight:500;display:block;margin-bottom:5px;}
-.repair-select{width:100%;padding:11px 13px;border:1.5px solid var(--border);border-radius:11px;font-size:14px;background:var(--bg);color:var(--text);font-family:inherit;}
-.repair-select:focus{outline:none;border-color:var(--blue);}
-.repair-textarea{width:100%;padding:11px 13px;border:1.5px solid var(--border);border-radius:11px;font-size:14px;background:var(--bg);color:var(--text);font-family:inherit;resize:vertical;min-height:80px;}
-.repair-textarea:focus{outline:none;border-color:var(--blue);}
-.repair-submit-btn{width:100%;padding:14px;background:var(--red);color:#fff;border:none;border-radius:13px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;}
-.repair-submit-btn:active{background:#8B2020;}
-.repair-list-item{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:12px;margin-bottom:7px;}
-.repair-list-hd{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;}
-.repair-list-title{font-size:13px;font-weight:600;flex:1;}
-.repair-status{font-size:10px;padding:3px 8px;border-radius:20px;font-weight:600;white-space:nowrap;margin-left:8px;}
-.repair-status-open{background:var(--red-light);color:var(--red);}
-.repair-status-inprog{background:var(--amber-light);color:var(--amber);}
-.repair-status-done{background:var(--green-light);color:var(--green);}
-.repair-list-meta{font-size:11px;color:var(--sub);margin-bottom:4px;}
-.repair-list-desc{font-size:12px;color:var(--text);line-height:1.5;}
-.repair-adm-btns{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
-.repair-adm-btn{font-size:11px;padding:5px 10px;border-radius:8px;border:none;cursor:pointer;font-family:inherit;font-weight:500;}
-.repair-tabs{display:flex;gap:6px;margin-bottom:12px;}
-.repair-tab{flex:1;padding:8px;border:1.5px solid var(--border);border-radius:10px;background:none;font-size:12px;font-family:inherit;cursor:pointer;color:var(--sub);}
-.repair-tab.active{background:var(--red);color:#fff;border-color:var(--red);font-weight:700;}
-
-/* 特殊器具追蹤 */
-.equip-card{background:var(--card);border:1.5px solid var(--border);border-radius:16px;padding:14px;margin-bottom:10px;transition:border-color .15s;}
-.equip-card.out{border-color:#E9A825;}
-.equip-card.overdue{border-color:var(--red);}
-.equip-card.in{border-color:#3B9E5A;}
-.equip-hd{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
-.equip-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
-.equip-icon.in{background:var(--green-light);}
-.equip-icon.out{background:#FEF3CD;}
-.equip-icon.overdue{background:var(--red-light);}
-.equip-name{font-size:14px;font-weight:700;flex:1;}
-.equip-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;}
-.equip-badge-in{background:var(--green-light);color:var(--green);}
-.equip-badge-out{background:#FEF3CD;color:#854F0B;}
-.equip-badge-overdue{background:var(--red-light);color:var(--red);}
-.equip-meta-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
-.equip-meta-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--sub);background:var(--bg);border-radius:8px;padding:4px 8px;}
-.equip-meta-item i{font-size:12px;}
-.equip-meta-item.warn{color:var(--red);background:var(--red-light);}
-.equip-action-row{display:flex;gap:7px;}
-.equip-btn-out{flex:1;padding:11px;background:var(--amber);color:#fff;border:none;border-radius:11px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;}
-.equip-btn-out:active{background:#6B3E09;}
-.equip-btn-in{flex:1;padding:11px;background:var(--green);color:#fff;border:none;border-radius:11px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;}
-.equip-btn-in:active{background:#285008;}
-.equip-btn-disabled{flex:1;padding:11px;background:var(--border);color:var(--sub);border:none;border-radius:11px;font-size:13px;font-weight:600;cursor:not-allowed;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;}
-.equip-history{border-top:1px solid var(--border);margin-top:10px;padding-top:8px;}
-.equip-history-title{font-size:10px;font-weight:600;color:var(--sub);margin-bottom:6px;letter-spacing:.5px;}
-.equip-history-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px;}
-.equip-history-row:last-child{border-bottom:none;}
-.equip-history-who{color:var(--text);font-weight:500;}
-.equip-history-time{color:var(--sub);}
-.equip-pending-banner{background:var(--amber-light);border:1px solid #E9A825;border-radius:11px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:var(--amber);display:flex;align-items:center;gap:7px;}
-.equip-section-hd{font-size:11px;font-weight:700;color:var(--sub);letter-spacing:.5px;margin:14px 0 8px;padding:0 2px;}
-/* 借出申請 overlay */
-.equip-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:300;align-items:flex-end;justify-content:center;}
-.equip-overlay.show{display:flex;}
-.equip-sheet{background:var(--card);border-radius:22px 22px 0 0;padding:22px 18px 40px;width:100%;max-width:480px;}
-.equip-sheet-title{font-size:17px;font-weight:700;margin-bottom:5px;}
-.equip-sheet-sub{font-size:12px;color:var(--sub);margin-bottom:18px;line-height:1.5;}
-.equip-field{margin-bottom:13px;}
-.equip-field label{font-size:12px;color:var(--sub);font-weight:500;display:block;margin-bottom:5px;}
-.equip-input{width:100%;padding:12px 13px;border:1.5px solid var(--border);border-radius:11px;font-size:14px;background:var(--bg);color:var(--text);font-family:inherit;}
-.equip-input:focus{outline:none;border-color:var(--amber);}
-.equip-select{width:100%;padding:12px 13px;border:1.5px solid var(--border);border-radius:11px;font-size:14px;background:var(--bg);color:var(--text);font-family:inherit;}
-.equip-select:focus{outline:none;border-color:var(--amber);}
-.equip-submit-btn{width:100%;padding:14px;background:var(--amber);color:#fff;border:none;border-radius:13px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px;}
-.equip-submit-btn:active{background:#6B3E09;}
-.equip-cancel-btn{width:100%;padding:12px;background:none;color:var(--sub);border:none;border-radius:13px;font-size:14px;cursor:pointer;font-family:inherit;margin-top:6px;}
-/* 管理者待審核 */
-.equip-pending-item{background:var(--amber-light);border:1px solid #E9A825;border-radius:13px;padding:12px;margin-bottom:8px;}
-.equip-pending-name{font-size:13px;font-weight:700;margin-bottom:4px;}
-.equip-pending-meta{font-size:11px;color:var(--amber);margin-bottom:8px;}
-.equip-pending-btns{display:flex;gap:7px;}
-.equip-approve-btn{flex:1;padding:9px;background:var(--green);color:#fff;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;}
-.equip-reject-btn{flex:1;padding:9px;background:var(--red-light);color:var(--red);border:none;border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;}
-</style>
-</head>
-<body>
-
-<!-- 載入中 -->
-<div id="s-loading" class="screen active">
-  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:14px;">
-    <div class="spin"></div>
-    <div style="font-size:14px;color:var(--sub);">確認登入狀態中…</div>
-  </div>
-</div>
-
-<!-- 登入 -->
-<div id="s-login" class="screen">
-  <div class="login-wrap">
-    <div class="login-logo">
-      <i class="ti ti-tool"></i>
-      <div class="login-title">森清淨-工具系統</div>
-      <div class="login-sub">請輸入您的 Gmail 信箱登入<br>首次登入後可選擇記住，之後自動進入</div>
-    </div>
-    <div class="login-box">
-      <div class="login-box-title">Gmail 信箱</div>
-      <input class="email-input" id="email-input" type="email" placeholder="yourname@gmail.com" autocomplete="email">
-      <label class="remember-row">
-        <input type="checkbox" id="remember-check" checked>
-        <span class="remember-label">記住我，下次自動登入</span>
-      </label>
-      <button class="login-btn" id="login-btn" onclick="doLogin()">
-        <i class="ti ti-login"></i> 登入
-      </button>
-      <div class="login-err" id="login-err"></div>
-    </div>
-    <p style="font-size:11px;color:var(--sub);text-align:center;">沒有權限？請聯絡管理者將您的信箱加入設定表</p>
-  </div>
-</div>
-
-<!-- 車牌設定（首次登入） -->
-<div id="s-car-setup" class="screen">
-  <div class="car-setup-wrap">
-    <div class="car-setup-box">
-      <div class="car-setup-icon"><i class="ti ti-car"></i></div>
-      <div class="car-setup-title">設定您的車牌</div>
-      <div class="car-setup-sub">請輸入您目前使用的車牌號碼<br>之後可以隨時在首頁換車</div>
-      <input class="car-plate-input" id="setup-plate-input" placeholder="ABC-1234" maxlength="10">
-      <button class="btn-primary" style="width:100%;padding:14px;font-size:15px;" onclick="saveCarPlate()">確認設定</button>
-      <br>
-      <button class="car-skip-btn" onclick="skipCarSetup()">暫時跳過，之後再設定</button>
-    </div>
-  </div>
-</div>
-
-<!-- 主畫面 -->
-<div id="s-main" class="screen">
-  <div class="app-header">
-    <div style="display:flex;align-items:center;justify-content:space-between;">
-      <div><div class="app-title">森清淨-工具系統</div><div class="app-date" id="hd-date"></div></div>
-    </div>
-    <div class="user-chip">
-      <div class="avatar" id="hd-av" style="width:36px;height:36px;font-size:13px;"></div>
-      <div class="chip-info">
-        <div class="chip-name" id="hd-name"></div>
-        <div class="chip-sub" id="hd-sub"></div>
-        <div class="chip-car" id="car-row">
-          <i class="ti ti-car" style="font-size:13px;color:var(--sub);"></i>
-          <span class="chip-car-txt" id="hd-car">未設定</span>
-          <button class="car-change-btn" onclick="showChangeCar()">換車</button>
-        </div>
-      </div>
-      <button class="logout-btn" onclick="doLogout()">登出</button>
-    </div>
-  </div>
-  <div class="location-bar" id="location-bar" style="display:none;">
-    <button class="loc-btn active" id="loc-all" onclick="setLoc(this)">全部</button>
-    <button class="loc-btn" id="loc-tainan" onclick="setLoc(this)">台南</button>
-    <button class="loc-btn" id="loc-pingtung" onclick="setLoc(this)">屏東</button>
-  </div>
-
-  <div id="pg-take" class="page active">
-    <div id="greeting-banner" style="background:linear-gradient(135deg,#185FA5,#0C447C);border-radius:16px;padding:16px 18px;margin-bottom:12px;color:#fff;display:none;">
-      <div style="font-size:18px;font-weight:700;margin-bottom:4px;" id="greeting-name">早安！</div>
-      <div style="font-size:13px;opacity:.85;" id="greeting-text">今天也是美好的一天！</div>
-    </div>
-    <div class="notice"><i class="ti ti-brand-google-drive" style="font-size:14px;"></i>每筆操作自動寫入 Google Sheets</div>
-    <div class="box-grid" id="box-grid"></div>
-  </div>
-
-  <div id="pg-log" class="page">
-    <div class="stat-grid">
-      <div class="stat-box"><div class="stat-num" id="sl-tot">0</div><div class="stat-lbl">總記錄</div></div>
-      <div class="stat-box"><div class="stat-num" id="sl-tak">0</div><div class="stat-lbl">領取次數</div></div>
-      <div class="stat-box"><div class="stat-num" id="sl-in">0</div><div class="stat-lbl">進貨次數</div></div>
-    </div>
-    <div class="filter-row" id="filter-row">
-      <button class="filter-chip on" onclick="flog('all',this)">全部</button>
-      <button class="filter-chip" onclick="flog('領取',this)">領取</button>
-      <button class="filter-chip worker-hide" onclick="flog('進貨',this)">進貨</button>
-      <button class="filter-chip worker-hide" onclick="flog('調整',this)">調整</button>
-    </div>
-    <div id="log-list"></div>
-  </div>
-
-
-  <div id="pg-serial" class="page">
-    <p style="font-size:11px;color:var(--sub);margin-bottom:11px;">有填寫序號的工具持有記錄</p>
-    <div id="serial-list"></div>
-  </div>
-
-  <div id="pg-repair" class="page">
-    <!-- 報修頁面 -->
-    <div class="repair-tabs">
-      <button class="repair-tab active" id="repair-tab-form" onclick="switchRepairTab('form',this)"><i class="ti ti-plus"></i> 新增報修</button>
-      <button class="repair-tab" id="repair-tab-list" onclick="switchRepairTab('list',this)"><i class="ti ti-list"></i> 報修清單</button>
-    </div>
-    <!-- 新增報修表單 -->
-    <div id="repair-panel-form">
-      <div class="repair-form-box">
-        <div class="repair-form-title"><i class="ti ti-alert-triangle" style="color:var(--red);"></i> 報修單</div>
-        <div class="repair-field">
-          <label>位置／地點</label>
-          <select class="repair-select" id="repair-loc">
-            <option value="台南">台南</option>
-            <option value="屏東">屏東</option>
-          </select>
-        </div>
-        <div class="repair-field">
-          <label>設備／工具名稱</label>
-          <select class="repair-select" id="repair-device">
-            <option value="">── 請選擇設備 ──</option>
-          </select>
-        </div>
-        <div class="repair-field">
-          <label>損壞狀況描述</label>
-          <textarea class="repair-textarea" id="repair-desc" placeholder="請描述損壞情況、發現時間或相關細節…"></textarea>
-        </div>
-        <div class="repair-field">
-          <label>緊急程度</label>
-          <select class="repair-select" id="repair-urgency">
-            <option value="一般">一般（可繼續使用）</option>
-            <option value="緊急">緊急（影響作業）</option>
-            <option value="嚴重">嚴重（立即停止使用）</option>
-          </select>
-        </div>
-        <button class="repair-submit-btn" onclick="submitRepair()">
-          <i class="ti ti-send"></i> 送出報修
-        </button>
-      </div>
-    </div>
-    <!-- 報修清單 -->
-    <div id="repair-panel-list" style="display:none;">
-      <div style="display:flex;gap:6px;margin-bottom:11px;overflow-x:auto;padding-bottom:2px;">
-        <button class="filter-chip on" onclick="filterRepair('all',this)">全部</button>
-        <button class="filter-chip" onclick="filterRepair('待處理',this)">待處理</button>
-        <button class="filter-chip" onclick="filterRepair('處理中',this)">處理中</button>
-        <button class="filter-chip" onclick="filterRepair('已完成',this)">已完成</button>
-      </div>
-      <div id="repair-list-container"></div>
-    </div>
-  </div>
-
-  <!-- ── 特殊器具借出追蹤 ── -->
-  <div id="pg-equip" class="page">
-    <!-- 管理者：待審核區塊 -->
-    <div id="equip-pending-section" style="display:none;">
-      <div class="equip-section-hd">⏳ 待審核申請</div>
-      <div id="equip-pending-list"></div>
-    </div>
-    <!-- 器具清單 -->
-    <div class="equip-section-hd">特殊器具狀態</div>
-    <div id="equip-list"></div>
-  </div>
-
-  <div id="pg-admin" class="page">
-    <div class="admin-stat-grid">
-      <div class="admin-stat"><div class="admin-stat-num" id="adm-n-total" style="color:var(--blue);">0</div><div class="admin-stat-lbl">總項目數</div></div>
-      <div class="admin-stat"><div class="admin-stat-num" id="adm-n-low" style="color:var(--red);">0</div><div class="admin-stat-lbl">需補貨</div></div>
-      <div class="admin-stat"><div class="admin-stat-num" id="adm-n-boxes" style="color:var(--green);">0</div><div class="admin-stat-lbl">箱子數量</div></div>
-      <div class="admin-stat"><div class="admin-stat-num" id="adm-n-logs" style="color:var(--red);">0</div><div class="admin-stat-lbl">待處理報修</div></div>
-    </div>
-    <div id="adm-restock-hdr" class="restock-header" onclick="toggleRestock()" style="margin-top:12px;">
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <span class="restock-title">需要補貨項目</span>
-        <div class="restock-badges" id="restock-badges"></div>
-      </div>
-      <span id="restock-arrow" style="font-size:11px;color:var(--blue);white-space:nowrap;">▼展開</span>
-    </div>
-    <div id="adm-alerts" class="restock-body"></div>
-    <div class="section-hd" style="margin-top:16px;">所有工具箱</div>
-    <div id="adm-boxes"></div>
-  </div>
-
-  <div class="bottom-nav">
-    <button class="nav-btn active" id="nav-take" onclick="navTo('take',this)"><i class="ti ti-package"></i>領取</button>
-    <button class="nav-btn" id="nav-log" onclick="navTo('log',this)"><i class="ti ti-list-details"></i>記錄</button>
-    <button class="nav-btn" id="nav-equip" onclick="navTo('equip',this)"><i class="ti ti-key"></i>器具</button>
-    <button class="nav-btn" id="nav-repair" onclick="navTo('repair',this)"><i class="ti ti-tool"></i>報修</button>
-    <button class="nav-btn" id="nav-serial" onclick="navTo('serial',this)" style="display:none;"><i class="ti ti-qrcode"></i>序號</button>
-    <button class="nav-btn" id="nav-admin" onclick="navTo('admin',this)" style="display:none;"><i class="ti ti-settings"></i>後台</button>
-  </div>
-</div>
-
-<!-- 零件（作業員） -->
-<div id="s-parts" class="screen">
-  <div class="back-bar">
-    <button class="back-circle" onclick="showMain('take')"><i class="ti ti-arrow-left"></i></button>
-    <div class="back-title" id="parts-h2"></div>
-  </div>
-  <div style="padding:10px 13px 100px;" id="part-list"></div>
-</div>
-
-<!-- 零件（管理者） -->
-<div id="s-adm-parts" class="screen">
-  <div class="back-bar">
-    <button class="back-circle" onclick="showMain('admin')"><i class="ti ti-arrow-left"></i></button>
-    <div class="back-title" id="adm-parts-h2"></div>
-  </div>
-  <div style="padding:10px 13px 100px;">
-    <div id="adm-part-list"></div>
-    <button class="confirm-btn" style="background:var(--blue);color:#fff;padding:12px;font-size:14px;border-radius:12px;margin-top:4px;" onclick="toggleAddForm()">
-      <i class="ti ti-plus"></i> 新增工具到此箱
-    </button>
-    <div class="add-form" id="add-form">
-      <div class="field-lbl" style="margin-bottom:6px;color:var(--blue);font-weight:600;">新增工具名稱</div>
-      <input class="add-input" id="add-input" placeholder="輸入工具名稱" maxlength="30">
-      <div class="field-lbl" style="margin-bottom:6px;color:var(--blue);font-weight:600;">分類標籤（選填，例：A0、A1、副F1）</div>
-      <input class="add-input" id="add-sub-input" placeholder="輸入分類標籤" maxlength="10" style="margin-bottom:0;">
-      <div class="add-row" style="margin-top:8px;">
-        <button class="btn-add-cancel" onclick="toggleAddForm()">取消</button>
-        <button class="btn-add-confirm" onclick="confirmAddPart()">確認新增</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal -->
-<div id="s-modal" class="screen">
-  <div class="back-bar">
-    <button class="back-circle" id="mod-back"><i class="ti ti-arrow-left"></i></button>
-    <div class="back-title" id="mod-h2"></div>
-  </div>
-  <div class="modal-body">
-    <div class="modal-part" id="mod-part"></div>
-    <div class="modal-box-lbl" id="mod-box"></div>
-    <div class="auto-chip">
-      <div class="avatar" id="mod-av" style="width:36px;height:36px;font-size:13px;"></div>
-      <div><div class="auto-label">身份自動帶入</div><div class="auto-name" id="mod-who"></div></div>
-    </div>
-    <div class="field-lbl" id="qty-lbl">領取數量</div>
-    <div style="display:flex;align-items:center;border:1px solid var(--border);border-radius:13px;overflow:hidden;margin-bottom:14px;width:100%;">
-      <button onclick="adjQ(-1)" style="width:56px;height:56px;border:none;background:var(--bg);font-size:28px;font-weight:300;color:var(--text);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;">−</button>
-      <input id="qty-show" type="text" value="1" inputmode="numeric" pattern="[0-9]*" style="flex:1;text-align:center;font-size:24px;font-weight:700;border:none;outline:none;background:transparent;font-family:inherit;min-width:0;padding:0;">
-      <button onclick="adjQ(1)" style="width:56px;height:56px;border:none;background:var(--bg);font-size:28px;font-weight:300;color:var(--text);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;">＋</button>
-    </div>
-    <div class="serial-wrap">
-      <div class="serial-label"><i class="ti ti-qrcode" style="font-size:13px;"></i> 序號（選填，有序號的工具請填寫）</div>
-      <input class="serial-input" id="serial-input" placeholder="輸入工具序號，例：SN-001">
-    </div>
-    <div class="note-wrap">
-      <div class="field-lbl">備註（選填）</div>
-      <input class="note-input" id="f-note" placeholder="例：維修冷氣、廠商補貨…">
-    </div>
-  </div>
-  <div class="modal-footer">
-    <button class="confirm-btn" id="mod-confirm" onclick="confirmAction()">確認領取</button>
-  </div>
-</div>
-
-<!-- 成功 -->
-<div id="s-ok" class="screen">
-  <div class="success-wrap">
-    <div class="success-icon" id="ok-icon"></div>
-    <div class="success-title" id="ok-title"></div>
-    <div class="success-detail" id="ok-detail"></div>
-    <div class="gs-chip"><div class="gs-dot"></div>已自動寫入 Google Sheets</div><br>
-    <button class="ok-back-btn" onclick="afterOk()">繼續操作</button>
-  </div>
-</div>
-
-<!-- 刪除確認 -->
-<div class="overlay" id="del-overlay">
-  <div class="overlay-sheet">
-    <div class="overlay-title">確認刪除工具？</div>
-    <div class="overlay-sub" id="del-msg"></div>
-    <div class="overlay-btns">
-      <button class="btn-danger" onclick="executeDel()">確認刪除</button>
-      <button class="btn-safe" onclick="closeOverlay('del-overlay')">取消</button>
-    </div>
-  </div>
-</div>
-
-<!-- 換車 -->
-<div class="overlay" id="car-overlay">
-  <div class="overlay-sheet">
-    <div class="overlay-title" id="car-overlay-title">換車</div>
-    <div class="overlay-sub" id="car-overlay-sub">輸入您新的車牌號碼</div>
-    <input class="overlay-input" id="car-overlay-input" placeholder="ABC-1234" style="text-transform:uppercase;font-size:18px;font-weight:700;text-align:center;letter-spacing:2px;">
-    <div class="overlay-btns">
-      <button class="btn-primary" onclick="confirmChangeCar()">確認換車</button>
-      <button class="btn-safe" onclick="closeOverlay('car-overlay')">取消</button>
-    </div>
-  </div>
-</div>
-
-<!-- 特殊器具：申請借出 overlay -->
-<div class="equip-overlay" id="equip-borrow-overlay">
-  <div class="equip-sheet">
-    <div class="equip-sheet-title" id="equip-borrow-title">申請借出</div>
-    <div class="equip-sheet-sub">借出申請將送交管理者審核，核准後即可帶走器具</div>
-    <div class="equip-field">
-      <label>借出地點</label>
-      <select class="equip-select" id="equip-borrow-loc">
-        <option value="台南">台南</option>
-        <option value="屏東">屏東</option>
-        <option value="其他">其他</option>
-      </select>
-    </div>
-    <div class="equip-field">
-      <label>預計歸還日期</label>
-      <input type="date" class="equip-input" id="equip-borrow-date">
-    </div>
-    <div class="equip-field">
-      <label>用途說明（選填）</label>
-      <input class="equip-input" id="equip-borrow-note" placeholder="例：冷卻水塔清洗工程…">
-    </div>
-    <button class="equip-submit-btn" onclick="submitBorrowRequest()"><i class="ti ti-send"></i> 送出申請</button>
-    <button class="equip-cancel-btn" onclick="closeEquipOverlay()">取消</button>
-  </div>
-</div>
-
-<!-- 特殊器具：管理者直接借出 overlay -->
-<div class="equip-overlay" id="equip-admin-borrow-overlay">
-  <div class="equip-sheet">
-    <div class="equip-sheet-title" id="equip-admin-borrow-title">登記借出</div>
-    <div class="equip-sheet-sub">管理者直接登記，不需審核</div>
-    <div class="equip-field">
-      <label>借出人</label>
-      <input class="equip-input" id="equip-admin-who" placeholder="輸入借出人姓名">
-    </div>
-    <div class="equip-field">
-      <label>借出地點</label>
-      <select class="equip-select" id="equip-admin-loc">
-        <option value="台南">台南</option>
-        <option value="屏東">屏東</option>
-        <option value="其他">其他</option>
-      </select>
-    </div>
-    <div class="equip-field">
-      <label>預計歸還日期</label>
-      <input type="date" class="equip-input" id="equip-admin-date">
-    </div>
-    <div class="equip-field">
-      <label>用途說明（選填）</label>
-      <input class="equip-input" id="equip-admin-note" placeholder="例：冷卻水塔清洗工程…">
-    </div>
-    <button class="equip-submit-btn" onclick="adminDirectBorrow()"><i class="ti ti-check"></i> 確認借出</button>
-    <button class="equip-cancel-btn" onclick="closeEquipOverlay()">取消</button>
-  </div>
-</div>
-
-<script>
-var GAS_URL = "https://script.google.com/macros/s/AKfycbwMEvP_rDmQOfYNwqG98YwAevii_8QhtYDai0Me210rCjQOnZDg3slTXBA2BEFbq6mIpw/exec";
-var SHEET_ID = "1opNIZ3_bqbk4sJQ8QMw-a7U4IjFPFXiIJqqOHsbtMMA";
-
-var BOXES = [
-  {id:"A", name:"A 清洗工具箱", icon:"ti-wash", parts:[
-    {name:"高壓清洗機", sub:"A0", minQty:1},
-    {name:"清洗機轉接頭6分", sub:"A1", minQty:2},
-    {name:"六呎鋁梯", sub:"A0", minQty:1},
-    {name:"八呎鋁梯", sub:"A0", minQty:1},
-    {name:"鋁梯彈力繩0.6m", sub:"A1", minQty:2},
-    {name:"手推車", sub:"A0", minQty:1},
-    {name:"手推車彈力繩1.5m", sub:"A1", minQty:2},
-    {name:"綠水塔刷", sub:"A0", minQty:1},
-    {name:"白水塔刷頭", sub:"A1", minQty:2},
-    {name:"白水塔伸縮桿3m", sub:"A0", minQty:2},
-    {name:"冷氣清洗槽", sub:"A0", minQty:2},
-    {name:"冷氣清洗槽墊板", sub:"A0", minQty:10},
-    {name:"藍色室內工作鞋42", sub:"A0", minQty:2},
-    {name:"黑色室外工作鞋42", sub:"A0", minQty:2},
-    {name:"噴瓶組", sub:"主A", minQty:4},
-    {name:"推水掃把", sub:"A0", minQty:1}
-  ]},
-  {id:"B", name:"B 水塔箱", icon:"ti-droplet", parts:[
-    {name:"畚箕", sub:"B0", minQty:2},
-    {name:"水龍帶2吋15m", sub:"B1", minQty:2},
-    {name:"水龍帶1.5吋轉接頭", sub:"B1", minQty:2},
-    {name:"水龜鎖環3號", sub:"B1", minQty:3},
-    {name:"延長線15m", sub:"B1", minQty:1},
-    {name:"水塔水龜", sub:"B0", minQty:1},
-    {name:"水龜繩子5m", sub:"B1", minQty:2},
-    {name:"水塔刮板", sub:"B0", minQty:2},
-    {name:"黑雨鞋11.5", sub:"B0", minQty:1},
-    {name:"繩梯3m", sub:"B2", minQty:1},
-    {name:"水塔耐酸鹼管3m", sub:"B2", minQty:2},
-    {name:"背負式安全帶", sub:"B2", minQty:1}
-  ]},
-  {id:"C", name:"C 右車備用箱", icon:"ti-car", parts:[
-    {name:"冷氣排水管4吋10m", sub:"C1", minQty:2},
-    {name:"冷氣高壓藍管15m", sub:"副F1", minQty:2},
-    {name:"塵蟎機吸頭", sub:"副D0", minQty:0},
-    {name:"塵蟎機管", sub:"副D0", minQty:0}
-  ]},
-  {id:"D", name:"D 塵蟎機", icon:"ti-wind", parts:[
-    {name:"床墊塵蟎機",  sub:"主D0", minQty:1},
-    {name:"塵蟎機吸頭",  sub:"主D0", minQty:1},
-    {name:"塵蟎機管",    sub:"主D0", minQty:1}
-  ]},
-  {id:"E1", name:"藥水箱", icon:"ti-bottle", parts:[
-    {name:"冷氣藥水1號",  sub:"主E", minQty:4},
-    {name:"床墊藥水3號",  sub:"主E", minQty:2},
-    {name:"床墊藥水4號",  sub:"主E", minQty:2},
-    {name:"床墊藥水5號",  sub:"主E", minQty:2},
-    {name:"青苔藥水7號",  sub:"主E", minQty:2}
-  ]},
-  {id:"F", name:"F 冷氣箱", icon:"ti-wind", parts:[
-    {name:"冷氣藥水1號",    sub:"副E",  minQty:1},
-    {name:"冷氣噴頭",       sub:"F2",   minQty:2},
-    {name:"冷氣高壓黃管5m", sub:"F1",   minQty:2},
-    {name:"冷氣高壓黑管10m",sub:"F1",   minQty:2},
-    {name:"冷氣高壓藍管15m",sub:"主F1", minQty:4},
-    {name:"冷氣噴瓶長嘴",   sub:"主F2", minQty:4},
-    {name:"冷氣噴瓶組",     sub:"副A",  minQty:0}
-  ]},
-  {id:"G", name:"G 灰色冷氣包", icon:"ti-briefcase", parts:[
-    {name:"灰色冷氣包",    sub:"G1",   minQty:1},
-    {name:"洗衣袋33x38",  sub:"副N1", minQty:0},
-    {name:"衝擊起子電池",  sub:"G2",   minQty:1},
-    {name:"衝擊起子充電器",sub:"G2",   minQty:1},
-    {name:"螺絲盒",        sub:"副H2", minQty:0},
-    {name:"短螺絲1mm*50",  sub:"主G2", minQty:2},
-    {name:"長螺絲2mm",     sub:"G2",   minQty:2},
-    {name:"自攻螺絲1.3mm", sub:"G2",   minQty:2},
-    {name:"頭燈",          sub:"G2",   minQty:2},
-    {name:"手電筒電池",    sub:"G2",   minQty:3},
-    {name:"手電筒充電器",  sub:"G2",   minQty:3},
-    {name:"絕緣白膠帶",    sub:"主G2", minQty:4},
-    {name:"RBU手套*20",   sub:"G2",   minQty:4},
-    {name:"斷電器組",      sub:"G2",   minQty:3},
-    {name:"現金拉鍊袋",    sub:"主G2", minQty:2},
-    {name:"收據拉鍊袋",    sub:"副G2", minQty:0},
-    {name:"筆",            sub:"G2",   minQty:2},
-    {name:"收據",          sub:"G2",   minQty:4},
-    {name:"包名片",        sub:"G2",   minQty:4},
-    {name:"名片空盒",      sub:"G2",   minQty:1},
-    {name:"靜電貼*100",    sub:"主G2", minQty:4},
-    {name:"二氧化氯*20",   sub:"主G2", minQty:4},
-    {name:"束帶*100",      sub:"G2",   minQty:4},
-    {name:"活動束帶*10",   sub:"G2",   minQty:4},
-    {name:"兩斤塑膠袋",    sub:"主G3", minQty:4},
-    {name:"大毛巾",        sub:"G5",   minQty:4},
-    {name:"中毛巾",        sub:"G5",   minQty:6},
-    {name:"小毛巾",        sub:"G5",   minQty:6}
-  ]},
-  {id:"H", name:"H 藍色工具包", icon:"ti-tool", parts:[
-    {name:"藍色工具包",    sub:"H1",   minQty:2},
-    {name:"工具腰包",      sub:"H1",   minQty:1},
-    {name:"工具腰帶",      sub:"H1",   minQty:1},
-    {name:"工具腰帶快扣",  sub:"H1",   minQty:2},
-    {name:"工具起子袋",    sub:"H1",   minQty:1},
-    {name:"衝擊起子機",    sub:"H1",   minQty:2},
-    {name:"十字螺絲起子",  sub:"H2",   minQty:2},
-    {name:"一字螺絲起子",  sub:"H2",   minQty:2},
-    {name:"手電筒",        sub:"H2",   minQty:2},
-    {name:"WD-40",         sub:"H2",   minQty:2},
-    {name:"測溫槍",        sub:"H2",   minQty:2},
-    {name:"測溫槍電池",    sub:"H2",   minQty:4},
-    {name:"剪刀",          sub:"主H2", minQty:2},
-    {name:"小螺絲起子",    sub:"H2",   minQty:2},
-    {name:"美工刀",        sub:"主H2", minQty:2},
-    {name:"尖錐子",        sub:"H2",   minQty:2},
-    {name:"尖嘴鉗",        sub:"H2",   minQty:2},
-    {name:"短起子頭5cm",   sub:"H2",   minQty:2},
-    {name:"短螺絲起子",    sub:"H2",   minQty:2},
-    {name:"衝磁器",        sub:"H2",   minQty:1},
-    {name:"長起子頭10cm",  sub:"H2",   minQty:2},
-    {name:"螺絲盒",        sub:"主H2", minQty:1}
-  ]},
-  {id:"I", name:"I 藥粉箱", icon:"ti-bottle", parts:[
-    {name:"檸檬酸2號",     sub:"I",   minQty:12},
-    {name:"水垢藥粉6號",   sub:"主I", minQty:6},
-    {name:"地下水藥粉8號", sub:"主I", minQty:4}
-  ]},
-  {id:"J", name:"J 水管箱", icon:"ti-line", parts:[
-    {name:"水管空壓機",              sub:"J0",   minQty:2},
-    {name:"水管空壓機透明管組3m",    sub:"J1",   minQty:2},
-    {name:"水管抽液機組",            sub:"J0",   minQty:1},
-    {name:"水管抽液機吸檸檬酸組3m",  sub:"J1",   minQty:2},
-    {name:"水管抽液機入檸檬酸組3m",  sub:"J1",   minQty:2},
-    {name:"水管週波機",              sub:"J0",   minQty:1},
-    {name:"水管週波機透明管組3m",    sub:"J1",   minQty:2},
-    {name:"水管Y字接頭組",           sub:"J1",   minQty:1},
-    {name:"水管高壓軟管0.45m",       sub:"J2",   minQty:8},
-    {name:"止水帶",                  sub:"主J3", minQty:8},
-    {name:"4分墊片*30",              sub:"J3",   minQty:2},
-    {name:"6分墊片*20",              sub:"J3",   minQty:2},
-    {name:"水管螺母六母轉四公母",    sub:"J3",   minQty:2},
-    {name:"水管螺母六公轉四公母",    sub:"J3",   minQty:2},
-    {name:"三角反爾",                sub:"J3",   minQty:8}
-  ]},
-  {id:"K", name:"K 左車備用箱", icon:"ti-car", parts:[
-    {name:"套筒30mm",     sub:"K1", minQty:1},
-    {name:"套筒44mm",     sub:"K1", minQty:1},
-    {name:"套筒46mm",     sub:"K1", minQty:1},
-    {name:"速利康槍",     sub:"K1", minQty:1},
-    {name:"高空排水器",   sub:"K1", minQty:2},
-    {name:"球閥4分1號",   sub:"K2", minQty:8},
-    {name:"球閥6分2號",   sub:"K2", minQty:8},
-    {name:"球閥1寸3號",   sub:"K2", minQty:8},
-    {name:"汽車故障三腳", sub:"K1", minQty:1},
-    {name:"水龍頭",       sub:"K3", minQty:4},
-    {name:"退牙器",       sub:"K3", minQty:4},
-    {name:"水管膠",       sub:"K3", minQty:4},
-    {name:"水管膠刷",     sub:"K3", minQty:4},
-    {name:"拆解特規濾嘴", sub:"K2", minQty:1}
-  ]},
-  {id:"L", name:"L 床墊水洗箱", icon:"ti-bed", parts:[
-    {name:"床墊水洗機",     sub:"L0", minQty:1},
-    {name:"床墊水洗機吸頭", sub:"L0", minQty:1},
-    {name:"床墊水洗機管",   sub:"L0", minQty:1},
-    {name:"床墊刷子",       sub:"L1", minQty:2},
-    {name:"床墊噴瓶",       sub:"L1", minQty:1}
-  ]},
-  {id:"M",  name:"M 冷卻水管箱",   icon:"ti-ripple",             parts:[
-    {name:"鹽酸水龜",       sub:"M0", minQty:1},
-    {name:"鹽酸水龜鎖環2號", sub:"M0", minQty:3},
-    {name:"黑水管2m1\"",    sub:"M0", minQty:2},
-    {name:"消泡劑",          sub:"M0", minQty:1},
-    {name:"鹽酸藥水2號",    sub:"M0", minQty:2},
-    {name:"冷卻水塔氯錠",   sub:"M0", minQty:1}
-  ]},
-  {id:"NS", name:"NS 侷限空間箱", icon:"ti-lock", parts:[
-    {name:"安全帽",        sub:"NS0", minQty:2},
-    {name:"排風扇",        sub:"NS0", minQty:1},
-    {name:"排風管",        sub:"NS0", minQty:1},
-    {name:"氧氣瓶",        sub:"NS0", minQty:1},
-    {name:"反光背心",      sub:"NS0", minQty:0},
-    {name:"背負式安全帶",  sub:"NS0", minQty:2},
-    {name:"小金剛",        sub:"NS0", minQty:1},
-    {name:"三腳架",        sub:"NS0", minQty:1},
-    {name:"防墜器",        sub:"NS0", minQty:1},
-    {name:"照明燈",        sub:"NS0", minQty:1},
-    {name:"照明燈充電線",  sub:"NS0", minQty:0},
-    {name:"生命探測儀",    sub:"NS0", minQty:1},
-    {name:"四用氣體偵測儀",sub:"NS0", minQty:1}
-  ]},
-  {id:"N", name:"N 洗衣箱", icon:"ti-shirt", parts:[
-    {name:"洗衣機水槍組",      sub:"N2",   minQty:1},
-    {name:"洗衣機高壓管",      sub:"N2",   minQty:1},
-    {name:"洗衣機拔輪器4\"",   sub:"N2",   minQty:1},
-    {name:"洗衣機套筒38mm",    sub:"N2",   minQty:1},
-    {name:"洗衣機套筒41mm",    sub:"N2",   minQty:1},
-    {name:"洗衣機套筒轉接頭",  sub:"N2",   minQty:1},
-    {name:"洗衣機套筒17/19mm", sub:"N2",   minQty:1},
-    {name:"洗衣機延長桿75mm",  sub:"N2",   minQty:1},
-    {name:"洗衣機撞錘組",      sub:"N1",   minQty:1},
-    {name:"白色水桶",          sub:"N0",   minQty:3},
-    {name:"消毒噴瓶短嘴",      sub:"副D2", minQty:2},
-    {name:"小板凳",            sub:"N0",   minQty:1},
-    {name:"黑水管組2m4\"",     sub:"N1",   minQty:1},
-    {name:"止滑墊",            sub:"N1",   minQty:1},
-    {name:"洗衣袋33*38",       sub:"主N1", minQty:1},
-    {name:"菜瓜布",            sub:"N2",   minQty:2},
-    {name:"冷氣噴桿組",        sub:"N2",   minQty:2},
-    {name:"冷氣清洗機轉接組",  sub:"N2",   minQty:1},
-    {name:"水管鎖環1號4\"",    sub:"N2",   minQty:2},
-    {name:"蓮蓬頭快接公頭",    sub:"N2",   minQty:2},
-    {name:"蓮蓬頭快接母頭",    sub:"N2",   minQty:2},
-    {name:"水龍頭快接",        sub:"N2",   minQty:2},
-    {name:"珠鍊4.5mm20cm",     sub:"N2",   minQty:2}
-  ]},
-  {id:"O", name:"O 工具箱", icon:"ti-tools", parts:[
-    {name:"工具箱",        sub:"O0", minQty:1},
-    {name:"長起子頭30cm",  sub:"O1", minQty:1},
-    {name:"起子機加長桿",  sub:"O1", minQty:1},
-    {name:"六角2.5\"長桿", sub:"O1", minQty:1},
-    {name:"六角3\"長桿",   sub:"O1", minQty:1},
-    {name:"六角4\"長桿",   sub:"O1", minQty:1},
-    {name:"六角5\"長桿",   sub:"O1", minQty:1},
-    {name:"套筒組",        sub:"O1", minQty:1},
-    {name:"鋸子",          sub:"O1", minQty:1},
-    {name:"水管剪",        sub:"O1", minQty:1},
-    {name:"橡膠槌",        sub:"O1", minQty:1},
-    {name:"老虎鉗",        sub:"O1", minQty:1},
-    {name:"板手8\"",       sub:"O1", minQty:1},
-    {name:"水管鉗10\"",    sub:"O1", minQty:1},
-    {name:"寬版一字起子",  sub:"O1", minQty:1},
-    {name:"包邊鉗",        sub:"O1", minQty:1}
-  ]},
-  {id:"P",  name:"P 倉庫工具箱",   icon:"ti-building-warehouse", parts:[
-    {name:"四方吹清洗槽",   sub:"P0", minQty:1},
-    {name:"10呎梯",         sub:"P0", minQty:1},
-    {name:"12呎梯",         sub:"P0", minQty:1},
-    {name:"二氧化碳鋼瓶",   sub:"P0", minQty:1},
-    {name:"球閥1.5吋4號",   sub:"P0", minQty:1}
-  ]},
-  {id:"Q",  name:"Q 洗車耗材箱",   icon:"ti-car-garage",         parts:[
-    {name:"洗車海綿",         sub:"Q0", minQty:1},
-    {name:"洗車清潔劑",       sub:"Q0", minQty:1},
-    {name:"防撥水",           sub:"Q0", minQty:1},
-    {name:"去油墨",           sub:"Q0", minQty:1},
-    {name:"雨刷條45cm",       sub:"Q0", minQty:5},
-    {name:"雨刷條40cm",       sub:"Q0", minQty:5},
-    {name:"車杯架",           sub:"Q0", minQty:1},
-    {name:"安全帶扣",         sub:"Q0", minQty:1},
-    {name:"電瓶梅花板手10號", sub:"Q0", minQty:1},
-    {name:"電瓶救車線",       sub:"Q0", minQty:1},
-    {name:"電池斷電器",       sub:"Q0", minQty:1},
-    {name:"雨刷45cm",         sub:"Q0", minQty:1},
-    {name:"雨刷40cm",         sub:"Q0", minQty:1}
-  ]},
-  {id:"Z1", name:"常用工具箱",      icon:"ti-hammer",             parts:[
-    {name:"清洗機黑油",       sub:"A",   minQty:1},
-    {name:"清洗機黑油紙杯",   sub:"A",   minQty:1},
-    {name:"捲尺",             sub:"A",   minQty:1},
-    {name:"小板手",           sub:"A",   minQty:1},
-    {name:"一字起子",         sub:"E",   minQty:1},
-    {name:"十字起子",         sub:"E",   minQty:1},
-    {name:"斜口鉗",           sub:"E",   minQty:1},
-    {name:"物流箱名稱墊板",   sub:"E",   minQty:1},
-    {name:"4斤塑膠袋",        sub:"G",   minQty:1},
-    {name:"小夾鏈袋6*10",     sub:"G",   minQty:1},
-    {name:"大夾鏈袋15*22",    sub:"H",   minQty:1},
-    {name:"止水帶",           sub:"H",   minQty:1},
-    {name:"絕緣白膠帶",       sub:"I",   minQty:1},
-    {name:"束帶*100",         sub:"18",  minQty:1},
-    {name:"活動束帶*10",      sub:"主K1", minQty:1},
-    {name:"標籤束帶",         sub:"主K1", minQty:1},
-    {name:"標籤貼紙",         sub:"主K1", minQty:1},
-    {name:"水管機器貼紙",     sub:"主K1", minQty:1},
-    {name:"清洗機黑油(K)",    sub:"主K1", minQty:1},
-    {name:"清洗機黑油紙杯(K)",sub:"主K1", minQty:1},
-    {name:"水管快拆頭",       sub:"H1",  minQty:1}
-  ]},
-  {id:"RS", name:"維修備品箱",      icon:"ti-tool",               parts:[
-    {name:"水管抽液機智能款4\"72w", sub:"", minQty:1},
-    {name:"水管抽液機快接頭PCF8-04",sub:"", minQty:1},
-    {name:"水管抽液機變壓器",       sub:"", minQty:0},
-    {name:"夾鏈袋",                 sub:"", minQty:300},
-    {name:"束帶",                   sub:"", minQty:300},
-    {name:"活動束帶",               sub:"", minQty:10},
-    {name:"標籤束帶",               sub:"", minQty:50},
-    {name:"工作手套",               sub:"", minQty:3},
-    {name:"隔音膠條",               sub:"", minQty:4},
-    {name:"物流箱字卡",             sub:"", minQty:20},
-    {name:"美工刀更換刀片",         sub:"", minQty:4},
-    {name:"洗衣機火焰扳手備用零件", sub:"", minQty:4}
-  ]},
-  {id:"Z2", name:"其他",            icon:"ti-dots",               parts:[]}
-];
-
-var stocks = { "台南":{}, "屏東":{} };
-var initData = {
-  "台南":{
-    // A 清洗工具箱
-    "A-高壓清洗機":3,"A-清洗機轉接頭6分":3,"A-六呎鋁梯":1,"A-八呎鋁梯":3,
-    "A-鋁梯彈力繩0.6m":3,"A-手推車":2,"A-手推車彈力繩1.5m":2,"A-綠水塔刷":2,
-    "A-白水塔刷頭":4,"A-白水塔伸縮桿3m":6,"A-冷氣清洗槽":8,"A-冷氣清洗槽墊板":42,
-    "A-藍色室內工作鞋42":4,"A-黑色室外工作鞋42":4,"A-噴瓶組":1,"A-推水掃把":5,
-    // B 水塔箱
-    "B-畚箕":0,"B-水龍帶2吋15m":12,"B-水龍帶1.5吋轉接頭":8,"B-水龜鎖環3號":39,
-    "B-延長線15m":3,"B-水塔水龜":3,"B-水龜繩子5m":13,"B-水塔刮板":0,
-    "B-黑雨鞋11.5":4,"B-繩梯3m":5,"B-水塔耐酸鹼管3m":2,"B-背負式安全帶":3,
-    // C 右車備用箱
-    "C-冷氣排水管4吋10m":6,"C-冷氣高壓藍管15m":0,"C-塵蟎機吸頭":0,"C-塵蟎機管":0,
-    // D 塵蟎機
-    "D-床墊塵蟎機":2,"D-塵蟎機吸頭":2,"D-塵蟎機管":2,
-    // E1 藥水箱
-    "E1-冷氣藥水1號":12,"E1-床墊藥水3號":0,"E1-床墊藥水4號":0,"E1-床墊藥水5號":1,"E1-青苔藥水7號":1,
-    // F 冷氣箱
-    "F-冷氣藥水1號":0,"F-冷氣噴頭":6,"F-冷氣高壓黃管5m":4,"F-冷氣高壓黑管10m":4,
-    "F-冷氣高壓藍管15m":2,"F-冷氣噴瓶長嘴":21,"F-冷氣噴瓶組":0,
-    // G 灰色冷氣包
-    "G-灰色冷氣包":1,"G-洗衣袋33x38":0,"G-衝擊起子電池":2,"G-衝擊起子充電器":3,
-    "G-螺絲盒":0,"G-短螺絲1mm*50":8,"G-長螺絲2mm":2,"G-自攻螺絲1.3mm":2,
-    "G-頭燈":3,"G-手電筒電池":6,"G-手電筒充電器":16,"G-絕緣白膠帶":23,
-    "G-RBU手套*20":19,"G-斷電器組":2,"G-現金拉鍊袋":16,"G-收據拉鍊袋":0,
-    "G-筆":24,"G-收據":1,"G-包名片":21,"G-名片空盒":0,
-    "G-靜電貼*100":25,"G-二氧化氯*20":14,"G-束帶*100":5,"G-活動束帶*10":1,
-    "G-兩斤塑膠袋":44,"G-大毛巾":2,"G-中毛巾":14,"G-小毛巾":44,
-    // H 藍色工具包
-    "H-藍色工具包":2,"H-工具腰包":2,"H-工具腰帶":2,"H-工具腰帶快扣":6,
-    "H-工具起子袋":2,"H-衝擊起子機":1,"H-十字螺絲起子":2,"H-一字螺絲起子":4,
-    "H-手電筒":4,"H-WD-40":10,"H-測溫槍":3,"H-測溫槍電池":1,
-    "H-剪刀":6,"H-小螺絲起子":2,"H-美工刀":5,"H-尖錐子":3,
-    "H-尖嘴鉗":2,"H-短起子頭5cm":3,"H-短螺絲起子":1,"H-衝磁器":1,
-    "H-長起子頭10cm":14,"H-螺絲盒":3,
-    // I 藥粉箱
-    "I-檸檬酸2號":30,"I-水垢藥粉6號":6,"I-地下水藥粉8號":7,
-    // J 水管箱
-    "J-水管空壓機":2,"J-水管空壓機透明管組3m":2,"J-水管抽液機組":2,
-    "J-水管抽液機吸檸檬酸組3m":0,"J-水管抽液機入檸檬酸組3m":4,
-    "J-水管週波機":1,"J-水管週波機透明管組3m":0,"J-水管Y字接頭組":2,
-    "J-水管高壓軟管0.45m":13,"J-止水帶":28,
-    "J-4分墊片*30":15,"J-6分墊片*20":0,"J-水管螺母六母轉四公母":1,
-    "J-水管螺母六公轉四公母":2,"J-三角反爾":8,
-    // K 左車備用箱
-    "K-套筒30mm":4,"K-套筒44mm":3,"K-套筒46mm":1,"K-速利康槍":5,
-    "K-高空排水器":0,"K-球閥4分1號":34,"K-球閥6分2號":22,"K-球閥1寸3號":3,
-    "K-汽車故障三腳":7,"K-水龍頭":4,"K-退牙器":4,"K-水管膠":9,
-    "K-水管膠刷":9,"K-拆解特規濾嘴":0,
-    // L 床墊水洗箱
-    "L-床墊水洗機":0,"L-床墊水洗機吸頭":0,"L-床墊水洗機管":0,"L-床墊刷子":7,"L-床墊噴瓶":0,
-    // M 冷卻水管箱
-    "M-鹽酸水龜":1,"M-鹽酸水龜鎖環2號":5,"M-黑水管2m1\"":0,"M-消泡劑":0,"M-鹽酸藥水2號":0,"M-冷卻水塔氯錠":0,
-    // N 洗衣箱
-    "N-洗衣機水槍組":3,"N-洗衣機高壓管":3,"N-洗衣機拔輪器4\"":4,
-    "N-洗衣機套筒38mm":4,"N-洗衣機套筒41mm":3,"N-洗衣機套筒轉接頭":1,
-    "N-洗衣機套筒17/19mm":13,"N-洗衣機延長桿75mm":2,"N-洗衣機撞錘組":6,
-    "N-白色水桶":7,"N-消毒噴瓶短嘴":5,"N-小板凳":0,"N-黑水管組2m4\"":0,
-    "N-止滑墊":4,"N-洗衣袋33*38":3,"N-菜瓜布":28,"N-冷氣噴桿組":8,
-    "N-冷氣清洗機轉接組":1,"N-水管鎖環1號4\"":9,"N-蓮蓬頭快接公頭":1,
-    "N-蓮蓬頭快接母頭":13,"N-水龍頭快接":13,"N-珠鍊4.5mm20cm":2,
-    // NS 侷限空間箱
-    "NS-安全帽":2,"NS-排風扇":1,"NS-排風管":1,"NS-氧氣瓶":1,"NS-反光背心":0,"NS-背負式安全帶":2,
-    "NS-小金剛":1,"NS-三腳架":1,"NS-防墜器":1,"NS-照明燈":1,"NS-照明燈充電線":0,"NS-生命探測儀":1,"NS-四用氣體偵測儀":1,
-    // O 工具箱
-    "O-工具箱":3,"O-長起子頭30cm":4,"O-起子機加長桿":4,"O-六角2.5\"長桿":3,
-    "O-六角3\"長桿":2,"O-六角4\"長桿":3,"O-六角5\"長桿":4,"O-套筒組":3,
-    "O-鋸子":2,"O-水管剪":7,"O-橡膠槌":8,"O-老虎鉗":7,
-    "O-板手8\"":5,"O-水管鉗10\"":4,"O-寬版一字起子":0,"O-包邊鉗":2,
-    // P 倉庫工具箱
-    "P-四方吹清洗槽":1,"P-10呎梯":0,"P-12呎梯":0,"P-二氧化碳鋼瓶":1,"P-球閥1.5吋4號":0,
-    // Q 洗車耗材箱
-    "Q-洗車海綿":0,"Q-洗車清潔劑":1,"Q-防撥水":2,"Q-去油墨":0,"Q-雨刷條45cm":5,"Q-雨刷條40cm":9,
-    "Q-車杯架":4,"Q-安全帶扣":3,"Q-電瓶梅花板手10號":1,"Q-電瓶救車線":1,"Q-電池斷電器":1,
-    "Q-雨刷45cm":1,"Q-雨刷40cm":1,
-    // Z1 常用工具箱
-    "Z1-清洗機黑油":2,"Z1-清洗機黑油紙杯":1,"Z1-捲尺":1,"Z1-小板手":2,
-    "Z1-一字起子":0,"Z1-十字起子":2,"Z1-斜口鉗":0,"Z1-物流箱名稱墊板":0,
-    "Z1-4斤塑膠袋":0,"Z1-小夾鏈袋6*10":0,"Z1-大夾鏈袋15*22":0,"Z1-止水帶":4,
-    "Z1-絕緣白膠帶":2,"Z1-束帶*100":10,"Z1-活動束帶*10":4,"Z1-標籤束帶":4,"Z1-標籤貼紙":4,
-    "Z1-水管機器貼紙":0,"Z1-清洗機黑油(K)":4,"Z1-清洗機黑油紙杯(K)":2,"Z1-水管快拆頭":33,
-    // RS 維修備品箱
-    "RS-水管抽液機智能款4\"72w":1,"RS-水管抽液機快接頭PCF8-04":20,"RS-水管抽液機變壓器":0,
-    "RS-夾鏈袋":300,"RS-束帶":300,"RS-活動束帶":10,"RS-標籤束帶":50,
-    "RS-工作手套":3,"RS-隔音膠條":4,"RS-物流箱字卡":20,"RS-美工刀更換刀片":4,"RS-洗衣機火焰扳手備用零件":4
-  },
-  "屏東":{
-    // A 清洗工具箱
-    "A-高壓清洗機":1,"A-清洗機轉接頭6分":1,"A-六呎鋁梯":0,"A-八呎鋁梯":0,
-    "A-鋁梯彈力繩0.6m":1,"A-手推車":0,"A-手推車彈力繩1.5m":2,"A-綠水塔刷":1,
-    "A-白水塔刷頭":2,"A-白水塔伸縮桿3m":2,"A-冷氣清洗槽":3,"A-冷氣清洗槽墊板":10,
-    "A-藍色室內工作鞋42":2,"A-黑色室外工作鞋42":1,"A-噴瓶組":4,"A-推水掃把":2,
-    // B 水塔箱
-    "B-畚箕":0,"B-水龍帶2吋15m":1,"B-水龍帶1.5吋轉接頭":1,"B-水龜鎖環3號":2,
-    "B-延長線15m":1,"B-水塔水龜":1,"B-水龜繩子5m":1,"B-水塔刮板":2,
-    "B-黑雨鞋11.5":0,"B-繩梯3m":0,"B-水塔耐酸鹼管3m":2,"B-背負式安全帶":0,
-    // C 右車備用箱
-    "C-冷氣排水管4吋10m":2,"C-冷氣高壓藍管15m":0,"C-塵蟎機吸頭":0,"C-塵蟎機管":0,
-    // D 塵蟎機
-    "D-床墊塵蟎機":0,"D-塵蟎機吸頭":0,"D-塵蟎機管":0,
-    // E1 藥水箱
-    "E1-冷氣藥水1號":2,"E1-床墊藥水3號":2,"E1-床墊藥水4號":2,"E1-床墊藥水5號":1,"E1-青苔藥水7號":1,
-    // F 冷氣箱
-    "F-冷氣藥水1號":1,"F-冷氣噴頭":5,"F-冷氣高壓黃管5m":0,"F-冷氣高壓黑管10m":1,
-    "F-冷氣高壓藍管15m":1,"F-冷氣噴瓶長嘴":1,"F-冷氣噴瓶組":0,
-    // G 灰色冷氣包
-    "G-灰色冷氣包":1,"G-洗衣袋33x38":0,"G-衝擊起子電池":0,"G-衝擊起子充電器":0,
-    "G-螺絲盒":0,"G-短螺絲1mm*50":1,"G-長螺絲2mm":0,"G-自攻螺絲1.3mm":0,
-    "G-頭燈":1,"G-手電筒電池":1,"G-手電筒充電器":2,"G-絕緣白膠帶":3,
-    "G-RBU手套*20":2,"G-斷電器組":1,"G-現金拉鍊袋":2,"G-收據拉鍊袋":0,
-    "G-筆":2,"G-收據":1,"G-包名片":3,"G-名片空盒":1,
-    "G-靜電貼*100":3,"G-二氧化氯*20":2,"G-束帶*100":2,"G-活動束帶*10":2,
-    "G-兩斤塑膠袋":7,"G-大毛巾":2,"G-中毛巾":3,"G-小毛巾":3,
-    // H 藍色工具包
-    "H-藍色工具包":1,"H-工具腰包":1,"H-工具腰帶":0,"H-工具腰帶快扣":2,
-    "H-工具起子袋":0,"H-衝擊起子機":2,"H-十字螺絲起子":1,"H-一字螺絲起子":1,
-    "H-手電筒":1,"H-WD-40":1,"H-測溫槍":1,"H-測溫槍電池":0,
-    "H-剪刀":0,"H-小螺絲起子":1,"H-美工刀":1,"H-尖錐子":2,
-    "H-尖嘴鉗":0,"H-短起子頭5cm":1,"H-短螺絲起子":0,"H-衝磁器":0,
-    "H-長起子頭10cm":0,"H-螺絲盒":0,
-    // I 藥粉箱
-    "I-檸檬酸2號":8,"I-水垢藥粉6號":5,"I-地下水藥粉8號":8,
-    // J 水管箱
-    "J-水管空壓機":0,"J-水管空壓機透明管組3m":0,"J-水管抽液機組":0,
-    "J-水管抽液機吸檸檬酸組3m":0,"J-水管抽液機入檸檬酸組3m":0,
-    "J-水管週波機":0,"J-水管週波機透明管組3m":0,"J-水管Y字接頭組":0,
-    "J-水管高壓軟管0.45m":0,"J-止水帶":23,
-    "J-4分墊片*30":3,"J-6分墊片*20":1,"J-水管螺母六母轉四公母":3,
-    "J-水管螺母六公轉四公母":3,"J-三角反爾":11,
-    // K 左車備用箱
-    "K-套筒30mm":1,"K-套筒44mm":0,"K-套筒46mm":1,"K-速利康槍":3,
-    "K-高空排水器":0,"K-球閥4分1號":17,"K-球閥6分2號":15,"K-球閥1寸3號":2,
-    "K-汽車故障三腳":1,"K-水龍頭":6,"K-退牙器":4,"K-水管膠":1,
-    "K-水管膠刷":0,"K-拆解特規濾嘴":0,
-    // L 床墊水洗箱
-    "L-床墊水洗機":0,"L-床墊水洗機吸頭":0,"L-床墊水洗機管":0,"L-床墊刷子":1,"L-床墊噴瓶":0,
-    // M 冷卻水管箱
-    "M-鹽酸水龜":1,"M-鹽酸水龜鎖環2號":0,"M-黑水管2m1\"":2,"M-消泡劑":1,"M-鹽酸藥水2號":0,"M-冷卻水塔氯錠":0,
-    // N 洗衣箱
-    "N-洗衣機水槍組":1,"N-洗衣機高壓管":1,"N-洗衣機拔輪器4\"":1,
-    "N-洗衣機套筒38mm":1,"N-洗衣機套筒41mm":1,"N-洗衣機套筒轉接頭":1,
-    "N-洗衣機套筒17/19mm":1,"N-洗衣機延長桿75mm":1,"N-洗衣機撞錘組":1,
-    "N-白色水桶":3,"N-消毒噴瓶短嘴":0,"N-小板凳":1,"N-黑水管組2m4\"":1,
-    "N-止滑墊":1,"N-洗衣袋33*38":1,"N-菜瓜布":2,"N-冷氣噴桿組":2,
-    "N-冷氣清洗機轉接組":0,"N-水管鎖環1號4\"":2,"N-蓮蓬頭快接公頭":2,
-    "N-蓮蓬頭快接母頭":2,"N-水龍頭快接":2,"N-珠鍊4.5mm20cm":4,
-    // NS 侷限空間箱
-    "NS-安全帽":2,"NS-排風扇":1,"NS-排風管":1,"NS-氧氣瓶":1,"NS-反光背心":0,"NS-背負式安全帶":0,
-    "NS-小金剛":1,"NS-三腳架":1,"NS-防墜器":1,"NS-照明燈":1,"NS-照明燈充電線":1,"NS-生命探測儀":1,"NS-四用氣體偵測儀":1,
-    // O 工具箱
-    "O-工具箱":1,"O-長起子頭30cm":2,"O-起子機加長桿":1,"O-六角2.5\"長桿":0,
-    "O-六角3\"長桿":1,"O-六角4\"長桿":1,"O-六角5\"長桿":2,"O-套筒組":0,
-    "O-鋸子":1,"O-水管剪":0,"O-橡膠槌":0,"O-老虎鉗":1,
-    "O-板手8\"":1,"O-水管鉗10\"":2,"O-寬版一字起子":0,"O-包邊鉗":0,
-    // P 倉庫工具箱
-    "P-四方吹清洗槽":1,"P-10呎梯":1,"P-12呎梯":1,"P-二氧化碳鋼瓶":1,"P-球閥1.5吋4號":2,
-    // Q 洗車耗材箱
-    "Q-洗車海綿":0,"Q-洗車清潔劑":0,"Q-防撥水":0,"Q-去油墨":0,"Q-雨刷條45cm":0,"Q-雨刷條40cm":0,
-    "Q-車杯架":0,"Q-安全帶扣":0,"Q-電瓶梅花板手10號":0,"Q-電瓶救車線":0,"Q-電池斷電器":0,
-    "Q-雨刷45cm":0,"Q-雨刷40cm":0,
-    // Z1 常用工具箱
-    "Z1-清洗機黑油":11,"Z1-清洗機黑油紙杯":22,"Z1-捲尺":2,"Z1-小板手":8,
-    "Z1-一字起子":5,"Z1-十字起子":2,"Z1-斜口鉗":5,"Z1-物流箱名稱墊板":0,
-    "Z1-4斤塑膠袋":0,"Z1-小夾鏈袋6*10":0,"Z1-大夾鏈袋15*22":10,"Z1-止水帶":4,
-    "Z1-絕緣白膠帶":2,"Z1-束帶*100":2,"Z1-活動束帶*10":3,"Z1-標籤束帶":5,"Z1-標籤貼紙":4,
-    "Z1-水管機器貼紙":0,"Z1-清洗機黑油(K)":1,"Z1-清洗機黑油紙杯(K)":4,"Z1-水管快拆頭":0,
-    // RS 維修備品箱
-    "RS-水管抽液機智能款4\"72w":0,"RS-水管抽液機快接頭PCF8-04":0,"RS-水管抽液機變壓器":0,
-    "RS-夾鏈袋":0,"RS-束帶":0,"RS-活動束帶":0,"RS-標籤束帶":0,
-    "RS-工作手套":0,"RS-隔音膠條":0,"RS-物流箱字卡":0,"RS-美工刀更換刀片":0,"RS-洗衣機火焰扳手備用零件":0
-  }
-};
-Object.keys(initData).forEach(function(loc){
-  Object.keys(initData[loc]).forEach(function(k){ stocks[loc][k] = initData[loc][k]; });
-});
-
-var logs=[], serialRecords=[];
-
-// 從 localStorage 讀取記錄（保留7天）
-function loadLogsFromStorage(){
-  try{
-    var saved=localStorage.getItem("tool_logs");
-    if(!saved)return;
-    var all=JSON.parse(saved);
-    var cutoff=Date.now()-7*24*60*60*1000;
-    // 只保留7天內的記錄
-    logs=all.filter(function(l){
-      if(!l.timestamp)return true;
-      return l.timestamp>cutoff;
-    });
-    console.log("Loaded",logs.length,"logs from storage");
-  }catch(e){console.warn("Load logs error",e);}
-}
-
-function saveLogsToStorage(){
-  try{
-    // 只儲存最近7天，最多200筆
-    var cutoff=Date.now()-7*24*60*60*1000;
-    var toSave=logs.filter(function(l){
-      if(!l.timestamp)return false;
-      return l.timestamp>cutoff;
-    }).slice(0,200);
-    localStorage.setItem("tool_logs",JSON.stringify(toSave));
-  }catch(e){console.warn("Save logs error",e);}
-}
-var curUser=null, curBox=null, curPart=null, curAction=null, mQty=1;
-var fVal="all", curLoc="台南", pendingDelPart=null;
-
-function pshow(id){ document.querySelectorAll(".screen").forEach(function(s){s.classList.remove("active");}); document.getElementById(id).classList.add("active"); }
-function setAv(id,name,bg,fg){ var el=document.getElementById(id); if(!el)return; el.textContent=name[0]; el.style.background=bg; el.style.color=fg; }
-function nowStr(){ return new Date().toLocaleString("zh-TW",{hour12:false}); }
-function closeOverlay(id){ document.getElementById(id).classList.remove("show"); }
-function gk(bid,pname){ return bid+"-"+pname; }
-
-function getStock(bid,pname){
-  if(!curUser) return 0;
-  if(curUser.role==="admin"){
-    if(curLoc==="全部") return (stocks["台南"][gk(bid,pname)]||0)+(stocks["屏東"][gk(bid,pname)]||0);
-    return stocks[curLoc][gk(bid,pname)]||0;
-  }
-  return stocks[curUser.location][gk(bid,pname)]||0;
-}
-function getEditLoc(){
-  if(curUser&&curUser.role==="admin") return curLoc==="全部"?"台南":curLoc;
-  return curUser?curUser.location:"台南";
-}
-
-// 車牌相關
-function getCarPlate(email){
-  return localStorage.getItem("car_"+email)||"";
-}
-function setCarPlate(email,plate){
-  localStorage.setItem("car_"+email,plate);
-  var el=document.getElementById("hd-car");
-  if(el)el.textContent=plate||"未設定";
-}
-
-function saveCarPlate(){
-  var plate = document.getElementById("setup-plate-input").value.trim().toUpperCase();
-  if(!plate){alert("請輸入車牌");return;}
-  setCarPlate(curUser.email, plate);
-  sendToSheets({type:"設定車牌",box:"車輛",part:plate,qty:0,name:curUser.name,email:curUser.email,note:"首次設定車牌",time:nowStr(),loc:curUser.location});
-  enterMainApp();
-}
-function skipCarSetup(){
-  enterMainApp();
-}
-function showChangeCar(){
-  document.getElementById("car-overlay-title").textContent="換車";
-  document.getElementById("car-overlay-sub").textContent="輸入您新的車牌號碼";
-  document.getElementById("car-overlay-input").value="";
-  document.getElementById("car-overlay").classList.add("show");
-  setTimeout(function(){document.getElementById("car-overlay-input").focus();},300);
-}
-function confirmChangeCar(){
-  var newPlate = document.getElementById("car-overlay-input").value.trim().toUpperCase();
-  if(!newPlate){alert("請輸入新車牌");return;}
-  var oldPlate = getCarPlate(curUser.email)||"未設定";
-  setCarPlate(curUser.email, newPlate);
-  closeOverlay("car-overlay");
-  sendToSheets({type:"換車",box:"車輛",part:oldPlate+"→"+newPlate,qty:0,name:curUser.name,email:curUser.email,note:"換車:"+oldPlate+"→"+newPlate,time:nowStr(),loc:curUser.location});
-  alert("已換車："+oldPlate+" → "+newPlate);
-}
-
-// 登入
-async function getGreeting(){
-  try{
-    var url="https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?tqx=out:json&sheet="+encodeURIComponent("系統設定");
-    var res=await fetch(url,{credentials:"omit",cache:"no-cache"});
-    if(!res.ok)return "今天也是美好的一天！";
-    var text=await res.text();
-    var start=text.indexOf("(");var end=text.lastIndexOf(")");
-    if(start<0||end<0)return "今天也是美好的一天！";
-    var jsonStr=text.slice(start+1,end).replace(/\n/g,"").replace(/\r/g,"");
-    var data=JSON.parse(jsonStr);
-    if(!data.table||!data.table.rows||!data.table.rows[1])return "今天也是美好的一天！";
-    var row=data.table.rows[1];
-    if(row.c&&row.c[1]&&row.c[1].v)return String(row.c[1].v);
-    return "今天也是美好的一天！";
-  }catch(e){return "今天也是美好的一天！";}
-}
-
-async function checkUserBySheet(email){
-  var url="https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?tqx=out:json&sheet="+encodeURIComponent("使用者設定");
-  var res=await fetch(url, {credentials:"omit", cache:"no-cache"});
-  if(!res.ok) throw new Error("HTTP "+res.status);
-  var text=await res.text();
-  // 移除 Google 的 wrapper /*O_o*/ google.visualization.Query.setResponse(...)
-  var start=text.indexOf("(");
-  var end=text.lastIndexOf(")");
-  if(start<0||end<0) throw new Error("格式錯誤");
-  var jsonStr=text.slice(start+1,end);
-  // 清除字串中的換行符號（避免JSON解析失敗）
-  jsonStr=jsonStr.replace(/\n/g,"").replace(/\r/g,"");
-  var data=JSON.parse(jsonStr);
-  if(!data.table||!data.table.rows) return{found:false};
-  var rows=data.table.rows;
-  var el=email.toLowerCase().trim();
-  // 從第1行開始（跳過標題行）
-  for(var i=1;i<rows.length;i++){
-    var row=rows[i];
-    if(!row||!row.c||!row.c[1]||!row.c[1].v) continue;
-    var rowEmail=row.c[1].v.toString().toLowerCase().trim();
-    if(rowEmail===el){
-      return{
-        found:true,
-        name:row.c[0]?String(row.c[0].v||""):"",
-        email:String(row.c[1].v||""),
-        role:row.c[2]&&row.c[2].v?String(row.c[2].v).trim():"worker",
-        location:row.c[3]&&row.c[3].v?String(row.c[3].v).trim():"台南"
-      };
-    }
-  }
-  return{found:false};
-}
-
-window.addEventListener("load",function(){
-  var saved=localStorage.getItem("saved_email");
-  if(saved){verifyEmail(saved,true);}else{pshow("s-login");}
-});
-
-async function doLogin(){
-  var email=document.getElementById("email-input").value.trim().toLowerCase();
-  if(!email||email.indexOf("@")<0){showErr("請輸入正確的信箱格式");return;}
-  var btn=document.getElementById("login-btn");
-  btn.style.opacity=".7";btn.textContent="驗證中…";
-  await verifyEmail(email,false);
-  btn.style.opacity="1";btn.innerHTML='<i class="ti ti-login"></i> 登入';
-}
-
-async function verifyEmail(email,isAuto){
-  if(!isAuto)pshow("s-loading");
-  try{
-    var data=await checkUserBySheet(email);
-    if(data&&data.found){
-      var remember=isAuto||document.getElementById("remember-check").checked;
-      if(remember)localStorage.setItem("saved_email",email);
-      else localStorage.removeItem("saved_email");
-      curUser={name:data.name,role:data.role,email:data.email,location:data.location||"台南",
-        bg:data.role==="admin"?"#FAEEDA":data.role==="senior"?"#EAF3DE":"#E6F1FB",
-        fg:data.role==="admin"?"#854F0B":data.role==="senior"?"#3B6D11":"#185FA5"};
-      curLoc=curUser.location==="全部"?"全部":curUser.location;
-      // 只有作業員/資深作業員且從未設定車牌才顯示設定畫面
-      var plate=getCarPlate(data.email);
-      if(curUser.role !== "admin" && !plate && !isAuto){
-        // 第一次登入才需要設定車牌
-        setupHeaderInfo();
-        pshow("s-car-setup");
-      } else {
-        // 有記錄的車牌直接進入（包含 isAuto 自動登入）
-        enterMainApp();
-      }
+  try {
+    var result;
+    if (action === "readEquip") {
+      result = readEquipStatus();
+    } else if (action === "readRepairs") {
+      result = readRepairs();
+    } else if (action === "readEquipHistory") {
+      result = readEquipHistory(params.equipId || "");
     } else {
-      localStorage.removeItem("saved_email");
-      pshow("s-login");
-      if(isAuto){document.getElementById("email-input").value=email;}
-      else{showErr("此信箱沒有使用權限，請聯絡管理者加入設定表");}
+      result = { ok: true, message: "森清淨工具系統 API ✅ " + nowTw() };
     }
-  }catch(e){
-    localStorage.removeItem("saved_email");
-    pshow("s-login");
-    if(!isAuto)showErr("連線失敗："+e.message);
-    console.error("Login error:",e);
+    return jsonResponse(result);
+  } catch (err) {
+    Logger.log("doGet error: " + err.message);
+    return jsonResponse({ ok: false, error: err.message });
   }
 }
 
-function setupHeaderInfo(){
-  var roleLabel={admin:"管理者",senior:"資深作業員",worker:"作業員"}[curUser.role]||curUser.role;
-  var locLabel=curUser.location==="全部"?"全區":curUser.location;
-  document.getElementById("hd-date").textContent=new Date().toLocaleDateString("zh-TW",{year:"numeric",month:"long",day:"numeric",weekday:"short"});
-  setAv("hd-av",curUser.name,curUser.bg,curUser.fg);
-  document.getElementById("hd-name").textContent=curUser.name;
-  document.getElementById("hd-sub").textContent=roleLabel+"　"+locLabel;
-  document.getElementById("hd-car").textContent=getCarPlate(curUser.email)||"未設定";
-}
+// =====================================================
+// 主入口：POST 請求
+// 用途：所有寫入操作（領取、借出、歸還、報修）
+// 前端用 mode:"no-cors" 送出，Apps Script 照樣能收到
+// =====================================================
+function doPost(e) {
+  try {
+    if (!e || !e.postData || !e.postData.contents) {
+      Logger.log("doPost: no postData");
+      return jsonResponse({ ok: false, error: "No POST data" });
+    }
 
-function enterMainApp(){
-  loadLogsFromStorage();
-  loadRepairsFromStorage();
-  loadEquipFromStorage();
-  // 報修設備下拉選單在 BOXES 載入後才能建立
-  populateRepairDevices();
-  setupHeaderInfo();
-  // 只有「全部」的 admin 才顯示地點切換
-  if(curUser.role==="admin" && curUser.location==="全部"){
-    document.getElementById("location-bar").style.display="flex";
-    curLoc="全部";
-    // 設定地點按鈕樣式
-    document.querySelectorAll(".loc-btn").forEach(function(b){b.classList.remove("active");});
-    var locAllBtn=document.getElementById("loc-all");
-    if(locAllBtn)locAllBtn.classList.add("active");
-  } else if(curUser.role==="admin"){
-    document.getElementById("location-bar").style.display="none";
-    curLoc=curUser.location;
-  } else {
-    document.getElementById("location-bar").style.display="none";
-    curLoc=curUser.location;
-  }
-  document.getElementById("car-row").style.display=curUser.role==="admin"?"none":"flex";
-  document.getElementById("nav-serial").style.display=(curUser.role==="admin"||curUser.role==="senior")?"flex":"none";
-  document.getElementById("nav-admin").style.display=curUser.role==="admin"?"flex":"none";
-  // 作業員隱藏進貨/調整篩選按鈕
-  document.querySelectorAll(".worker-hide").forEach(function(el){
-    el.style.display=curUser.role==="worker"?"none":"inline-block";
-  });
-  renderBoxes();
-  navTo("take",document.getElementById("nav-take"));
-  pshow("s-main");
-  // 顯示早安語
-  showGreeting();
-  // 背景同步器具狀態（非阻塞，完成後自動更新頁面）
-  syncEquipFromSheets();
-}
+    var raw = e.postData.contents;
+    Logger.log("doPost received: " + raw.slice(0, 200));
 
-async function showGreeting(){
-  var banner=document.getElementById("greeting-banner");
-  var nameEl=document.getElementById("greeting-name");
-  var textEl=document.getElementById("greeting-text");
-  if(!banner||!nameEl||!textEl)return;
-  // 根據時間決定問候語前綴
-  var h=new Date().getHours();
-  var prefix=h<12?"早安":"下午好";
-  nameEl.textContent=prefix+"！"+curUser.name+" 👋";
-  banner.style.display="block";
-  // 非同步讀取問候語
-  var greeting=await getGreeting();
-  textEl.textContent=greeting;
-}
-
-function showErr(msg){var el=document.getElementById("login-err");el.textContent=msg;el.classList.add("show");setTimeout(function(){el.classList.remove("show");},5000);}
-function doLogout(){localStorage.removeItem("saved_email");curUser=null;document.getElementById("email-input").value="";pshow("s-login");}
-
-document.addEventListener("DOMContentLoaded",function(){
-  var inp=document.getElementById("email-input");
-  if(inp)inp.addEventListener("keydown",function(e){if(e.key==="Enter")doLogin();});
-  document.getElementById("setup-plate-input").addEventListener("keydown",function(e){if(e.key==="Enter")saveCarPlate();});
-  document.getElementById("car-overlay-input").addEventListener("keydown",function(e){if(e.key==="Enter")confirmChangeCar();});
-});
-
-function setLoc(el){
-  if(!el)return;
-  var txt=el.textContent;
-  curLoc=txt==="全部"?"全部":txt;
-  document.querySelectorAll(".loc-btn").forEach(function(b){b.classList.remove("active");});
-  el.classList.add("active");
-  renderBoxes();
-  if(document.getElementById("pg-stock").classList.contains("active"))renderStock();
-  if(document.getElementById("pg-admin").classList.contains("active"))renderAdmin();
-}
-
-function navTo(pg,el){
-  document.querySelectorAll(".nav-btn").forEach(function(x){x.classList.remove("active");}); el.classList.add("active");
-  document.querySelectorAll(".page").forEach(function(p){p.classList.remove("active");});
-  document.getElementById("pg-"+pg).classList.add("active");
-  if(pg==="log")renderLogs();
-  if(pg==="serial")renderSerial();
-  if(pg==="admin")renderAdmin();
-  if(pg==="repair"){ renderRepairList(); }
-  if(pg==="equip"){ renderEquip(); }
-}
-function showMain(pg){pshow("s-main");navTo(pg,document.getElementById("nav-"+pg));}
-
-function renderBoxes(){
-  var loc=curUser&&curUser.role==="admin"?curLoc:curUser?curUser.location:"台南";
-  var showWarning=curUser&&curUser.role==="admin";
-  var grid=document.getElementById("box-grid");
-  grid.innerHTML="";
-  BOXES.forEach(function(b){
-    var hasP=b.parts.length>0;
-    var low=0;
-    if(hasP&&showWarning){
-      b.parts.forEach(function(p){
-        var q,min=p.minQty;
-        if(loc==="全部"){q=(stocks["台南"][gk(b.id,p.name)]||0)+(stocks["屏東"][gk(b.id,p.name)]||0);min=min*2;}
-        else{q=stocks[loc]?stocks[loc][gk(b.id,p.name)]||0:0;}
-        if(min>0&&q<min)low++;
+    var data;
+    try {
+      data = JSON.parse(raw);
+    } catch (parseErr) {
+      // 有時前端用 application/x-www-form-urlencoded
+      data = {};
+      raw.split("&").forEach(function(pair) {
+        var kv = pair.split("=");
+        if (kv.length === 2) data[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1].replace(/\+/g, " "));
       });
     }
-    var div=document.createElement("div");
-    div.className="box-card"+(low>0?" warn":"")+(hasP?"":" empty");
-    if(hasP){div.onclick=function(){openBox(b.id);};}
-    var icon=document.createElement("i");
-    icon.className="ti "+b.icon+" box-icon";
-    var name=document.createElement("div");
-    name.className="box-name";name.textContent=b.name;
-    var meta=document.createElement("div");
-    meta.className="box-meta";
-    if(hasP){
-      meta.textContent=b.parts.length+" 項";
-      if(low>0){
-        var dot=document.createElement("span");dot.className="warn-dot";
-        meta.appendChild(document.createElement("br"));
-        meta.appendChild(dot);
-        meta.appendChild(document.createTextNode(low+" 項需補貨"));
-      }
-    } else {
-      meta.textContent="待建立清單";
-    }
-    div.appendChild(icon);div.appendChild(name);div.appendChild(meta);
-    grid.appendChild(div);
-  });
-}
 
-function openBox(id){
-  curBox=BOXES.find(function(b){return b.id===id;});
-  document.getElementById("parts-h2").textContent=curBox.name;
-  var container=document.getElementById("part-list");
-  container.innerHTML="";
-  var loc=getEditLoc();
-  curBox.parts.forEach(function(p){
-    var q=stocks[loc]?stocks[loc][gk(curBox.id,p.name)]||0:0;
-    var outOfStock=q<=0;
-    var item=document.createElement("div");item.className="part-item";
-    if(outOfStock)item.style.opacity="0.6";
-    var info=document.createElement("div");info.className="part-info";
-    var name=document.createElement("div");name.className="part-name";name.textContent=p.name;
-    var sub=document.createElement("div");sub.className="part-sub";
-    var subTag=document.createElement("span");subTag.className="sub-tag";subTag.textContent=p.sub;
-    sub.appendChild(subTag);
-    // 庫存為0時顯示「無庫存」提示
-    if(outOfStock){
-      var noStock=document.createElement("span");
-      noStock.className="badge badge-low";
-      noStock.style.marginLeft="4px";
-      noStock.textContent="無庫存";
-      sub.appendChild(noStock);
-    }
-    info.appendChild(name);info.appendChild(sub);
-    var btn=document.createElement("button");
-    btn.className="take-btn";
-    btn.textContent=outOfStock?"無庫存":"領取";
-    if(outOfStock){
-      btn.disabled=true;
-      btn.style.cssText="background:var(--border);color:var(--sub);cursor:not-allowed;border:none;border-radius:9px;padding:8px 13px;font-size:12px;font-weight:500;flex-shrink:0;";
-    } else {
-      btn.onclick=(function(pn){return function(){openModal("take",pn,false);};})(p.name);
-    }
-    item.appendChild(info);item.appendChild(btn);
-    container.appendChild(item);
-  });
-  pshow("s-parts");
-}
+    var type = data.type || "";
+    Logger.log("doPost type: " + type);
 
-function admOpenBox(el){
-  var id=el.getAttribute("data-id");
-  curBox=BOXES.find(function(b){return b.id===id;});
-  document.getElementById("adm-parts-h2").textContent=curBox.name;
-  renderAdmPartList();
-  document.getElementById("add-form").classList.remove("open");
-  document.getElementById("add-input").value="";
-  pshow("s-adm-parts");
-}
+    // ① 所有操作寫入操作記錄
+    writeLog(data);
 
-function renderAdmPartList(){
-  var loc=getEditLoc();
-  var container=document.getElementById("adm-part-list");
-  container.innerHTML="";
-  if(!curBox.parts.length){
-    var em=document.createElement("div");em.className="empty-msg";em.textContent="此箱尚無工具，請點下方新增";container.appendChild(em);return;
+    // ② 依類型分流
+    if (type === "器具借出" || type === "器具核准借出") {
+      updateEquipStatus(data, "out");
+      appendEquipHistory(data, "借出");
+    } else if (type === "器具歸還") {
+      updateEquipStatus(data, "in");
+      appendEquipHistory(data, "歸還");
+    } else if (type === "器具申請借出") {
+      updateEquipStatus(data, "pending");
+      appendEquipHistory(data, "申請借出");
+    } else if (type === "報修") {
+      writeRepair(data);
+    } else if (type === "報修更新") {
+      updateRepairStatus(data);
+    }
+
+    return jsonResponse({ ok: true, type: type });
+
+  } catch (err) {
+    Logger.log("doPost error: " + err.message + " | " + err.stack);
+    return jsonResponse({ ok: false, error: err.message });
   }
-  curBox.parts.forEach(function(p){
-    var qT=stocks["台南"][gk(curBox.id,p.name)]||0;
-    var qP=stocks["屏東"][gk(curBox.id,p.name)]||0;
-    var qShow=curLoc==="全部"?"台南:"+qT+" / 屏東:"+qP:(curLoc==="台南"?qT:qP);
-    var qCheck=curLoc==="全部"?(qT+qP):(curLoc==="台南"?qT:qP);
-    var minCheck=curLoc==="全部"?p.minQty*2:p.minQty;
-    var low=minCheck>0&&qCheck<minCheck;
-    var item=document.createElement("div");item.className="part-item";
-    item.style.flexWrap="wrap";
-    var info=document.createElement("div");info.className="part-info";
-    var nm=document.createElement("div");nm.className="part-name";nm.textContent=p.name;
-    var sb=document.createElement("div");sb.className="part-sub";
-    if(p.sub){
-      var st=document.createElement("span");st.className="sub-tag";st.textContent=p.sub;
-      sb.appendChild(st);
-    }
-    var bdg=document.createElement("span");bdg.className="badge "+(low?"badge-low":"badge-ok");bdg.textContent=(low?"需補":"正常");
-    sb.appendChild(document.createTextNode(" 庫存："+qShow+" "));
-    sb.appendChild(bdg);
-    info.appendChild(nm);info.appendChild(sb);
-    var btns=document.createElement("div");btns.style.cssText="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;";
-    var b1=document.createElement("button");b1.className="btn-sm btn-sm-green";b1.style.fontSize="11px";b1.textContent="進貨";
-    b1.onclick=(function(pn){return function(){openModal("in",pn,true);};})(p.name);
-    var b2=document.createElement("button");b2.className="btn-sm btn-sm-amber";b2.style.fontSize="11px";b2.textContent="調整";
-    b2.onclick=(function(pn){return function(){openModal("adj",pn,true);};})(p.name);
-    var b4=document.createElement("button");b4.className="btn-sm";b4.style.cssText="font-size:11px;background:var(--blue-light);color:var(--blue);";b4.textContent="編輯";
-    b4.onclick=(function(pn){return function(){openEditPart(pn);};})(p.name);
-    var b3=document.createElement("button");b3.className="adm-del-btn";
-    var ic=document.createElement("i");ic.className="ti ti-trash";b3.appendChild(ic);
-    b3.onclick=(function(pn){return function(){askDel(pn);};})(p.name);
-    btns.appendChild(b1);btns.appendChild(b2);btns.appendChild(b4);btns.appendChild(b3);
-    item.appendChild(info);item.appendChild(btns);
-    container.appendChild(item);
-  });
 }
 
-function openEditPart(partName){
-  var p=curBox.parts.find(function(x){return x.name===partName;});
-  if(!p)return;
-  var newName=prompt("修改工具名稱：",p.name);
-  if(newName===null)return;
-  newName=newName.trim();
-  if(!newName){alert("名稱不能為空");return;}
-  var newSub=prompt("修改分類標籤（例：A0、A1，留空則無標籤）：",p.sub||"");
-  if(newSub===null)return;
-  newSub=newSub.trim();
+// =====================================================
+// JSON 回應（Apps Script ContentService 本身支援跨域）
+// =====================================================
+function jsonResponse(obj) {
+  var output = ContentService.createTextOutput(JSON.stringify(obj));
+  output.setMimeType(ContentService.MimeType.JSON);
+  return output;
+}
 
-  // 如果名稱改變，需要搬移庫存資料
-  if(newName!==p.name){
-    var oldKey=gk(curBox.id,p.name);
-    var newKey=gk(curBox.id,newName);
-    stocks["台南"][newKey]=stocks["台南"][oldKey]||0;
-    stocks["屏東"][newKey]=stocks["屏東"][oldKey]||0;
-    delete stocks["台南"][oldKey];
-    delete stocks["屏東"][oldKey];
+// =====================================================
+// 確保工作表存在，不存在就建立 + 標題列
+// =====================================================
+function getOrCreateSheet(name, headers) {
+  var sh = SS.getSheetByName(name);
+  if (!sh) {
+    sh = SS.insertSheet(name);
+    if (headers && headers.length) {
+      sh.appendRow(headers);
+      var hdr = sh.getRange(1, 1, 1, headers.length);
+      hdr.setBackground("#185FA5").setFontColor("#FFFFFF").setFontWeight("bold");
+      sh.setFrozenRows(1);
+    }
   }
-  var oldName=p.name;
-  p.name=newName;
-  p.sub=newSub;
-  renderAdmPartList();renderBoxes();
-  sendToSheets({type:"編輯工具",box:curBox.name,part:oldName+"→"+newName,qty:0,name:curUser.name,email:curUser.email,note:"分類:"+newSub,time:nowStr(),loc:curLoc});
-  alert("已更新「"+newName+"」");
+  return sh;
 }
 
-function toggleAddForm(){
-  var f=document.getElementById("add-form");f.classList.toggle("open");
-  if(f.classList.contains("open"))document.getElementById("add-input").focus();
-}
-function confirmAddPart(){
-  var name=document.getElementById("add-input").value.trim();
-  var sub=document.getElementById("add-sub-input").value.trim();
-  if(!name){alert("請輸入工具名稱");return;}
-  var exists=curBox.parts.find(function(p){return p.name===name;});
-  if(exists){alert("此工具已存在！");return;}
-  curBox.parts.push({name:name,sub:sub,minQty:1});
-  stocks["台南"][gk(curBox.id,name)]=0;
-  stocks["屏東"][gk(curBox.id,name)]=0;
-  document.getElementById("add-input").value="";
-  document.getElementById("add-sub-input").value="";
-  document.getElementById("add-form").classList.remove("open");
-  renderAdmPartList();renderBoxes();
-  sendToSheets({type:"新增工具",box:curBox.name,part:name,qty:0,name:curUser.name,email:curUser.email,note:"管理者新增"+(sub?"，分類:"+sub:""),time:nowStr(),loc:curLoc});
-  alert("已新增「"+name+"」");
-}
-function askDel(part){
-  pendingDelPart=part;
-  document.getElementById("del-msg").textContent="確定要從「"+curBox.name+"」刪除「"+part+"」嗎？此操作不可復原。";
-  document.getElementById("del-overlay").classList.add("show");
-}
-function executeDel(){
-  var part=pendingDelPart;
-  curBox.parts=curBox.parts.filter(function(p){return p.name!==part;});
-  delete stocks["台南"][gk(curBox.id,part)];
-  delete stocks["屏東"][gk(curBox.id,part)];
-  closeOverlay("del-overlay");
-  renderAdmPartList();renderBoxes();
-  sendToSheets({type:"刪除工具",box:curBox.name,part:part,qty:0,name:curUser.name,email:curUser.email,note:"管理者刪除",time:nowStr(),loc:curLoc});
-  alert("已刪除「"+part+"」");
+// =====================================================
+// 操作記錄（所有操作都寫這張表）
+// =====================================================
+function writeLog(data) {
+  var sh = getOrCreateSheet(SHEET_LOG, [
+    "時間","類型","箱子/位置","工具/器具","數量","操作人","Email","備註","地點","序號"
+  ]);
+  sh.appendRow([
+    data.time   || nowTw(),
+    data.type   || "",
+    data.box    || "",
+    data.part   || "",
+    Number(data.qty) || 0,
+    data.name   || "",
+    data.email  || "",
+    data.note   || "",
+    data.loc    || "",
+    data.serial || ""
+  ]);
 }
 
-function openModal(action,partName,fromAdmin){
-  curAction=action;
-  if(partName)curPart=partName;
-  var loc=getEditLoc();
-  var curQ=stocks[loc]?stocks[loc][gk(curBox.id,curPart)]||0:0;
-  mQty=action==="in"?10:(action==="adj"?curQ:1);
-  document.getElementById("mod-back").onclick=fromAdmin?function(){pshow("s-adm-parts");}:function(){openBox(curBox.id);};
-  document.getElementById("mod-part").textContent=curPart;
-  document.getElementById("mod-box").textContent=curBox.name+(action==="take"?" | "+loc:"");
-  setAv("mod-av",curUser.name,curUser.bg,curUser.fg);
-  document.getElementById("mod-who").textContent=curUser.name;
-  var lbls={take:"領取數量",in:"進貨數量（"+loc+"）",adj:"調整後數量（"+loc+"）"};
-  document.getElementById("qty-lbl").textContent=lbls[action];
-  document.getElementById("qty-show").value=mQty;
-  document.getElementById("serial-input").value="";
-  document.getElementById("f-note").value="";
-  var h2s={take:"登記領取",in:"進貨登記",adj:"調整庫存"};
-  document.getElementById("mod-h2").textContent=h2s[action];
-  var cs={take:{bg:"#185FA5",txt:"確認領取"},in:{bg:"#3B6D11",txt:"確認進貨"},adj:{bg:"#854F0B",txt:"確認調整"}};
-  var c=cs[action];
-  var btn=document.getElementById("mod-confirm");btn.style.background=c.bg;btn.style.color="#fff";btn.textContent=c.txt;
-  pshow("s-modal");
-}
+// =====================================================
+// 器具狀態表（每件器具一列，借出/歸還時覆寫）
+// =====================================================
+function updateEquipStatus(data, status) {
+  var sh = getOrCreateSheet(SHEET_EQUIP, [
+    "器具ID","器具名稱","狀態","借出人","借出Email","地點","借出時間","預計歸還","備註","最後更新"
+  ]);
 
-function adjQ(d){
-  var el=document.getElementById("qty-show");
-  var cur=parseInt(el.value)||0;
-  mQty=Math.max(curAction==="adj"?0:1,cur+d);
-  el.value=mQty;
-}
-function getQty(){var v=parseInt(document.getElementById("qty-show").value.replace(/[^0-9]/g,""));if(isNaN(v)||v<0)v=0;mQty=v;return mQty;}
+  var equipId   = data.equipId   || "";
+  var equipName = data.equipName || data.box || "";
+  var borrower  = data.part      || data.name || "";
+  var loc       = data.loc       || "";
+  var returnDue = data.returnDue || "";
+  var note      = data.note      || "";
+  var now       = nowTw();
+  var borrowTime= data.borrowTime|| now;
 
-async function confirmAction(){
-  var loc=getEditLoc();
-  var key=gk(curBox.id,curPart);
-  var note=document.getElementById("f-note").value||"";
-  var serialVal=document.getElementById("serial-input").value.trim();
-  var t=nowStr();
-  mQty=getQty();
-  var icon,title,detail,type,logQty=mQty;
+  // 找現有列
+  var rows = sh.getDataRange().getValues();
+  var targetRow = -1;
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === String(equipId)) { targetRow = i + 1; break; }
+  }
 
-  if(curAction==="take"){
-    if(mQty<1){alert("請輸入領取數量！");return;}
-    if(mQty>(stocks[loc][key]||0)){alert("數量超過庫存！");return;}
-    stocks[loc][key]=(stocks[loc][key]||0)-mQty;
-    type="領取";icon="✅";title="領取完成！";detail=curUser.name+" 領取 "+curPart+" × "+mQty+" 個";
-    if(serialVal){
-      serialRecords.push({part:curPart,box:curBox.name,serial:serialVal,holder:curUser.name,email:curUser.email,loc:loc,time:t});
-    }
-  } else if(curAction==="in"){
-    stocks[loc][key]=(stocks[loc][key]||0)+mQty;
-    type="進貨";icon="📦";title="進貨登記完成！";detail=curPart+" +"+mQty+"（"+loc+"），現有 "+stocks[loc][key]+" 個";
+  var isOut     = (status === "out");
+  var isPending = (status === "pending");
+
+  var rowData = [
+    equipId,
+    equipName,
+    isOut ? "借出中" : isPending ? "待審核" : "在庫",
+    (isOut || isPending) ? borrower  : "",
+    (isOut || isPending) ? (data.email || "") : "",
+    (isOut || isPending) ? loc       : "",
+    (isOut || isPending) ? borrowTime: "",
+    (isOut || isPending) ? returnDue : "",
+    (isOut || isPending) ? note      : "",
+    now
+  ];
+
+  if (targetRow > 0) {
+    sh.getRange(targetRow, 1, 1, rowData.length).setValues([rowData]);
   } else {
-    var old=stocks[loc][key]||0;logQty=mQty-old;stocks[loc][key]=mQty;
-    type="調整";icon="🔧";title="庫存調整完成！";detail=curPart+"（"+loc+"）調整為 "+mQty+" 個";
+    sh.appendRow(rowData);
+    targetRow = sh.getLastRow();
   }
-  logs.unshift({type:type,box:curBox.name,part:curPart,qty:logQty,name:curUser.name,note:note,time:t,loc:loc,serial:serialVal,timestamp:Date.now()});
-  saveLogsToStorage();
-  document.getElementById("ok-icon").textContent=icon;
-  document.getElementById("ok-title").textContent=title;
-  document.getElementById("ok-detail").textContent=detail;
-  pshow("s-ok");
-  sendToSheets({type:type,box:curBox.name,part:curPart,qty:logQty,name:curUser.name,email:curUser.email,note:note,time:t,loc:loc,serial:serialVal});
+
+  // 狀態欄顏色
+  var cell = sh.getRange(targetRow, 3);
+  if (isOut)          cell.setBackground("#FEF3CD").setFontColor("#854F0B");
+  else if (isPending) cell.setBackground("#E6F1FB").setFontColor("#185FA5");
+  else                cell.setBackground("#EAF3DE").setFontColor("#3B6D11");
 }
 
-function afterOk(){
-  renderBoxes();
-  // 回到操作前的畫面
-  if(curAction==="take"){
-    // 留在零件清單
-    openBox(curBox.id);
-  } else if(curAction==="in"||curAction==="adj"){
-    // 管理者操作：回到管理者零件清單
-    if(curUser&&curUser.role==="admin"){
-      admOpenBox({getAttribute:function(){return curBox.id;}});
-    } else {
-      openBox(curBox.id);
-    }
-  } else {
-    showMain("take");
-  }
-}
-async function sendToSheets(data){
-  if(!GAS_URL)return;
-  // 方法一：POST no-cors（主要）
-  try{
-    await fetch(GAS_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
-    console.log("Sheets寫入送出：",data.type,data.part);
-  }catch(e){
-    console.warn("POST失敗，改用GET備用方案",e);
-    // 方法二：GET 備用（把資料塞進 URL 參數）
-    try{
-      var params=Object.keys(data).map(function(k){return k+"="+encodeURIComponent(data[k]||"");}).join("&");
-      await fetch(GAS_URL+"?action=write&"+params,{mode:"no-cors"});
-    }catch(e2){console.warn("備用方案也失敗",e2);}
-  }
-}
-
-function flog(t,el){fVal=t;document.querySelectorAll(".filter-chip").forEach(function(b){b.classList.remove("on");});el.classList.add("on");renderLogs();}
-function renderLogs(){
-  var allLogs = logs;
-  // 作業員只看自己的記錄
-  if(curUser && curUser.role==="worker"){
-    allLogs = logs.filter(function(l){return l.name===curUser.name;});
-  }
-  var fl=fVal==="all"?allLogs:allLogs.filter(function(l){return l.type===fVal;});
-  document.getElementById("sl-tot").textContent=allLogs.length;
-  document.getElementById("sl-tak").textContent=allLogs.filter(function(l){return l.type==="領取";}).length;
-  document.getElementById("sl-in").textContent=allLogs.filter(function(l){return l.type==="進貨";}).length;
-  var tc={領取:"badge-take",進貨:"badge-in",調整:"badge-adj",新增工具:"badge-ok",刪除工具:"badge-low"};
-  var container=document.getElementById("log-list");
-  container.innerHTML="";
-  if(!fl.length){
-    var em=document.createElement("div");em.className="empty-msg";
-    em.textContent=curUser&&curUser.role==="worker"?"您尚無領取記錄":"尚無記錄";
-    container.appendChild(em);return;
-  }
-  fl.forEach(function(l){
-    var item=document.createElement("div");item.className="log-item";
-    var left=document.createElement("div");left.className="log-left";
-    var who=document.createElement("div");who.className="log-who";
-    var badge=document.createElement("span");badge.className="badge "+(tc[l.type]||"badge-adj");badge.textContent=l.type;
-    who.appendChild(badge);
-    who.appendChild(document.createTextNode(l.name));
-    if(l.loc){var locSpan=document.createElement("span");locSpan.className="badge "+(l.loc==="台南"?"badge-in":"badge-serial");locSpan.textContent=l.loc;who.appendChild(locSpan);}
-    var boxSpan=document.createElement("span");boxSpan.className="log-box-name";boxSpan.textContent=l.box;who.appendChild(boxSpan);
-    var part=document.createElement("div");part.className="log-part";
-    part.textContent=l.part+(l.serial?" | 序號:"+l.serial:"")+(l.note?" | "+l.note:"");
-    var time=document.createElement("div");time.className="log-time";time.textContent=l.time;
-    left.appendChild(who);left.appendChild(part);left.appendChild(time);
-    var qty=document.createElement("div");qty.className="log-qty";
-    qty.style.color=l.type==="領取"?"var(--red)":l.type==="進貨"?"var(--blue)":"var(--amber)";
-    qty.textContent=(l.type==="領取"?"-":l.type==="進貨"?"+":"")+Math.abs(l.qty||0);
-    item.appendChild(left);item.appendChild(qty);
-    container.appendChild(item);
-  });
-}
-
-
-function renderSerial(){
-  var grouped={};
-  serialRecords.forEach(function(r){
-    if(!grouped[r.part])grouped[r.part]=[];
-    grouped[r.part].push(r);
-  });
-  var container=document.getElementById("serial-list");
-  container.innerHTML="";
-  var keys=Object.keys(grouped);
-  if(!keys.length){
-    var em=document.createElement("div");em.className="empty-msg";
-    em.innerHTML="尚無序號記錄<br><span style='font-size:11px;opacity:.7;'>領取工具時填寫序號即可記錄</span>";
-    container.appendChild(em);return;
-  }
-  keys.forEach(function(part){
-    var card=document.createElement("div");card.className="serial-card";
-    var title=document.createElement("div");title.className="serial-tool-name";title.textContent=part;
-    card.appendChild(title);
-    grouped[part].forEach(function(r){
-      var row=document.createElement("div");row.className="serial-row";
-      var left=document.createElement("div");
-      var sn=document.createElement("div");sn.className="serial-num";sn.textContent=r.serial;
-      var loc=document.createElement("div");loc.style.cssText="font-size:10px;color:var(--sub);";loc.textContent=r.box+" | "+r.loc;
-      left.appendChild(sn);left.appendChild(loc);
-      var right=document.createElement("div");right.style.textAlign="right";
-      var holder=document.createElement("div");holder.className="serial-holder";holder.textContent=r.holder;
-      var tm=document.createElement("div");tm.className="serial-time";tm.textContent=r.time;
-      right.appendChild(holder);right.appendChild(tm);
-      row.appendChild(left);row.appendChild(right);
-      card.appendChild(row);
-    });
-    container.appendChild(card);
-  });
-}
-
-function renderAdmin(){
-  var loc=curUser&&curUser.role==="admin"?curLoc:"台南";
-  var allP=[];
-  BOXES.forEach(function(b){b.parts.forEach(function(p){allP.push({b:b,p:p});});});
-
-  function getLowCount(targetLoc){
-    return allP.filter(function(x){
-      var q,min=x.p.minQty;
-      if(targetLoc==="全部"){q=(stocks["台南"][gk(x.b.id,x.p.name)]||0)+(stocks["屏東"][gk(x.b.id,x.p.name)]||0);min=min*2;}
-      else{q=stocks[targetLoc]?stocks[targetLoc][gk(x.b.id,x.p.name)]||0:0;}
-      return min>0&&q<min;
-    }).length;
-  }
-
-  var lowAll=getLowCount(loc);
-  var lowTainan=getLowCount("台南");
-  var lowPingtung=getLowCount("屏東");
-
-  document.getElementById("adm-n-total").textContent=allP.length;
-  document.getElementById("adm-n-low").textContent=lowAll;
-  document.getElementById("adm-n-boxes").textContent=BOXES.length;
-  document.getElementById("adm-n-logs").textContent=repairRecords.filter(function(r){return r.status!=="已完成";}).length;
-
-  // 更新補貨 badges
-  var badgesEl=document.getElementById("restock-badges");
-  if(badgesEl){
-    badgesEl.innerHTML="";
-    if(loc==="全部"){
-      var b1=document.createElement("span");b1.className="restock-badge restock-badge-tainan";b1.textContent="台南："+lowTainan+" 項";
-      var b2=document.createElement("span");b2.className="restock-badge restock-badge-pingtung";b2.textContent="屏東："+lowPingtung+" 項";
-      badgesEl.appendChild(b1);badgesEl.appendChild(b2);
-    } else {
-      var bx=document.createElement("span");
-      bx.className="restock-badge "+(loc==="台南"?"restock-badge-tainan":"restock-badge-pingtung");
-      bx.textContent=loc+"："+lowAll+" 項";
-      badgesEl.appendChild(bx);
-    }
-  }
-
-  // 補貨清單
-  var alerts=document.getElementById("adm-alerts");
-  alerts.innerHTML="";
-  var lowP=allP.filter(function(x){
-    var q,min=x.p.minQty;
-    if(loc==="全部"){q=(stocks["台南"][gk(x.b.id,x.p.name)]||0)+(stocks["屏東"][gk(x.b.id,x.p.name)]||0);min=min*2;}
-    else{q=stocks[loc]?stocks[loc][gk(x.b.id,x.p.name)]||0:0;}
-    return min>0&&q<min;
-  });
-  if(!lowP.length){
-    var noAlert=document.createElement("div");noAlert.className="no-alert";noAlert.textContent="目前無需補貨項目";alerts.appendChild(noAlert);
-  } else {
-    lowP.forEach(function(x){
-      var q,min=x.p.minQty;
-      if(loc==="全部"){q=(stocks["台南"][gk(x.b.id,x.p.name)]||0)+(stocks["屏東"][gk(x.b.id,x.p.name)]||0);min=min*2;}
-      else{q=stocks[loc]?stocks[loc][gk(x.b.id,x.p.name)]||0:0;}
-      var ai=document.createElement("div");ai.className="alert-item";
-      var ic=document.createElement("i");ic.className="ti ti-alert-triangle";
-      var info=document.createElement("div");
-      var an=document.createElement("div");an.className="alert-name";an.textContent=x.p.name;
-      var ab=document.createElement("div");ab.className="alert-box";ab.textContent=x.b.name;
-      info.appendChild(an);info.appendChild(ab);
-      var aq=document.createElement("div");aq.className="alert-qty";aq.textContent=q+" / "+min;
-      ai.appendChild(ic);ai.appendChild(info);ai.appendChild(aq);
-      alerts.appendChild(ai);
+// 讀取所有器具狀態
+function readEquipStatus() {
+  var sh = SS.getSheetByName(SHEET_EQUIP);
+  if (!sh) return { ok: true, data: [] };
+  var rows = sh.getDataRange().getValues();
+  if (rows.length <= 1) return { ok: true, data: [] };
+  var result = [];
+  for (var i = 1; i < rows.length; i++) {
+    var r = rows[i];
+    result.push({
+      equipId:      String(r[0] || ""),
+      equipName:    String(r[1] || ""),
+      status:       String(r[2] || "在庫"),
+      borrower:     String(r[3] || ""),
+      borrowerEmail:String(r[4] || ""),
+      loc:          String(r[5] || ""),
+      borrowTime:   String(r[6] || ""),
+      returnDue:    String(r[7] || ""),
+      note:         String(r[8] || "")
     });
   }
-
-  // 工具箱列表
-  var boxContainer=document.getElementById("adm-boxes");
-  boxContainer.innerHTML="";
-  BOXES.forEach(function(b){
-    var low=0;
-    b.parts.forEach(function(p){
-      var q,min=p.minQty;
-      if(loc==="全部"){q=(stocks["台南"][gk(b.id,p.name)]||0)+(stocks["屏東"][gk(b.id,p.name)]||0);min=min*2;}
-      else{q=stocks[loc]?stocks[loc][gk(b.id,p.name)]||0:0;}
-      if(min>0&&q<min)low++;
-    });
-    var box=document.createElement("div");box.className="adm-box";
-    var hd=document.createElement("div");hd.className="adm-box-hd";hd.setAttribute("data-id",b.id);
-    hd.onclick=function(){admOpenBox(this);};
-    var info=document.createElement("div");
-    var title=document.createElement("div");title.className="adm-box-title";title.textContent=b.name;
-    var meta=document.createElement("div");meta.className="adm-box-meta";
-    meta.textContent=b.parts.length?b.parts.length+" 項"+(low?"，"+low+" 項需補貨":""):"點此建立清單";
-    info.appendChild(title);info.appendChild(meta);
-    var arrow=document.createElement("i");arrow.className="ti ti-chevron-right";arrow.style.cssText="color:var(--sub);font-size:16px;";
-    hd.appendChild(info);hd.appendChild(arrow);
-    box.appendChild(hd);
-    boxContainer.appendChild(box);
-  });
+  return { ok: true, data: result };
 }
 
-function toggleRestock(){
-  var body=document.getElementById("adm-alerts");
-  var arrow=document.getElementById("restock-arrow");
-  if(!body||!arrow)return;
-  var isOpen=body.classList.contains("open");
-  if(isOpen){
-    body.classList.remove("open");
-    arrow.textContent="▼展開";
-  } else {
-    body.classList.add("open");
-    arrow.textContent="▲收合";
-  }
-}
-// ─────────────────────────────────────────────
-// 特殊器具借出追蹤
-// ─────────────────────────────────────────────
-
-// 特殊器具主清單（固定）
-var SPECIAL_EQUIP = [
-  { id:"SE-P",  name:"四方吹清洗槽",  icon:"💨", desc:"P 倉庫工具箱" },
-  { id:"SE-M",  name:"冷卻水管箱",    icon:"💧", desc:"M 冷卻水管箱" },
-  { id:"SE-NS", name:"侷限空間箱",    icon:"⛑️",  desc:"NS 侷限空間箱" },
-  { id:"SE-L",  name:"床墊水洗機",    icon:"🛏️",  desc:"L 床墊水洗箱" },
-  { id:"SE-D",  name:"塵蟎機",        icon:"🌬️",  desc:"D 塵蟎機" }
-];
-
-// equipStatus[id] = { status:"in"|"out"|"pending", borrower, borrowerEmail, loc, borrowTime, returnDue, note, history:[] }
-var equipStatus = {};
-var equipPendingRequests = []; // [{id, equipId, requester, requesterEmail, loc, returnDue, note, time}]
-var curEquipId = null; // 目前操作中的器具 id
-
-// ─── 器具狀態：優先從 Sheets 讀取，localStorage 作為快取 ───
-function loadEquipFromStorage(){
-  // 先用 localStorage 快速顯示（避免白畫面）
-  try{
-    var s = localStorage.getItem("equip_status");
-    if(s) equipStatus = JSON.parse(s);
-    var p = localStorage.getItem("equip_pending");
-    if(p) equipPendingRequests = JSON.parse(p);
-  }catch(e){ equipStatus={}; equipPendingRequests=[]; }
-  // 確保每個器具都有基本結構
-  SPECIAL_EQUIP.forEach(function(e){
-    if(!equipStatus[e.id]){
-      equipStatus[e.id] = { status:"in", borrower:"", borrowerEmail:"", loc:"", borrowTime:"", returnDue:"", note:"", history:[] };
-    }
-  });
+// =====================================================
+// 器具歷史記錄（每次借出/歸還追加一列）
+// =====================================================
+function appendEquipHistory(data, action) {
+  var sh = getOrCreateSheet(SHEET_EQUIP_H, [
+    "時間","器具ID","器具名稱","動作","操作人","借出人","地點","預計歸還","備註"
+  ]);
+  sh.appendRow([
+    nowTw(),
+    data.equipId   || "",
+    data.equipName || data.box || "",
+    action,
+    data.name      || "",
+    data.part      || data.name || "",
+    data.loc       || "",
+    data.returnDue || "",
+    data.note      || ""
+  ]);
 }
 
-// 從 Google Sheets 同步最新器具狀態（非同步）
-async function syncEquipFromSheets(){
-  if(!GAS_URL) return;
-  try{
-    var res = await fetch(GAS_URL + "?action=readEquip", { mode:"cors", cache:"no-cache" });
-    if(!res.ok) throw new Error("HTTP " + res.status);
-    var json = await res.json();
-    if(!json.ok || !json.data) return;
-    // 將 Sheets 資料合併進 equipStatus
-    json.data.forEach(function(row){
-      var id = row.equipId;
-      if(!id) return;
-      var statusMap = { "借出中":"out", "待審核":"pending", "在庫":"in" };
-      var st = equipStatus[id] || { history:[] };
-      st.status    = statusMap[row.status] || "in";
-      st.borrower  = row.borrower  || "";
-      st.borrowerEmail = row.borrowerEmail || "";
-      st.loc       = row.loc       || "";
-      st.borrowTime= row.borrowTime|| "";
-      st.returnDue = row.returnDue || "";
-      st.note      = row.note      || "";
-      equipStatus[id] = st;
-    });
-    // 同時從 Sheets 同步各器具的歷史記錄
-    await syncEquipHistoryFromSheets();
-    saveEquipToStorage();
-    renderEquip(); // 狀態更新後重新渲染
-  }catch(err){
-    console.warn("器具狀態同步失敗（使用本地快取）:", err.message);
-  }
-}
-
-// 從 Sheets 同步所有器具的近期歷史
-async function syncEquipHistoryFromSheets(){
-  for(var i = 0; i < SPECIAL_EQUIP.length; i++){
-    var eq = SPECIAL_EQUIP[i];
-    try{
-      var res = await fetch(GAS_URL + "?action=readEquipHistory&equipId=" + encodeURIComponent(eq.id), { mode:"cors", cache:"no-cache" });
-      if(!res.ok) continue;
-      var json = await res.json();
-      if(json.ok && json.data && json.data.length){
-        if(!equipStatus[eq.id]) equipStatus[eq.id] = { history:[] };
-        equipStatus[eq.id].history = json.data;
-      }
-    }catch(e){}
-  }
-}
-
-function saveEquipToStorage(){
-  try{
-    localStorage.setItem("equip_status", JSON.stringify(equipStatus));
-    localStorage.setItem("equip_pending", JSON.stringify(equipPendingRequests));
-  }catch(e){}
-}
-
-// 計算是否逾期
-function isOverdue(returnDue){
-  if(!returnDue) return false;
-  var due = new Date(returnDue);
-  due.setHours(23,59,59,999);
-  return Date.now() > due.getTime();
-}
-
-// 幾天前/幾天後
-function relativeDay(dateStr){
-  if(!dateStr) return "";
-  var d = new Date(dateStr);
-  d.setHours(0,0,0,0);
-  var today = new Date(); today.setHours(0,0,0,0);
-  var diff = Math.round((d - today) / 86400000);
-  if(diff === 0) return "今天到期";
-  if(diff < 0) return "逾期 " + Math.abs(diff) + " 天";
-  return "還有 " + diff + " 天";
-}
-
-function renderEquip(){
-  var list = document.getElementById("equip-list");
-  if(!list) return;
-  list.innerHTML = "";
-
-  // 管理者：顯示待審核
-  var pendingSec = document.getElementById("equip-pending-section");
-  var pendingList = document.getElementById("equip-pending-list");
-  if(curUser && curUser.role === "admin" && equipPendingRequests.length > 0){
-    pendingSec.style.display = "block";
-    pendingList.innerHTML = "";
-    equipPendingRequests.forEach(function(req){
-      var eq = SPECIAL_EQUIP.find(function(e){ return e.id === req.equipId; });
-      var item = document.createElement("div");
-      item.className = "equip-pending-item";
-      item.innerHTML = '<div class="equip-pending-name">' + (eq?eq.icon+" "+eq.name:"") + '</div>'
-        + '<div class="equip-pending-meta">申請人：' + req.requester + '　地點：' + req.loc + '　預計還回：' + (req.returnDue||"未填") + '</div>'
-        + (req.note ? '<div style="font-size:11px;color:var(--amber);margin-bottom:6px;">用途：'+req.note+'</div>' : '')
-        + '<div style="font-size:10px;color:var(--sub);margin-bottom:8px;">申請時間：' + req.time + '</div>';
-      var btns = document.createElement("div");
-      btns.className = "equip-pending-btns";
-      var ab = document.createElement("button");
-      ab.className = "equip-approve-btn";
-      ab.innerHTML = '<i class="ti ti-check"></i> 核准';
-      ab.onclick = (function(r){ return function(){ approveEquip(r); }; })(req);
-      var rb = document.createElement("button");
-      rb.className = "equip-reject-btn";
-      rb.innerHTML = '<i class="ti ti-x"></i> 拒絕';
-      rb.onclick = (function(r){ return function(){ rejectEquip(r); }; })(req);
-      btns.appendChild(ab); btns.appendChild(rb);
-      item.appendChild(btns);
-      pendingList.appendChild(item);
-    });
-  } else {
-    pendingSec.style.display = "none";
-  }
-
-  // 器具卡片
-  SPECIAL_EQUIP.forEach(function(eq){
-    var st = equipStatus[eq.id] || { status:"in", history:[] };
-    var isOut = st.status === "out";
-    var isPending = st.status === "pending";
-    var overdue = isOut && isOverdue(st.returnDue);
-    var cardClass = "equip-card " + (overdue ? "overdue" : isOut ? "out" : isPending ? "out" : "in");
-    var card = document.createElement("div");
-    card.className = cardClass;
-
-    // header
-    var hd = document.createElement("div"); hd.className = "equip-hd";
-    var iconDiv = document.createElement("div");
-    iconDiv.className = "equip-icon " + (overdue?"overdue":isOut||isPending?"out":"in");
-    iconDiv.textContent = eq.icon;
-    var nameDiv = document.createElement("div"); nameDiv.className = "equip-name"; nameDiv.textContent = eq.name;
-    var badgeDiv = document.createElement("span");
-    badgeDiv.className = "equip-badge " + (overdue?"equip-badge-overdue":isOut?"equip-badge-out":isPending?"equip-badge-out":"equip-badge-in");
-    badgeDiv.textContent = overdue ? "⚠ 逾期" : isOut ? "借出中" : isPending ? "待審核" : "在庫";
-    hd.appendChild(iconDiv); hd.appendChild(nameDiv); hd.appendChild(badgeDiv);
-    card.appendChild(hd);
-
-    // meta
-    if(isOut || isPending){
-      var metaRow = document.createElement("div"); metaRow.className = "equip-meta-row";
-      function metaItem(icon, text, warn){
-        var m = document.createElement("div");
-        m.className = "equip-meta-item" + (warn ? " warn" : "");
-        m.innerHTML = '<i class="ti '+icon+'"></i> ' + text;
-        return m;
-      }
-      if(st.borrower) metaRow.appendChild(metaItem("ti-user", st.borrower));
-      if(st.loc) metaRow.appendChild(metaItem("ti-map-pin", st.loc));
-      if(st.borrowTime) metaRow.appendChild(metaItem("ti-clock", st.borrowTime.slice(0,10)));
-      if(st.returnDue){
-        var rd = relativeDay(st.returnDue);
-        metaRow.appendChild(metaItem("ti-calendar-due", rd, overdue));
-      }
-      if(st.note) metaRow.appendChild(metaItem("ti-note", st.note));
-      card.appendChild(metaRow);
-    } else {
-      var infoDiv = document.createElement("div");
-      infoDiv.style.cssText = "font-size:11px;color:var(--sub);margin-bottom:10px;";
-      infoDiv.textContent = eq.desc + "　目前在庫";
-      card.appendChild(infoDiv);
-    }
-
-    // 操作按鈕
-    var actionRow = document.createElement("div"); actionRow.className = "equip-action-row";
-
-    if(isPending){
-      // 待審核：一般人只看到等待狀態
-      var waitBtn = document.createElement("button");
-      waitBtn.className = "equip-btn-disabled";
-      waitBtn.innerHTML = '<i class="ti ti-clock"></i> 等待管理者審核中';
-      // 管理者在上方已有核准按鈕，此處不重複
-      actionRow.appendChild(waitBtn);
-    } else if(isOut){
-      // 借出中：所有人可以歸還
-      var returnBtn = document.createElement("button");
-      returnBtn.className = "equip-btn-in";
-      returnBtn.innerHTML = '<i class="ti ti-corner-down-left"></i> 登記歸還';
-      returnBtn.onclick = (function(eid){ return function(){ confirmReturnEquip(eid); }; })(eq.id);
-      actionRow.appendChild(returnBtn);
-      // 管理者多一個強制收回
-      if(curUser && curUser.role === "admin"){
-        var forceBtn = document.createElement("button");
-        forceBtn.className = "equip-btn-out";
-        forceBtn.style.cssText = "max-width:90px;font-size:11px;";
-        forceBtn.innerHTML = '<i class="ti ti-rotate"></i> 重新借出';
-        forceBtn.onclick = (function(eid,ename){ return function(){ openAdminBorrow(eid,ename); }; })(eq.id,eq.name);
-        actionRow.appendChild(forceBtn);
-      }
-    } else {
-      // 在庫：管理者直接借出，一般人申請
-      if(curUser && curUser.role === "admin"){
-        var admBtn = document.createElement("button");
-        admBtn.className = "equip-btn-out";
-        admBtn.innerHTML = '<i class="ti ti-arrow-right"></i> 登記借出';
-        admBtn.onclick = (function(eid,ename){ return function(){ openAdminBorrow(eid,ename); }; })(eq.id,eq.name);
-        actionRow.appendChild(admBtn);
-      } else {
-        var reqBtn = document.createElement("button");
-        reqBtn.className = "equip-btn-out";
-        reqBtn.innerHTML = '<i class="ti ti-send"></i> 申請借出';
-        reqBtn.onclick = (function(eid,ename){ return function(){ openBorrowRequest(eid,ename); }; })(eq.id,eq.name);
-        actionRow.appendChild(reqBtn);
-      }
-    }
-    card.appendChild(actionRow);
-
-    // 近期記錄（顯示最近5筆，保留10筆）
-    if(st.history && st.history.length > 0){
-      var hist = document.createElement("div"); hist.className = "equip-history";
-      var htitle = document.createElement("div"); htitle.className = "equip-history-title"; htitle.textContent = "近期記錄";
-      hist.appendChild(htitle);
-      st.history.slice(0,2).forEach(function(h){
-        var row = document.createElement("div"); row.className = "equip-history-row";
-        var who = document.createElement("div"); who.className = "equip-history-who";
-        who.innerHTML = '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+(h.action==="歸還"?"var(--green)":"var(--amber)")+';;margin-right:4px;"></span>'
-          + h.action + "　" + (h.who||"") + (h.loc?" @ "+h.loc:"");
-        var tm = document.createElement("div"); tm.className = "equip-history-time"; tm.textContent = (h.time||"").slice(0,10);
-        row.appendChild(who); row.appendChild(tm);
-        hist.appendChild(row);
+// 讀取某器具的歷史（最近10筆）
+function readEquipHistory(equipId) {
+  var sh = SS.getSheetByName(SHEET_EQUIP_H);
+  if (!sh) return { ok: true, data: [] };
+  var rows = sh.getDataRange().getValues();
+  var result = [];
+  for (var i = rows.length - 1; i >= 1 && result.length < 10; i--) {
+    if (String(rows[i][1]) === String(equipId)) {
+      result.push({
+        time:      String(rows[i][0] || ""),
+        action:    String(rows[i][3] || ""),
+        who:       String(rows[i][5] || ""),
+        loc:       String(rows[i][6] || ""),
+        returnDue: String(rows[i][7] || "")
       });
-      card.appendChild(hist);
     }
-
-    list.appendChild(card);
-  });
-}
-
-// 一般人申請借出
-function openBorrowRequest(equipId, equipName){
-  curEquipId = equipId;
-  document.getElementById("equip-borrow-title").textContent = "申請借出：" + equipName;
-  // 預設歸還日期為7天後
-  var d = new Date(); d.setDate(d.getDate()+7);
-  document.getElementById("equip-borrow-date").value = d.toISOString().slice(0,10);
-  document.getElementById("equip-borrow-note").value = "";
-  document.getElementById("equip-borrow-overlay").classList.add("show");
-}
-
-// 管理者直接借出
-function openAdminBorrow(equipId, equipName){
-  curEquipId = equipId;
-  document.getElementById("equip-admin-borrow-title").textContent = "登記借出：" + equipName;
-  // 自動帶入目前登入者姓名，可手動修改
-  document.getElementById("equip-admin-who").value = curUser ? curUser.name : "";
-  var d = new Date(); d.setDate(d.getDate()+7);
-  document.getElementById("equip-admin-date").value = d.toISOString().slice(0,10);
-  document.getElementById("equip-admin-note").value = "";
-  document.getElementById("equip-admin-borrow-overlay").classList.add("show");
-  // 自動 focus 到借出人欄位末尾（方便修改）
-  setTimeout(function(){
-    var el = document.getElementById("equip-admin-who");
-    el.focus(); el.select();
-  }, 300);
-}
-
-function closeEquipOverlay(){
-  document.getElementById("equip-borrow-overlay").classList.remove("show");
-  document.getElementById("equip-admin-borrow-overlay").classList.remove("show");
-}
-
-// 送出借出申請（一般人）
-function submitBorrowRequest(){
-  var loc = document.getElementById("equip-borrow-loc").value;
-  var returnDue = document.getElementById("equip-borrow-date").value;
-  var note = document.getElementById("equip-borrow-note").value.trim();
-  var t = nowStr();
-  var req = {
-    id: Date.now(),
-    equipId: curEquipId,
-    requester: curUser ? curUser.name : "",
-    requesterEmail: curUser ? curUser.email : "",
-    loc: loc,
-    returnDue: returnDue,
-    note: note,
-    time: t
-  };
-  // 將器具標為 pending
-  if(!equipStatus[curEquipId]) equipStatus[curEquipId] = { history:[] };
-  equipStatus[curEquipId].status = "pending";
-  equipStatus[curEquipId].borrower = curUser ? curUser.name : "";
-  equipStatus[curEquipId].loc = loc;
-  equipStatus[curEquipId].borrowTime = t;
-  equipStatus[curEquipId].returnDue = returnDue;
-  equipStatus[curEquipId].note = note;
-  equipPendingRequests.push(req);
-  saveEquipToStorage();
-  closeEquipOverlay();
-  renderEquip();
-  var eq = SPECIAL_EQUIP.find(function(e){ return e.id === curEquipId; });
-  sendToSheets({type:"器具申請借出",box:eq?eq.name:"",equipId:curEquipId,equipName:eq?eq.name:"",part:curUser?curUser.name:"",qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"預計"+returnDue+"歸還"+(note?"，"+note:""),time:t,loc:loc,serial:"",returnDue:returnDue,borrowTime:t});
-  alert("✅ 申請已送出，等待管理者審核！");
-}
-
-// 管理者直接借出
-function adminDirectBorrow(){
-  var who = document.getElementById("equip-admin-who").value.trim();
-  var loc = document.getElementById("equip-admin-loc").value;
-  var returnDue = document.getElementById("equip-admin-date").value;
-  var note = document.getElementById("equip-admin-note").value.trim();
-  if(!who){ alert("請填寫借出人姓名"); return; }
-  var t = nowStr();
-  var st = equipStatus[curEquipId] || { history:[] };
-  st.history = st.history || [];
-  st.status = "out";
-  st.borrower = who;
-  st.borrowerEmail = "";
-  st.loc = loc;
-  st.borrowTime = t;
-  st.returnDue = returnDue;
-  st.note = note;
-  st.history.unshift({ action:"借出", who:who, loc:loc, time:t });
-  if(st.history.length > 10) st.history = st.history.slice(0,10);
-  equipStatus[curEquipId] = st;
-  saveEquipToStorage();
-  closeEquipOverlay();
-  renderEquip();
-  var eq = SPECIAL_EQUIP.find(function(e){ return e.id === curEquipId; });
-  sendToSheets({type:"器具借出",box:eq?eq.name:"",equipId:curEquipId,equipName:eq?eq.name:"",part:who,qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"地點:"+loc+"，預計"+returnDue+"歸還"+(note?"，"+note:""),time:t,loc:loc,serial:"",returnDue:returnDue,borrowTime:t});
-  alert("✅ 已登記借出：" + who);
-}
-
-// 管理者核准申請
-function approveEquip(req){
-  var t = nowStr();
-  var st = equipStatus[req.equipId] || { history:[] };
-  st.history = st.history || [];
-  st.status = "out";
-  st.borrower = req.requester;
-  st.borrowerEmail = req.requesterEmail;
-  st.loc = req.loc;
-  st.borrowTime = t;
-  st.returnDue = req.returnDue;
-  st.note = req.note;
-  st.history.unshift({ action:"借出", who:req.requester, loc:req.loc, time:t });
-  if(st.history.length > 10) st.history = st.history.slice(0,10);
-  equipStatus[req.equipId] = st;
-  equipPendingRequests = equipPendingRequests.filter(function(r){ return r.id !== req.id; });
-  saveEquipToStorage();
-  renderEquip();
-  var eq = SPECIAL_EQUIP.find(function(e){ return e.id === req.equipId; });
-  sendToSheets({type:"器具核准借出",box:eq?eq.name:"",equipId:req.equipId,equipName:eq?eq.name:"",part:req.requester,qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"核准借出，地點:"+req.loc,time:t,loc:req.loc,serial:"",returnDue:req.returnDue,borrowTime:t});
-  alert("✅ 已核准「" + req.requester + "」借出！");
-}
-
-// 管理者拒絕申請
-function rejectEquip(req){
-  var st = equipStatus[req.equipId];
-  if(st && st.status === "pending"){ st.status = "in"; st.borrower=""; st.borrowTime=""; st.returnDue=""; st.note=""; }
-  equipPendingRequests = equipPendingRequests.filter(function(r){ return r.id !== req.id; });
-  saveEquipToStorage();
-  renderEquip();
-  alert("已拒絕申請。");
-}
-
-// 歸還確認
-function confirmReturnEquip(equipId){
-  var eq = SPECIAL_EQUIP.find(function(e){ return e.id === equipId; });
-  var st = equipStatus[equipId];
-  var msg = "確認「" + (eq?eq.name:"") + "」已歸還？\n借出人：" + (st?st.borrower:"");
-  if(!confirm(msg)) return;
-  var t = nowStr();
-  st.history = st.history || [];
-  st.history.unshift({ action:"歸還", who:curUser?curUser.name:"", loc:st.loc, time:t });
-  if(st.history.length > 10) st.history = st.history.slice(0,10);
-  var oldBorrower = st.borrower;
-  var oldLoc = st.loc;
-  st.status = "in";
-  st.borrower = "";
-  st.borrowerEmail = "";
-  st.loc = "";
-  st.borrowTime = "";
-  st.returnDue = "";
-  st.note = "";
-  saveEquipToStorage();
-  renderEquip();
-  sendToSheets({type:"器具歸還",box:eq?eq.name:"",equipId:equipId,equipName:eq?eq.name:"",part:oldBorrower,qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"已歸還",time:t,loc:oldLoc,serial:""});
-  alert("✅ 已登記歸還！");
-}
-
-// ─────────────────────────────────────────────
-
-// ─────────────────────────────────────────────
-// 報修管理
-// ─────────────────────────────────────────────
-var repairRecords = [];
-var repairFilter = "all";
-
-function loadRepairsFromStorage(){
-  try{
-    var saved = localStorage.getItem("repair_records");
-    if(!saved) return;
-    repairRecords = JSON.parse(saved);
-  }catch(e){ repairRecords = []; }
-}
-
-function saveRepairsToStorage(){
-  try{
-    localStorage.setItem("repair_records", JSON.stringify(repairRecords));
-  }catch(e){}
-}
-
-function switchRepairTab(tab, el){
-  document.querySelectorAll(".repair-tab").forEach(function(b){ b.classList.remove("active"); });
-  el.classList.add("active");
-  document.getElementById("repair-panel-form").style.display = tab === "form" ? "block" : "none";
-  document.getElementById("repair-panel-list").style.display = tab === "list" ? "block" : "none";
-  if(tab === "list") renderRepairList();
-}
-
-// 報修設備下拉選單 — 從 BOXES 抓取所有工具名稱
-function populateRepairDevices(){
-  var sel = document.getElementById("repair-device");
-  if(!sel) return;
-  sel.innerHTML = '<option value="">── 請選擇設備 ──</option>';
-  // 依箱子分組
-  BOXES.forEach(function(box){
-    if(!box.parts || !box.parts.length) return;
-    var grp = document.createElement("optgroup");
-    grp.label = box.name;
-    box.parts.forEach(function(p){
-      var opt = document.createElement("option");
-      opt.value = p.name;
-      opt.textContent = p.name;
-      grp.appendChild(opt);
-    });
-    sel.appendChild(grp);
-  });
-  // 加入特殊器具
-  var se = document.createElement("optgroup");
-  se.label = "── 特殊器具 ──";
-  SPECIAL_EQUIP.forEach(function(e){
-    var opt = document.createElement("option");
-    opt.value = e.name;
-    opt.textContent = e.icon + " " + e.name;
-    se.appendChild(opt);
-  });
-  sel.appendChild(se);
-}
-
-function submitRepair(){
-  var loc = document.getElementById("repair-loc").value;
-  var device = document.getElementById("repair-device").value.trim();
-  var desc = document.getElementById("repair-desc").value.trim();
-  var urgency = document.getElementById("repair-urgency").value;
-  if(!device){ alert("請選擇設備名稱"); return; }
-  if(!desc){ alert("請描述損壞狀況"); return; }
-  var t = nowStr();
-  var record = {
-    id: Date.now(),
-    loc: loc,
-    device: device,
-    desc: desc,
-    urgency: urgency,
-    status: "待處理",
-    reporter: curUser ? curUser.name : "未知",
-    reporterEmail: curUser ? curUser.email : "",
-    time: t,
-    timestamp: Date.now(),
-    resolvedBy: "",
-    resolvedNote: "",
-    resolvedTime: ""
-  };
-  repairRecords.unshift(record);
-  saveRepairsToStorage();
-  // 送至 Sheets
-  sendToSheets({type:"報修",box:loc,part:device,qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:desc,time:t,loc:loc,serial:"",repairId:record.id,urgency:urgency});
-  // 清空表單
-  document.getElementById("repair-device").selectedIndex = 0;
-  document.getElementById("repair-desc").value = "";
-  document.getElementById("repair-urgency").value = "一般";
-  // 切到清單看結果
-  switchRepairTab("list", document.getElementById("repair-tab-list"));
-  alert("✅ 報修已送出！");
-}
-
-function filterRepair(f, el){
-  repairFilter = f;
-  document.querySelectorAll("#repair-panel-list .filter-chip").forEach(function(b){ b.classList.remove("on"); });
-  el.classList.add("on");
-  renderRepairList();
-}
-
-function renderRepairList(){
-  var container = document.getElementById("repair-list-container");
-  container.innerHTML = "";
-  var list = repairFilter === "all" ? repairRecords : repairRecords.filter(function(r){ return r.status === repairFilter; });
-  if(!list.length){
-    var em = document.createElement("div");
-    em.className = "empty-msg";
-    em.textContent = "目前無報修記錄";
-    container.appendChild(em);
-    return;
   }
-  list.forEach(function(r){
-    var item = document.createElement("div");
-    item.className = "repair-list-item";
-    var urgencyColors = { "一般":"#185FA5", "緊急":"#854F0B", "嚴重":"#A32D2D" };
-    var statusClass = r.status === "待處理" ? "repair-status-open" : r.status === "處理中" ? "repair-status-inprog" : "repair-status-done";
-    var hd = document.createElement("div"); hd.className = "repair-list-hd";
-    var title = document.createElement("div"); title.className = "repair-list-title";
-    title.innerHTML = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+urgencyColors[r.urgency]+';;margin-right:5px;"></span>'+r.device;
-    var statusEl = document.createElement("span");
-    statusEl.className = "repair-status "+statusClass;
-    statusEl.textContent = r.status;
-    hd.appendChild(title); hd.appendChild(statusEl);
-    var meta = document.createElement("div"); meta.className = "repair-list-meta";
-    meta.textContent = r.loc+" ｜ "+r.urgency+" ｜ "+r.reporter+" ｜ "+r.time;
-    var desc = document.createElement("div"); desc.className = "repair-list-desc";
-    desc.textContent = r.desc;
-    item.appendChild(hd); item.appendChild(meta); item.appendChild(desc);
-    // 已完成顯示處理結果
-    if(r.status === "已完成" && r.resolvedNote){
-      var res = document.createElement("div");
-      res.style.cssText = "margin-top:7px;padding:7px 10px;background:var(--green-light);border-radius:9px;font-size:11px;color:var(--green);";
-      res.textContent = "✅ "+r.resolvedNote+" （"+r.resolvedBy+" "+r.resolvedTime+"）";
-      item.appendChild(res);
+  return { ok: true, data: result };
+}
+
+// =====================================================
+// 報修單
+// =====================================================
+function writeRepair(data) {
+  var sh = getOrCreateSheet(SHEET_REPAIR, [
+    "報修ID","時間","地點","設備名稱","損壞描述","緊急程度","報修人","Email","狀態","處理人","處理說明","處理時間"
+  ]);
+  var urgency = data.urgency || "一般";
+  // note 欄位存損壞描述（前端傳的是 desc 的內容）
+  var desc = data.note || data.desc || "";
+  // 去掉前端可能包的【緊急程度】前綴
+  desc = desc.replace(/^【[^】]*】/, "").trim();
+
+  sh.appendRow([
+    String(data.repairId || Date.now()),
+    data.time  || nowTw(),
+    data.loc   || data.box || "",
+    data.part  || "",
+    desc,
+    urgency,
+    data.name  || "",
+    data.email || "",
+    "待處理",
+    "", "", ""
+  ]);
+
+  // 緊急程度顏色
+  var lastRow = sh.getLastRow();
+  var urgCell = sh.getRange(lastRow, 6);
+  if (urgency === "嚴重")      urgCell.setBackground("#FCEBEB").setFontColor("#A32D2D");
+  else if (urgency === "緊急") urgCell.setBackground("#FAEEDA").setFontColor("#854F0B");
+}
+
+function updateRepairStatus(data) {
+  var sh = SS.getSheetByName(SHEET_REPAIR);
+  if (!sh) return;
+  var rows = sh.getDataRange().getValues();
+  var repairId = String(data.repairId || "");
+  for (var i = 1; i < rows.length; i++) {
+    if (repairId && String(rows[i][0]) === repairId) {
+      var newStatus = data.newStatus || "處理中";
+      sh.getRange(i + 1, 9).setValue(newStatus);
+      sh.getRange(i + 1, 10).setValue(data.name || "");
+      sh.getRange(i + 1, 11).setValue(data.resolveNote || "");
+      sh.getRange(i + 1, 12).setValue(nowTw());
+      // 顏色
+      var statusCell = sh.getRange(i + 1, 9);
+      if (newStatus === "已完成")      statusCell.setBackground("#EAF3DE").setFontColor("#3B6D11");
+      else if (newStatus === "處理中") statusCell.setBackground("#FAEEDA").setFontColor("#854F0B");
+      return;
     }
-    // 管理者可以修改狀態
-    if(curUser && curUser.role === "admin" && r.status !== "已完成"){
-      var btns = document.createElement("div"); btns.className = "repair-adm-btns";
-      if(r.status === "待處理"){
-        var b1 = document.createElement("button");
-        b1.className = "repair-adm-btn";
-        b1.style.cssText = "background:var(--amber-light);color:var(--amber);";
-        b1.textContent = "標記處理中";
-        b1.onclick = (function(rid){ return function(){ updateRepairStatus(rid,"處理中",""); }; })(r.id);
-        btns.appendChild(b1);
-      }
-      var b2 = document.createElement("button");
-      b2.className = "repair-adm-btn";
-      b2.style.cssText = "background:var(--green-light);color:var(--green);";
-      b2.textContent = "標記已完成";
-      b2.onclick = (function(rid){ return function(){ markRepairDone(rid); }; })(r.id);
-      btns.appendChild(b2);
-      var b3 = document.createElement("button");
-      b3.className = "repair-adm-btn";
-      b3.style.cssText = "background:var(--red-light);color:var(--red);";
-      b3.textContent = "刪除";
-      b3.onclick = (function(rid){ return function(){
-        if(confirm("確定刪除此報修單？")) { repairRecords = repairRecords.filter(function(x){ return x.id !== rid; }); saveRepairsToStorage(); renderRepairList(); }
-      }; })(r.id);
-      btns.appendChild(b3);
-      item.appendChild(btns);
-    }
-    container.appendChild(item);
-  });
+  }
+  Logger.log("updateRepairStatus: repairId not found: " + repairId);
 }
 
-function updateRepairStatus(id, status, note){
-  var r = repairRecords.find(function(x){ return x.id === id; });
-  if(!r) return;
-  r.status = status;
-  if(note){ r.resolvedNote = note; r.resolvedBy = curUser?curUser.name:""; r.resolvedTime = nowStr(); }
-  saveRepairsToStorage();
-  sendToSheets({type:"報修更新",box:r.loc,part:r.device,qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"狀態更新→"+status+(note?"："+note:""),time:nowStr(),loc:r.loc,serial:"",repairId:id,newStatus:status,resolveNote:note});
-  renderRepairList();
-}
-
-function markRepairDone(id){
-  var note = prompt("請輸入處理結果說明（選填）：", "");
-  if(note === null) return; // 取消
-  updateRepairStatus(id, "已完成", note || "已處理完成");
-}
-
-// ─────────────────────────────────────────────
-
-// 註冊 Service Worker（PWA）
-if("serviceWorker" in navigator){
-  window.addEventListener("load",function(){
-    navigator.serviceWorker.register("sw.js").then(function(reg){
-      console.log("SW registered");
-    }).catch(function(e){
-      console.log("SW error",e);
+// 讀取所有報修單（最新在前）
+function readRepairs() {
+  var sh = SS.getSheetByName(SHEET_REPAIR);
+  if (!sh) return { ok: true, data: [] };
+  var rows = sh.getDataRange().getValues();
+  var result = [];
+  for (var i = rows.length - 1; i >= 1; i--) {
+    var r = rows[i];
+    result.push({
+      repairId:    String(r[0]  || ""),
+      time:        String(r[1]  || ""),
+      loc:         String(r[2]  || ""),
+      device:      String(r[3]  || ""),
+      desc:        String(r[4]  || ""),
+      urgency:     String(r[5]  || "一般"),
+      reporter:    String(r[6]  || ""),
+      email:       String(r[7]  || ""),
+      status:      String(r[8]  || "待處理"),
+      resolvedBy:  String(r[9]  || ""),
+      resolvedNote:String(r[10] || ""),
+      resolvedTime:String(r[11] || "")
     });
-  });
+  }
+  return { ok: true, data: result };
 }
-</script>
-</body>
-</html>
+
+// =====================================================
+// 工具函式
+// =====================================================
+function nowTw() {
+  return Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy/MM/dd HH:mm:ss");
+}
+
+// =====================================================
+// 測試函式（在 Apps Script 編輯器直接點「執行」確認）
+// =====================================================
+function testHealthCheck() {
+  var result = doGet(null);
+  Logger.log(result.getContent());
+}
+
+function testReadEquip() {
+  var result = doGet({ parameter: { action: "readEquip" } });
+  Logger.log(result.getContent());
+}
+
+function testWriteRepair() {
+  var result = doPost({
+    postData: {
+      contents: JSON.stringify({
+        type: "報修", repairId: "TEST-" + Date.now(),
+        box: "台南", part: "高壓清洗機", qty: 0,
+        name: "測試人員", email: "test@test.com",
+        note: "馬達異響測試", time: nowTw(),
+        loc: "台南", serial: "", urgency: "緊急"
+      })
+    }
+  });
+  Logger.log(result.getContent());
+}
+
+function testWriteEquipBorrow() {
+  var result = doPost({
+    postData: {
+      contents: JSON.stringify({
+        type: "器具借出", equipId: "SE-P", equipName: "四方吹清洗槽",
+        box: "四方吹清洗槽", part: "測試人員", qty: 0,
+        name: "測試人員", email: "test@test.com",
+        note: "測試借出", time: nowTw(), loc: "台南",
+        serial: "", returnDue: "2026/07/10", borrowTime: nowTw()
+      })
+    }
+  });
+  Logger.log(result.getContent());
+}
+
+function testWriteEquipReturn() {
+  var result = doPost({
+    postData: {
+      contents: JSON.stringify({
+        type: "器具歸還", equipId: "SE-P", equipName: "四方吹清洗槽",
+        box: "四方吹清洗槽", part: "測試人員", qty: 0,
+        name: "測試人員", email: "test@test.com",
+        note: "已歸還", time: nowTw(), loc: "台南", serial: ""
+      })
+    }
+  });
+  Logger.log(result.getContent());
+}
