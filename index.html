@@ -555,7 +555,9 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       <div class="field-lbl" style="margin-bottom:6px;color:var(--blue);font-weight:600;">新增工具名稱</div>
       <input class="add-input" id="add-input" placeholder="輸入工具名稱" maxlength="30">
       <div class="field-lbl" style="margin-bottom:6px;color:var(--blue);font-weight:600;">分類標籤（選填，例：A0、A1、副F1）</div>
-      <input class="add-input" id="add-sub-input" placeholder="輸入分類標籤" maxlength="10" style="margin-bottom:0;">
+      <input class="add-input" id="add-sub-input" placeholder="輸入分類標籤" maxlength="10">
+      <div class="field-lbl" style="margin-bottom:6px;color:var(--blue);font-weight:600;">最低安全量（每個地點）</div>
+      <input class="add-input" id="add-min-input" type="number" min="0" placeholder="例：2（低於此數量會提示補貨）" style="margin-bottom:0;">
       <div class="add-row" style="margin-top:8px;">
         <button class="btn-add-cancel" onclick="toggleAddForm()">取消</button>
         <button class="btn-add-confirm" onclick="confirmAddPart()">確認新增</button>
@@ -1560,6 +1562,11 @@ function renderAdmPartList(){
     var bdg=document.createElement("span");bdg.className="badge "+(low?"badge-low":"badge-ok");bdg.textContent=(low?"需補":"正常");
     sb.appendChild(document.createTextNode(" 庫存："+qShow+" "));
     sb.appendChild(bdg);
+    // 顯示最低安全量
+    var minSpan=document.createElement("span");
+    minSpan.style.cssText="font-size:10px;color:var(--sub);margin-left:4px;";
+    minSpan.textContent="(安全量："+p.minQty+")";
+    sb.appendChild(minSpan);
     info.appendChild(nm);info.appendChild(sb);
     var btns=document.createElement("div");btns.style.cssText="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;";
     var b1=document.createElement("button");b1.className="btn-sm btn-sm-green";b1.style.fontSize="11px";b1.textContent="進貨";
@@ -1587,6 +1594,10 @@ function openEditPart(partName){
   var newSub=prompt("修改分類標籤（例：A0、A1，留空則無標籤）：",p.sub||"");
   if(newSub===null)return;
   newSub=newSub.trim();
+  var newMinStr=prompt("修改最低安全量（每個地點，填 0 表示不追蹤）：",p.minQty||0);
+  if(newMinStr===null)return;
+  var newMin=parseInt(newMinStr);
+  if(isNaN(newMin)||newMin<0)newMin=0;
 
   // 如果名稱改變，需要搬移庫存資料
   if(newName!==p.name){
@@ -1600,9 +1611,10 @@ function openEditPart(partName){
   var oldName=p.name;
   p.name=newName;
   p.sub=newSub;
+  p.minQty=newMin;
   renderAdmPartList();renderBoxes();
-  sendToSheets({type:"編輯工具",box:curBox.name,part:oldName+"→"+newName,qty:0,name:curUser.name,email:curUser.email,note:"分類:"+newSub,time:nowStr(),loc:curLoc});
-  alert("已更新「"+newName+"」");
+  sendToSheets({type:"編輯工具",box:curBox.name,part:oldName+"→"+newName,qty:0,name:curUser.name,email:curUser.email,note:"分類:"+newSub+"，安全量:"+newMin,time:nowStr(),loc:curLoc});
+  alert("已更新「"+newName+"」（安全量："+newMin+"）");
 }
 
 function toggleAddForm(){
@@ -1612,18 +1624,20 @@ function toggleAddForm(){
 function confirmAddPart(){
   var name=document.getElementById("add-input").value.trim();
   var sub=document.getElementById("add-sub-input").value.trim();
+  var minQty=parseInt(document.getElementById("add-min-input").value)||0;
   if(!name){alert("請輸入工具名稱");return;}
   var exists=curBox.parts.find(function(p){return p.name===name;});
   if(exists){alert("此工具已存在！");return;}
-  curBox.parts.push({name:name,sub:sub,minQty:1});
+  curBox.parts.push({name:name,sub:sub,minQty:minQty});
   stocks["台南"][gk(curBox.id,name)]=0;
   stocks["屏東"][gk(curBox.id,name)]=0;
   document.getElementById("add-input").value="";
   document.getElementById("add-sub-input").value="";
+  document.getElementById("add-min-input").value="";
   document.getElementById("add-form").classList.remove("open");
   renderAdmPartList();renderBoxes();
-  sendToSheets({type:"新增工具",box:curBox.name,part:name,qty:0,name:curUser.name,email:curUser.email,note:"管理者新增"+(sub?"，分類:"+sub:""),time:nowStr(),loc:curLoc});
-  alert("已新增「"+name+"」");
+  sendToSheets({type:"新增工具",box:curBox.name,part:name,qty:0,name:curUser.name,email:curUser.email,note:"管理者新增"+(sub?"，分類:"+sub:"")+"，最低安全量:"+minQty,time:nowStr(),loc:curLoc});
+  alert("已新增「"+name+"」（最低安全量："+minQty+"）");
 }
 function askDel(part){
   pendingDelPart=part;
