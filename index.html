@@ -453,13 +453,13 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
           <select class="repair-select" id="repair-loc">
             <option value="台南">台南</option>
             <option value="屏東">屏東</option>
-            <option value="倉庫">倉庫</option>
-            <option value="其他">其他</option>
           </select>
         </div>
         <div class="repair-field">
           <label>設備／工具名稱</label>
-          <input class="note-input" id="repair-device" placeholder="例：高壓清洗機、水龜、延長線…" style="width:100%;padding:11px 13px;">
+          <select class="repair-select" id="repair-device">
+            <option value="">── 請選擇設備 ──</option>
+          </select>
         </div>
         <div class="repair-field">
           <label>損壞狀況描述</label>
@@ -1361,6 +1361,8 @@ function enterMainApp(){
   loadLogsFromStorage();
   loadRepairsFromStorage();
   loadEquipFromStorage();
+  // 報修設備下拉選單在 BOXES 載入後才能建立
+  populateRepairDevices();
   setupHeaderInfo();
   // 只有「全部」的 admin 才顯示地點切換
   if(curUser.role==="admin" && curUser.location==="全部"){
@@ -1389,6 +1391,8 @@ function enterMainApp(){
   pshow("s-main");
   // 顯示早安語
   showGreeting();
+  // 背景同步器具狀態（非阻塞，完成後自動更新頁面）
+  syncEquipFromSheets();
 }
 
 async function showGreeting(){
@@ -1935,19 +1939,69 @@ var equipStatus = {};
 var equipPendingRequests = []; // [{id, equipId, requester, requesterEmail, loc, returnDue, note, time}]
 var curEquipId = null; // 目前操作中的器具 id
 
+// ─── 器具狀態：優先從 Sheets 讀取，localStorage 作為快取 ───
 function loadEquipFromStorage(){
+  // 先用 localStorage 快速顯示（避免白畫面）
   try{
     var s = localStorage.getItem("equip_status");
     if(s) equipStatus = JSON.parse(s);
     var p = localStorage.getItem("equip_pending");
     if(p) equipPendingRequests = JSON.parse(p);
   }catch(e){ equipStatus={}; equipPendingRequests=[]; }
-  // 確保每個器具都有初始資料
+  // 確保每個器具都有基本結構
   SPECIAL_EQUIP.forEach(function(e){
     if(!equipStatus[e.id]){
       equipStatus[e.id] = { status:"in", borrower:"", borrowerEmail:"", loc:"", borrowTime:"", returnDue:"", note:"", history:[] };
     }
   });
+}
+
+// 從 Google Sheets 同步最新器具狀態（非同步）
+async function syncEquipFromSheets(){
+  if(!GAS_URL) return;
+  try{
+    var res = await fetch(GAS_URL + "?action=readEquip", { mode:"cors", cache:"no-cache" });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    var json = await res.json();
+    if(!json.ok || !json.data) return;
+    // 將 Sheets 資料合併進 equipStatus
+    json.data.forEach(function(row){
+      var id = row.equipId;
+      if(!id) return;
+      var statusMap = { "借出中":"out", "待審核":"pending", "在庫":"in" };
+      var st = equipStatus[id] || { history:[] };
+      st.status    = statusMap[row.status] || "in";
+      st.borrower  = row.borrower  || "";
+      st.borrowerEmail = row.borrowerEmail || "";
+      st.loc       = row.loc       || "";
+      st.borrowTime= row.borrowTime|| "";
+      st.returnDue = row.returnDue || "";
+      st.note      = row.note      || "";
+      equipStatus[id] = st;
+    });
+    // 同時從 Sheets 同步各器具的歷史記錄
+    await syncEquipHistoryFromSheets();
+    saveEquipToStorage();
+    renderEquip(); // 狀態更新後重新渲染
+  }catch(err){
+    console.warn("器具狀態同步失敗（使用本地快取）:", err.message);
+  }
+}
+
+// 從 Sheets 同步所有器具的近期歷史
+async function syncEquipHistoryFromSheets(){
+  for(var i = 0; i < SPECIAL_EQUIP.length; i++){
+    var eq = SPECIAL_EQUIP[i];
+    try{
+      var res = await fetch(GAS_URL + "?action=readEquipHistory&equipId=" + encodeURIComponent(eq.id), { mode:"cors", cache:"no-cache" });
+      if(!res.ok) continue;
+      var json = await res.json();
+      if(json.ok && json.data && json.data.length){
+        if(!equipStatus[eq.id]) equipStatus[eq.id] = { history:[] };
+        equipStatus[eq.id].history = json.data;
+      }
+    }catch(e){}
+  }
 }
 
 function saveEquipToStorage(){
@@ -2105,12 +2159,12 @@ function renderEquip(){
     }
     card.appendChild(actionRow);
 
-    // 近期記錄（最多3筆）
+    // 近期記錄（顯示最近5筆，保留10筆）
     if(st.history && st.history.length > 0){
       var hist = document.createElement("div"); hist.className = "equip-history";
       var htitle = document.createElement("div"); htitle.className = "equip-history-title"; htitle.textContent = "近期記錄";
       hist.appendChild(htitle);
-      st.history.slice(0,3).forEach(function(h){
+      st.history.slice(0,2).forEach(function(h){
         var row = document.createElement("div"); row.className = "equip-history-row";
         var who = document.createElement("div"); who.className = "equip-history-who";
         who.innerHTML = '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+(h.action==="歸還"?"var(--green)":"var(--amber)")+';;margin-right:4px;"></span>'
@@ -2141,11 +2195,17 @@ function openBorrowRequest(equipId, equipName){
 function openAdminBorrow(equipId, equipName){
   curEquipId = equipId;
   document.getElementById("equip-admin-borrow-title").textContent = "登記借出：" + equipName;
-  document.getElementById("equip-admin-who").value = "";
+  // 自動帶入目前登入者姓名，可手動修改
+  document.getElementById("equip-admin-who").value = curUser ? curUser.name : "";
   var d = new Date(); d.setDate(d.getDate()+7);
   document.getElementById("equip-admin-date").value = d.toISOString().slice(0,10);
   document.getElementById("equip-admin-note").value = "";
   document.getElementById("equip-admin-borrow-overlay").classList.add("show");
+  // 自動 focus 到借出人欄位末尾（方便修改）
+  setTimeout(function(){
+    var el = document.getElementById("equip-admin-who");
+    el.focus(); el.select();
+  }, 300);
 }
 
 function closeEquipOverlay(){
@@ -2182,7 +2242,7 @@ function submitBorrowRequest(){
   closeEquipOverlay();
   renderEquip();
   var eq = SPECIAL_EQUIP.find(function(e){ return e.id === curEquipId; });
-  sendToSheets({type:"器具申請借出",box:eq?eq.name:"",part:loc,qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"預計"+returnDue+"歸還"+(note?"，"+note:""),time:t,loc:loc,serial:""});
+  sendToSheets({type:"器具申請借出",box:eq?eq.name:"",equipId:curEquipId,equipName:eq?eq.name:"",part:curUser?curUser.name:"",qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"預計"+returnDue+"歸還"+(note?"，"+note:""),time:t,loc:loc,serial:"",returnDue:returnDue,borrowTime:t});
   alert("✅ 申請已送出，等待管理者審核！");
 }
 
@@ -2204,12 +2264,13 @@ function adminDirectBorrow(){
   st.returnDue = returnDue;
   st.note = note;
   st.history.unshift({ action:"借出", who:who, loc:loc, time:t });
+  if(st.history.length > 10) st.history = st.history.slice(0,10);
   equipStatus[curEquipId] = st;
   saveEquipToStorage();
   closeEquipOverlay();
   renderEquip();
   var eq = SPECIAL_EQUIP.find(function(e){ return e.id === curEquipId; });
-  sendToSheets({type:"器具借出",box:eq?eq.name:"",part:who,qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"地點:"+loc+"，預計"+returnDue+"歸還"+(note?"，"+note:""),time:t,loc:loc,serial:""});
+  sendToSheets({type:"器具借出",box:eq?eq.name:"",equipId:curEquipId,equipName:eq?eq.name:"",part:who,qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"地點:"+loc+"，預計"+returnDue+"歸還"+(note?"，"+note:""),time:t,loc:loc,serial:"",returnDue:returnDue,borrowTime:t});
   alert("✅ 已登記借出：" + who);
 }
 
@@ -2226,12 +2287,13 @@ function approveEquip(req){
   st.returnDue = req.returnDue;
   st.note = req.note;
   st.history.unshift({ action:"借出", who:req.requester, loc:req.loc, time:t });
+  if(st.history.length > 10) st.history = st.history.slice(0,10);
   equipStatus[req.equipId] = st;
   equipPendingRequests = equipPendingRequests.filter(function(r){ return r.id !== req.id; });
   saveEquipToStorage();
   renderEquip();
   var eq = SPECIAL_EQUIP.find(function(e){ return e.id === req.equipId; });
-  sendToSheets({type:"器具核准借出",box:eq?eq.name:"",part:req.requester,qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"核准借出，地點:"+req.loc,time:t,loc:req.loc,serial:""});
+  sendToSheets({type:"器具核准借出",box:eq?eq.name:"",equipId:req.equipId,equipName:eq?eq.name:"",part:req.requester,qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"核准借出，地點:"+req.loc,time:t,loc:req.loc,serial:"",returnDue:req.returnDue,borrowTime:t});
   alert("✅ 已核准「" + req.requester + "」借出！");
 }
 
@@ -2254,6 +2316,7 @@ function confirmReturnEquip(equipId){
   var t = nowStr();
   st.history = st.history || [];
   st.history.unshift({ action:"歸還", who:curUser?curUser.name:"", loc:st.loc, time:t });
+  if(st.history.length > 10) st.history = st.history.slice(0,10);
   var oldBorrower = st.borrower;
   var oldLoc = st.loc;
   st.status = "in";
@@ -2265,7 +2328,7 @@ function confirmReturnEquip(equipId){
   st.note = "";
   saveEquipToStorage();
   renderEquip();
-  sendToSheets({type:"器具歸還",box:eq?eq.name:"",part:oldBorrower,qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"已歸還",time:t,loc:oldLoc,serial:""});
+  sendToSheets({type:"器具歸還",box:eq?eq.name:"",equipId:equipId,equipName:eq?eq.name:"",part:oldBorrower,qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"已歸還",time:t,loc:oldLoc,serial:""});
   alert("✅ 已登記歸還！");
 }
 
@@ -2299,12 +2362,42 @@ function switchRepairTab(tab, el){
   if(tab === "list") renderRepairList();
 }
 
+// 報修設備下拉選單 — 從 BOXES 抓取所有工具名稱
+function populateRepairDevices(){
+  var sel = document.getElementById("repair-device");
+  if(!sel) return;
+  sel.innerHTML = '<option value="">── 請選擇設備 ──</option>';
+  // 依箱子分組
+  BOXES.forEach(function(box){
+    if(!box.parts || !box.parts.length) return;
+    var grp = document.createElement("optgroup");
+    grp.label = box.name;
+    box.parts.forEach(function(p){
+      var opt = document.createElement("option");
+      opt.value = p.name;
+      opt.textContent = p.name;
+      grp.appendChild(opt);
+    });
+    sel.appendChild(grp);
+  });
+  // 加入特殊器具
+  var se = document.createElement("optgroup");
+  se.label = "── 特殊器具 ──";
+  SPECIAL_EQUIP.forEach(function(e){
+    var opt = document.createElement("option");
+    opt.value = e.name;
+    opt.textContent = e.icon + " " + e.name;
+    se.appendChild(opt);
+  });
+  sel.appendChild(se);
+}
+
 function submitRepair(){
   var loc = document.getElementById("repair-loc").value;
   var device = document.getElementById("repair-device").value.trim();
   var desc = document.getElementById("repair-desc").value.trim();
   var urgency = document.getElementById("repair-urgency").value;
-  if(!device){ alert("請填寫設備名稱"); return; }
+  if(!device){ alert("請選擇設備名稱"); return; }
   if(!desc){ alert("請描述損壞狀況"); return; }
   var t = nowStr();
   var record = {
@@ -2325,9 +2418,9 @@ function submitRepair(){
   repairRecords.unshift(record);
   saveRepairsToStorage();
   // 送至 Sheets
-  sendToSheets({type:"報修",box:loc,part:device,qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"【"+urgency+"】"+desc,time:t,loc:loc,serial:""});
+  sendToSheets({type:"報修",box:loc,part:device,qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:desc,time:t,loc:loc,serial:"",repairId:record.id,urgency:urgency});
   // 清空表單
-  document.getElementById("repair-device").value = "";
+  document.getElementById("repair-device").selectedIndex = 0;
   document.getElementById("repair-desc").value = "";
   document.getElementById("repair-urgency").value = "一般";
   // 切到清單看結果
@@ -2414,7 +2507,7 @@ function updateRepairStatus(id, status, note){
   r.status = status;
   if(note){ r.resolvedNote = note; r.resolvedBy = curUser?curUser.name:""; r.resolvedTime = nowStr(); }
   saveRepairsToStorage();
-  sendToSheets({type:"報修更新",box:r.loc,part:r.device,qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"狀態更新→"+status+(note?"："+note:""),time:nowStr(),loc:r.loc,serial:""});
+  sendToSheets({type:"報修更新",box:r.loc,part:r.device,qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"狀態更新→"+status+(note?"："+note:""),time:nowStr(),loc:r.loc,serial:"",repairId:id,newStatus:status,resolveNote:note});
   renderRepairList();
 }
 
