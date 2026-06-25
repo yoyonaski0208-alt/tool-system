@@ -576,12 +576,19 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
   <!-- ── 車輛管理頁 ── -->
   <div id="pg-vehicle" class="page">
     <!-- 技師：我的車輛 / 管理員：全部車輛 -->
-    <div id="veh-admin-tabs" style="display:none;margin-bottom:12px;overflow-x:auto;white-space:nowrap;padding-bottom:4px;">
-      <button class="filter-chip on" onclick="filterVeh('all',this)">全部</button>
-      <button class="filter-chip" onclick="filterVeh('水工坊',this)">水工坊</button>
-      <button class="filter-chip" onclick="filterVeh('大力水手',this)">大力水手</button>
-      <button class="filter-chip" onclick="filterVeh('二哥',this)">二哥</button>
-      <button class="filter-chip" onclick="filterVeh('空車',this)">空車/未指派</button>
+    <div id="veh-admin-tabs" style="display:none;margin-bottom:6px;">
+      <!-- 第一排：指派狀態 -->
+      <div style="display:flex;gap:6px;margin-bottom:7px;overflow-x:auto;padding-bottom:2px;">
+        <button class="filter-chip on" id="vfil-all" onclick="filterVeh('all',this,'status')">全部</button>
+        <button class="filter-chip" id="vfil-assigned" onclick="filterVeh('assigned',this,'status')">已指派</button>
+        <button class="filter-chip" id="vfil-unassigned" onclick="filterVeh('unassigned',this,'status')">未指派</button>
+      </div>
+      <!-- 第二排：地區 -->
+      <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;">
+        <button class="filter-chip on" id="vfil-loc-all" onclick="filterVeh('loc-all',this,'loc')">全部</button>
+        <button class="filter-chip" id="vfil-loc-tn" onclick="filterVeh('loc-台南',this,'loc')">台南</button>
+        <button class="filter-chip" id="vfil-loc-pt" onclick="filterVeh('loc-屏東',this,'loc')">屏東</button>
+      </div>
     </div>
     <div id="veh-list"></div>
     <!-- 加油表單入口（技師） -->
@@ -3121,7 +3128,8 @@ var TOOLBOX_TYPES = [
 var toolboxStatus = {};
 var vehAssignments = {}; // plate → { driver, since }
 var curVehPlate = null;
-var vehFilter = "all";
+var vehFilterStatus = "all";
+var vehFilterLoc = "loc-all";
 var changeCarBoxDest = "原車";
 var selectedBoxesToMove = {};
 
@@ -3165,9 +3173,18 @@ function getVehAlerts(v){
   return alerts;
 }
 
-function filterVeh(f, el){
-  vehFilter = f;
-  document.querySelectorAll("#veh-admin-tabs .filter-chip").forEach(function(b){ b.classList.remove("on"); });
+function filterVeh(f, el, dim){
+  if(dim === "status"){
+    vehFilterStatus = f;
+    ["vfil-all","vfil-assigned","vfil-unassigned"].forEach(function(id){
+      var b = document.getElementById(id); if(b) b.classList.remove("on");
+    });
+  } else {
+    vehFilterLoc = f;
+    ["vfil-loc-all","vfil-loc-tn","vfil-loc-pt"].forEach(function(id){
+      var b = document.getElementById(id); if(b) b.classList.remove("on");
+    });
+  }
   el.classList.add("on");
   renderVehiclePage();
 }
@@ -3184,13 +3201,14 @@ function renderVehiclePage(){
 
   // 決定要顯示哪些車
   var toShow = VEHICLES.filter(function(v){
-    if(!isAdmin){
-      // 技師只看自己的車
-      return v.plate === myPlate;
-    }
-    if(vehFilter === "all") return true;
-    if(vehFilter === "空車") return !vehAssignments[v.plate] || !vehAssignments[v.plate].driver;
-    return v.company === vehFilter;
+    if(!isAdmin) return v.plate === myPlate;
+    var assign = vehAssignments[v.plate] || {};
+    var hasDriver = !!(assign.driver);
+    if(vehFilterStatus === "assigned" && !hasDriver) return false;
+    if(vehFilterStatus === "unassigned" && hasDriver) return false;
+    if(vehFilterLoc === "loc-台南" && v.loc !== "台南") return false;
+    if(vehFilterLoc === "loc-屏東" && v.loc !== "屏東") return false;
+    return true;
   });
 
   if(toShow.length === 0){
@@ -3206,45 +3224,40 @@ function renderVehiclePage(){
       return toolboxStatus[k] && toolboxStatus[k].plate === v.plate;
     });
 
+    var hasDriver = !!(assign.driver);
     var card = document.createElement("div");
-    card.className = "veh-card" + (v.status==="forsale"?" status-forsale":"") + (alerts.some(function(a){return a.type==="danger";})?" alert-danger":alerts.length?" alert-warn":"");
+    card.className = "veh-card"
+      + (v.status==="forsale" ? " status-forsale" : "")
+      + (alerts.some(function(a){return a.type==="danger";}) ? " alert-danger" : alerts.length ? " alert-warn" : "");
     card.onclick = function(){ openVehDetail(v.plate); };
 
-    // Header
     var hd = document.createElement("div"); hd.className = "veh-hd";
     var ico = document.createElement("div"); ico.className = "veh-icon";
     ico.innerHTML = '<i class="ti ti-car" style="font-size:18px;color:var(--blue);"></i>';
     var info = document.createElement("div"); info.style.flex = "1";
-
     var plateLine = document.createElement("div");
-    plateLine.innerHTML = '<span class="veh-plate">'+v.plate+'</span>';
-
-    var metaLine = document.createElement("div"); metaLine.className = "veh-meta";
-    metaLine.textContent = v.company + " ‧ " + v.type + (assign.driver ? " ‧ " + assign.driver : "");
-
-    info.appendChild(plateLine); info.appendChild(metaLine);
-    var chevron = document.createElement("i"); chevron.className = "ti ti-chevron-right"; chevron.style.cssText = "font-size:18px;color:var(--sub);";
+    plateLine.innerHTML = '<span class="veh-plate">' + v.plate + '</span>';
+    var driverLine = document.createElement("div"); driverLine.className = "veh-meta";
+    driverLine.textContent = hasDriver
+      ? assign.driver + (assign.loc ? " ‧ " + assign.loc : "")
+      : (v.status==="forsale" ? "待售出" : "空車");
+    info.appendChild(plateLine); info.appendChild(driverLine);
+    var chevron = document.createElement("i");
+    chevron.className = "ti ti-chevron-right";
+    chevron.style.cssText = "font-size:18px;color:var(--sub);flex-shrink:0;";
     hd.appendChild(ico); hd.appendChild(info); hd.appendChild(chevron);
     card.appendChild(hd);
 
-    // Tags
     var tags = document.createElement("div"); tags.className = "veh-tags";
-    tags.innerHTML = '<span class="veh-tag veh-tag-loc">'+v.loc+'</span>';
-    if(v.status==="forsale") tags.innerHTML += '<span class="veh-tag veh-tag-warn">待售出</span>';
-    if(!assign.driver) tags.innerHTML += '<span class="veh-tag veh-tag-danger">空車</span>';
-    if(v.isFreight && !v.hasSticker) tags.innerHTML += '<span class="veh-tag veh-tag-warn">貼紙未確認</span>';
-    alerts.forEach(function(a){ tags.innerHTML += '<span class="veh-tag '+(a.type==="danger"?"veh-tag-danger":"veh-tag-warn")+'">⚠ '+(a.msg.slice(0,6))+'</span>'; });
+    tags.innerHTML = '<span class="veh-tag veh-tag-loc">' + v.loc + '</span>';
+    tags.innerHTML += '<span class="veh-tag veh-tag-gray">' + v.seats + '人座</span>';
+    if(v.status === "forsale") tags.innerHTML += '<span class="veh-tag veh-tag-warn">待售出</span>';
+    if(!hasDriver && v.status !== "forsale") tags.innerHTML += '<span class="veh-tag veh-tag-danger">空車</span>';
+    if(!myBoxes.length) tags.innerHTML += '<span class="veh-tag veh-tag-warn">無工具箱</span>';
+    alerts.forEach(function(a){
+      tags.innerHTML += '<span class="veh-tag ' + (a.type==="danger"?"veh-tag-danger":"veh-tag-warn") + '">⚠ ' + a.msg.slice(0,5) + '</span>';
+    });
     card.appendChild(tags);
-
-    // Toolboxes
-    var boxes = document.createElement("div"); boxes.className = "veh-boxes";
-    if(myBoxes.length > 0){
-      boxes.innerHTML = '<b>工具箱：</b>' + myBoxes.join(" / ");
-    } else {
-      boxes.innerHTML = '<span style="color:var(--amber);">⚠ 未安排工具箱</span>';
-    }
-    card.appendChild(boxes);
-
     list.appendChild(card);
   });
 }
