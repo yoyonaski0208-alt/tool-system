@@ -290,7 +290,57 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
 .repair-tab{flex:1;padding:8px;border:1.5px solid var(--border);border-radius:10px;background:none;font-size:12px;font-family:inherit;cursor:pointer;color:var(--sub);}
 .repair-tab.active{background:var(--red);color:#fff;border-color:var(--red);font-weight:700;}
 
-/* 特殊器具追蹤 */
+/* 車輛管理 */
+.veh-card{background:var(--card);border:1.5px solid var(--border);border-radius:16px;padding:14px;margin-bottom:10px;cursor:pointer;}
+.veh-card.alert-warn{border-color:var(--amber);}
+.veh-card.alert-danger{border-color:var(--red);}
+.veh-card.status-forsale{border-color:var(--amber);opacity:.85;}
+.veh-hd{display:flex;align-items:center;gap:10px;}
+.veh-icon{width:38px;height:38px;border-radius:11px;background:var(--blue-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.veh-plate{font-size:16px;font-weight:700;color:var(--text);}
+.veh-meta{font-size:12px;color:var(--sub);margin-top:2px;}
+.veh-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;}
+.veh-tag{font-size:10px;padding:3px 8px;border-radius:20px;font-weight:600;}
+.veh-tag-loc{background:var(--blue-light);color:var(--blue);}
+.veh-tag-warn{background:var(--amber-light);color:var(--amber);}
+.veh-tag-danger{background:var(--red-light);color:var(--red);}
+.veh-tag-ok{background:var(--green-light);color:var(--green);}
+.veh-tag-gray{background:var(--bg);color:var(--sub);border:1px solid var(--border);}
+.veh-boxes{font-size:11px;color:var(--sub);margin-top:6px;padding-top:7px;border-top:1px solid var(--border);}
+.veh-boxes b{color:var(--text);font-weight:600;}
+/* 車輛詳細頁 */
+.veh-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.veh-stat{background:var(--bg);border-radius:12px;padding:11px 12px;}
+.veh-stat-lbl{font-size:10px;color:var(--sub);margin-bottom:3px;}
+.veh-stat-val{font-size:14px;font-weight:700;color:var(--text);}
+.veh-stat-note{font-size:10px;margin-top:2px;}
+.veh-stat-note.warn{color:var(--amber);}
+.veh-stat-note.ok{color:var(--green);}
+.veh-stat-note.danger{color:var(--red);}
+.veh-section{margin-bottom:14px;}
+.veh-section-title{font-size:11px;font-weight:700;color:var(--sub);letter-spacing:.5px;margin-bottom:8px;}
+.veh-action-row{display:flex;gap:7px;margin-bottom:8px;}
+.veh-action-btn{flex:1;padding:10px 6px;border:1.5px solid var(--border);border-radius:11px;background:var(--bg);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--text);}
+.veh-action-btn i{font-size:18px;color:var(--blue);}
+/* 換車 overlay */
+.veh-box-item{display:flex;align-items:center;gap:10px;padding:11px 13px;border:1.5px solid var(--border);border-radius:11px;margin-bottom:8px;cursor:pointer;transition:border-color .15s;}
+.veh-box-item.checked{border-color:var(--blue);background:var(--blue-light);}
+.veh-box-item-info{flex:1;}
+.veh-box-id{font-size:13px;font-weight:700;color:var(--text);}
+.veh-box-name{font-size:11px;color:var(--sub);}
+.veh-check{width:20px;height:20px;border-radius:6px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;}
+.veh-box-item.checked .veh-check{background:var(--blue);border-color:var(--blue);}
+.veh-unselect-dest{background:var(--bg);border:1.5px solid var(--border);border-radius:11px;padding:10px 13px;margin-top:10px;display:none;}
+.veh-unselect-dest.show{display:block;}
+.veh-unselect-dest-title{font-size:11px;color:var(--sub);margin-bottom:7px;font-weight:600;}
+.veh-dest-opts{display:flex;gap:7px;}
+.veh-dest-btn{flex:1;padding:9px;border:1.5px solid var(--border);border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;background:var(--bg);color:var(--sub);text-align:center;transition:all .15s;}
+.veh-dest-btn.active{border-color:var(--blue);background:var(--blue-light);color:var(--blue);}
+/* 加油表單 */
+.fuel-form-box{background:var(--card);border:1.5px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px;}
+.fuel-input{width:100%;padding:12px 13px;border:1.5px solid var(--border);border-radius:11px;font-size:15px;background:var(--bg);color:var(--text);font-family:inherit;}
+.fuel-input:focus{outline:none;border-color:var(--blue);}
+.fuel-input-lbl{font-size:12px;color:var(--sub);font-weight:500;display:block;margin-bottom:5px;}
 .equip-card{background:var(--card);border:1.5px solid var(--border);border-radius:16px;padding:14px;margin-bottom:10px;transition:border-color .15s;}
 .equip-card.out{border-color:#E9A825;}
 .equip-card.overdue{border-color:var(--red);}
@@ -416,7 +466,6 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
         <div class="chip-car" id="car-row">
           <i class="ti ti-car" style="font-size:13px;color:var(--sub);"></i>
           <span class="chip-car-txt" id="hd-car">未設定</span>
-          <button class="car-change-btn" onclick="showChangeCar()">換車</button>
         </div>
       </div>
       <button class="logout-btn" onclick="doLogout()">登出</button>
@@ -524,7 +573,64 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     <div id="equip-list"></div>
   </div>
 
-  <div id="pg-admin" class="page">
+  <!-- ── 車輛管理頁 ── -->
+  <div id="pg-vehicle" class="page">
+    <!-- 技師：我的車輛 / 管理員：全部車輛 -->
+    <div id="veh-admin-tabs" style="display:none;margin-bottom:12px;overflow-x:auto;white-space:nowrap;padding-bottom:4px;">
+      <button class="filter-chip on" onclick="filterVeh('all',this)">全部</button>
+      <button class="filter-chip" onclick="filterVeh('水工坊',this)">水工坊</button>
+      <button class="filter-chip" onclick="filterVeh('大力水手',this)">大力水手</button>
+      <button class="filter-chip" onclick="filterVeh('二哥',this)">二哥</button>
+      <button class="filter-chip" onclick="filterVeh('空車',this)">空車/未指派</button>
+    </div>
+    <div id="veh-list"></div>
+    <!-- 加油表單入口（技師） -->
+    <div id="veh-fuel-btn-wrap" style="margin-top:4px;">
+      <button class="confirm-btn" style="background:var(--amber);color:#fff;width:100%;padding:13px;border-radius:13px;font-size:14px;font-weight:700;" onclick="openFuelForm()">
+        <i class="ti ti-droplet"></i> 登記加油
+      </button>
+    </div>
+  </div>
+
+  <!-- 車輛詳細頁（全螢幕 overlay） -->
+  <div id="veh-detail-screen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:200;overflow-y:auto;padding:16px 16px 100px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+      <button onclick="closeVehDetail()" style="width:36px;height:36px;border-radius:50%;background:var(--card);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="ti ti-arrow-left" style="font-size:18px;"></i>
+      </button>
+      <div>
+        <div style="font-size:20px;font-weight:700;" id="vd-plate"></div>
+        <div style="font-size:12px;color:var(--sub);" id="vd-meta"></div>
+      </div>
+      <div style="margin-left:auto;" id="vd-status-badge"></div>
+    </div>
+    <div id="vd-alerts"></div>
+    <!-- 統計格子 -->
+    <div class="veh-detail-grid" id="vd-stats"></div>
+    <!-- 工具箱 -->
+    <div class="veh-section">
+      <div class="veh-section-title">工具箱配備</div>
+      <div id="vd-boxes"></div>
+    </div>
+    <!-- 操作按鈕（管理員） -->
+    <div id="vd-admin-actions" style="display:none;">
+      <div class="veh-section-title">管理操作</div>
+      <div class="veh-action-row">
+        <button class="veh-action-btn" onclick="openVehFuelLog()"><i class="ti ti-droplet"></i>加油記錄</button>
+        <button class="veh-action-btn" onclick="openVehMaintLog()"><i class="ti ti-tool"></i>保養記錄</button>
+        <button class="veh-action-btn" onclick="openVehBigCheck()"><i class="ti ti-checklist"></i>大整理</button>
+      </div>
+      <div class="veh-action-row">
+        <button class="veh-action-btn" onclick="openVehInsurance()"><i class="ti ti-shield"></i>車險資料</button>
+        <button class="veh-action-btn" onclick="openVehTax()"><i class="ti ti-receipt"></i>稅費記錄</button>
+        <button class="veh-action-btn" onclick="openVehEdit()"><i class="ti ti-edit"></i>編輯車輛</button>
+      </div>
+    </div>
+    <!-- 換車按鈕（技師+管理員都有） -->
+    <button id="vd-change-car-btn" style="display:none;width:100%;padding:13px;background:var(--blue);color:#fff;border:none;border-radius:13px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;" onclick="openChangeCarFlow()">
+      <i class="ti ti-arrows-exchange"></i> 換車 / 工具箱調整
+    </button>
+  </div>
     <div class="admin-stat-grid">
       <div class="admin-stat"><div class="admin-stat-num" id="adm-n-total" style="color:var(--blue);">0</div><div class="admin-stat-lbl">總項目數</div></div>
       <div class="admin-stat"><div class="admin-stat-num" id="adm-n-low" style="color:var(--red);">0</div><div class="admin-stat-lbl">需補貨</div></div>
@@ -547,6 +653,7 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     <button class="nav-btn active" id="nav-take" onclick="navTo('take',this)"><i class="ti ti-package"></i>領取</button>
     <button class="nav-btn" id="nav-log" onclick="navTo('log',this)"><i class="ti ti-list-details"></i>記錄</button>
     <button class="nav-btn" id="nav-equip" onclick="navTo('equip',this)"><i class="ti ti-key"></i>器具</button>
+    <button class="nav-btn" id="nav-vehicle" onclick="navTo('vehicle',this)"><i class="ti ti-car"></i>車輛</button>
     <button class="nav-btn" id="nav-repair" onclick="navTo('repair',this)" style="display:none;"><i class="ti ti-tool"></i>報修</button>
     <button class="nav-btn" id="nav-serial" onclick="navTo('serial',this)" style="display:none;"><i class="ti ti-replace"></i>更換記錄</button>
     <button class="nav-btn" id="nav-admin" onclick="navTo('admin',this)" style="display:none;"><i class="ti ti-settings"></i>後台</button>
@@ -767,6 +874,67 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       <button class="btn-primary" id="part-form-confirm-btn" onclick="confirmPartForm()">確認新增</button>
       <button class="btn-safe" onclick="closePartForm()">取消</button>
     </div>
+  </div>
+</div>
+
+<!-- 換車 overlay -->
+<div class="equip-overlay" id="veh-change-overlay">
+  <div class="equip-sheet" style="max-height:90vh;overflow-y:auto;">
+    <div class="equip-sheet-title">換車 / 工具箱調整</div>
+    <div class="equip-sheet-sub">選擇要移到新車的工具箱，未勾選的請選擇去向</div>
+    <div class="equip-field">
+      <label>新車牌</label>
+      <select class="equip-select" id="veh-new-plate">
+        <option value="">── 選擇新車牌 ──</option>
+      </select>
+    </div>
+    <div class="equip-field">
+      <label style="margin-bottom:8px;display:block;">我的工具箱（勾選 = 移到新車）</label>
+      <button style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:8px;background:none;cursor:pointer;font-family:inherit;margin-bottom:8px;" onclick="vehToggleAllBoxes()">全選 / 全不選</button>
+      <div id="veh-box-checklist"></div>
+    </div>
+    <div class="veh-unselect-dest" id="veh-unsel-dest">
+      <div class="veh-unselect-dest-title">⚠️ 未勾選的工具箱要放哪裡？</div>
+      <div class="veh-dest-opts">
+        <button class="veh-dest-btn active" id="dest-orig" onclick="setBoxDest('原車')">留在原車</button>
+        <button class="veh-dest-btn" id="dest-tn" onclick="setBoxDest('台南倉庫')">台南倉庫</button>
+        <button class="veh-dest-btn" id="dest-pt" onclick="setBoxDest('屏東倉庫')">屏東倉庫</button>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--sub);padding:8px 10px;background:var(--bg);border-radius:9px;margin-top:10px;line-height:1.5;">
+      請確認工具箱實際位置後再送出，此紀錄將同步至 Google Sheets
+    </div>
+    <button class="equip-submit-btn" style="margin-top:12px;" onclick="confirmChangeCarFlow()"><i class="ti ti-check"></i> 確認換車</button>
+    <button class="equip-cancel-btn" onclick="closeVehOverlay()">取消</button>
+  </div>
+</div>
+
+<!-- 加油 overlay -->
+<div class="equip-overlay" id="veh-fuel-overlay">
+  <div class="equip-sheet">
+    <div class="equip-sheet-title">登記加油</div>
+    <div class="equip-sheet-sub">時間系統自動記錄，每次加油請確實填寫</div>
+    <div class="equip-field">
+      <label class="fuel-input-lbl">車牌（自動帶入，可修改）</label>
+      <select class="equip-select" id="fuel-plate"></select>
+    </div>
+    <div class="equip-field">
+      <label class="fuel-input-lbl">加油金額（元）</label>
+      <input class="fuel-input" id="fuel-amount" type="number" inputmode="numeric" placeholder="例：800">
+    </div>
+    <div class="equip-field">
+      <label class="fuel-input-lbl">目前里程數（公里）</label>
+      <input class="fuel-input" id="fuel-mileage" type="number" inputmode="numeric" placeholder="例：183347">
+    </div>
+    <div class="equip-field" style="display:none;" id="fuel-photo-wrap">
+      <label class="fuel-input-lbl">加油收據照片（功能即將開放）</label>
+    </div>
+    <div class="equip-field">
+      <label class="fuel-input-lbl">備註（選填）</label>
+      <input class="equip-input" id="fuel-note" placeholder="例：加滿油、高速公路加油">
+    </div>
+    <button class="equip-submit-btn" style="background:var(--amber);" onclick="submitFuelRecord()"><i class="ti ti-send"></i> 送出加油記錄</button>
+    <button class="equip-cancel-btn" onclick="closeVehOverlay()">取消</button>
   </div>
 </div>
 
@@ -1454,6 +1622,7 @@ function enterMainApp(){
   loadLogsFromStorage();
   loadRepairsFromStorage();
   loadEquipFromStorage();
+  loadVehicleData();
   // 報修設備下拉選單在 BOXES 載入後才能建立
   populateRepairDevices();
   setupHeaderInfo();
@@ -1536,9 +1705,10 @@ function navTo(pg,el){
   if(pg==="admin")renderAdmin();
   if(pg==="repair"){ renderRepairList(); }
   if(pg==="equip"){
-    renderEquip();  // 先用快取立即渲染
-    syncEquipFromSheets();  // 強制從 Sheets 同步（每次都抓，確保管理者看到最新待審核）
+    renderEquip();
+    syncEquipFromSheets();
   }
+  if(pg==="vehicle"){ renderVehiclePage(); }
 }
 function showMain(pg){pshow("s-main");navTo(pg,document.getElementById("nav-"+pg));}
 
@@ -2855,6 +3025,462 @@ function markRepairDone(id){
   if(note === null) return; // 取消
   updateRepairStatus(id, "已完成", note || "已處理完成");
 }
+
+// ─────────────────────────────────────────────
+
+// ─────────────────────────────────────────────
+// 車輛管理系統
+// ─────────────────────────────────────────────
+
+// 車輛基本資料（從 Excel 讀入）
+var VEHICLES = [
+  // 二哥
+  {plate:"APK-1567", company:"二哥", type:"轎車", seats:5, year:2013, loc:"台南",
+   isFreight:false, hasSticker:false, status:"active",
+   inspect:"2026/12/01", inspectFreq:"半年", insurance:"第一產物", insuranceExp:"2026/08/15", insuranceFee:12000,
+   plateTax:{month:3,amount:4510}, fuelTax:{month:7,amount:0},
+   lastMaintKm:172853, nextMaintKm:182000, boxes:[]},
+  // 水工坊
+  {plate:"BDP-2723", company:"水工坊", type:"5人客貨車", seats:5, year:2016, yearMonth:"2016/10", loc:"台南",
+   isFreight:false, hasSticker:false, status:"active",
+   inspect:"2026/10/12", inspectFreq:"一年", insurance:"新光", insuranceExp:"2026/12/01", insuranceFee:15000,
+   plateTax:{month:4,amount:7120}, fuelTax:{month:7,amount:4800},
+   lastMaintKm:187947, nextMaintKm:197947, boxes:[]},
+  {plate:"BHE-8051", company:"水工坊", type:"5人客貨車", seats:5, year:2017, yearMonth:"2017/01", loc:"台南",
+   isFreight:false, hasSticker:false, status:"active",
+   inspect:"2026/11/01", inspectFreq:"一年", insurance:"新光", insuranceExp:"2026/11/01", insuranceFee:15000,
+   plateTax:{month:4,amount:7120}, fuelTax:{month:7,amount:4800},
+   lastMaintKm:0, nextMaintKm:0, boxes:[]},
+  {plate:"BKF-1797", company:"水工坊", type:"5人客貨車", seats:5, year:2017, yearMonth:"2017/10", loc:"台南",
+   isFreight:false, hasSticker:false, status:"active",
+   inspect:"2026/10/01", inspectFreq:"一年", insurance:"新光", insuranceExp:"2026/10/01", insuranceFee:15000,
+   plateTax:{month:4,amount:7120}, fuelTax:{month:7,amount:4800},
+   lastMaintKm:0, nextMaintKm:0, boxes:[]},
+  {plate:"BKF-6072", company:"水工坊", type:"5人客貨車", seats:5, year:2017, yearMonth:"2017/11", loc:"台南",
+   isFreight:false, hasSticker:false, status:"active",
+   inspect:"2026/11/01", inspectFreq:"一年", insurance:"新光", insuranceExp:"2026/11/01", insuranceFee:15000,
+   plateTax:{month:4,amount:7120}, fuelTax:{month:7,amount:4800},
+   lastMaintKm:0, nextMaintKm:0, boxes:[]},
+  {plate:"BKF-6073", company:"水工坊", type:"5人客貨車", seats:5, year:2017, yearMonth:"2017/11", loc:"屏東",
+   isFreight:false, hasSticker:false, status:"active",
+   inspect:"2026/11/01", inspectFreq:"一年", insurance:"新光", insuranceExp:"2026/11/01", insuranceFee:15000,
+   plateTax:{month:4,amount:7120}, fuelTax:{month:7,amount:4800},
+   lastMaintKm:0, nextMaintKm:0, boxes:[]},
+  {plate:"BMN-6581", company:"水工坊", type:"5人客貨車", seats:5, year:2018, yearMonth:"2018/09", loc:"台南",
+   isFreight:false, hasSticker:false, status:"active",
+   inspect:"2026/09/01", inspectFreq:"一年", insurance:"新光", insuranceExp:"2026/09/01", insuranceFee:15000,
+   plateTax:{month:4,amount:7120}, fuelTax:{month:7,amount:4800},
+   lastMaintKm:0, nextMaintKm:0, boxes:[]},
+  {plate:"BRU-3101", company:"水工坊", type:"2人貨車", seats:2, year:2017, yearMonth:"2017/01", loc:"台南",
+   isFreight:true, hasSticker:false, status:"active",
+   inspect:"2026/10/01", inspectFreq:"一年", insurance:"新光", insuranceExp:"2026/10/01", insuranceFee:18000,
+   plateTax:{month:4,amount:7120}, fuelTax:{month:7,amount:4800},
+   lastMaintKm:0, nextMaintKm:0, boxes:[]},
+  {plate:"BUF-5261", company:"水工坊", type:"2人貨車", seats:2, year:2017, yearMonth:"2017/01", loc:"台南",
+   isFreight:true, hasSticker:false, status:"forsale",
+   inspect:"", inspectFreq:"一年", insurance:"", insuranceExp:"", insuranceFee:0,
+   plateTax:{month:4,amount:0}, fuelTax:{month:7,amount:0},
+   lastMaintKm:0, nextMaintKm:0, boxes:[]},
+  // 大力水手
+  {plate:"BUF-5260", company:"大力水手", type:"2人貨車", seats:2, year:2016, yearMonth:"2016/11", loc:"屏東",
+   isFreight:true, hasSticker:false, status:"active",
+   inspect:"2026/11/01", inspectFreq:"一年", insurance:"新光", insuranceExp:"2026/11/01", insuranceFee:18000,
+   plateTax:{month:4,amount:7120}, fuelTax:{month:7,amount:4800},
+   lastMaintKm:0, nextMaintKm:0, boxes:[]},
+  {plate:"BXK-2933", company:"大力水手", type:"2人貨車", seats:2, year:2024, yearMonth:"2024/11", loc:"台南",
+   isFreight:true, hasSticker:false, status:"active",
+   inspect:"2026/11/01", inspectFreq:"一年", insurance:"新光", insuranceExp:"2026/11/01", insuranceFee:18000,
+   plateTax:{month:4,amount:7120}, fuelTax:{month:7,amount:4800},
+   lastMaintKm:0, nextMaintKm:0, boxes:[]},
+  {plate:"BZE-1915", company:"大力水手", type:"2人貨車", seats:2, year:2024, yearMonth:"2024/12", loc:"台南",
+   isFreight:true, hasSticker:false, status:"active",
+   inspect:"2026/12/01", inspectFreq:"一年", insurance:"新光", insuranceExp:"2026/12/01", insuranceFee:18000,
+   plateTax:{month:4,amount:7120}, fuelTax:{month:7,amount:4800},
+   lastMaintKm:0, nextMaintKm:0, boxes:[]},
+  {plate:"BZE-1916", company:"大力水手", type:"2人貨車", seats:2, year:2024, yearMonth:"2024/12", loc:"屏東",
+   isFreight:true, hasSticker:false, status:"active",
+   inspect:"2026/12/01", inspectFreq:"一年", insurance:"新光", insuranceExp:"2026/12/01", insuranceFee:18000,
+   plateTax:{month:4,amount:7120}, fuelTax:{month:7,amount:4800},
+   lastMaintKm:0, nextMaintKm:0, boxes:[]}
+];
+
+// 工具箱編號系統
+var TOOLBOX_TYPES = [
+  {group:1, name:"高壓清洗機"},
+  {group:2, name:"水塔水龜"},
+  {group:3, name:"衝擊起子機"},
+  {group:4, name:"水管空壓機"},
+  {group:5, name:"水管抽液機"},
+  {group:6, name:"水管週波機"},
+  {group:7, name:"床墊水洗機"},
+  {group:8, name:"床墊塵蟎機"}
+];
+
+// 工具箱狀態存在 localStorage（及 Sheets）
+// { "1-1": { driver:"宗潾", plate:"BKF-6072", loc:"台南", since:"2025/10/15" }, ... }
+var toolboxStatus = {};
+var vehAssignments = {}; // plate → { driver, since }
+var curVehPlate = null;
+var vehFilter = "all";
+var changeCarBoxDest = "原車";
+var selectedBoxesToMove = {};
+
+function loadVehicleData(){
+  try{
+    var ts = localStorage.getItem("toolbox_status");
+    if(ts) toolboxStatus = JSON.parse(ts);
+    var va = localStorage.getItem("veh_assignments");
+    if(va) vehAssignments = JSON.parse(va);
+  }catch(e){}
+}
+
+function saveVehicleData(){
+  try{
+    localStorage.setItem("toolbox_status", JSON.stringify(toolboxStatus));
+    localStorage.setItem("veh_assignments", JSON.stringify(vehAssignments));
+  }catch(e){}
+}
+
+// 計算距離到期天數
+function daysUntil(dateStr){
+  if(!dateStr) return null;
+  var d = new Date(dateStr.replace(/\//g,"-"));
+  var today = new Date(); today.setHours(0,0,0,0); d.setHours(0,0,0,0);
+  return Math.round((d - today) / 86400000);
+}
+
+// 取得車輛的警示列表
+function getVehAlerts(v){
+  var alerts = [];
+  var today = new Date(); today.setHours(0,0,0,0);
+  var twoMonths = 60;
+  if(v.inspectFreq && v.inspect){
+    var d = daysUntil(v.inspect);
+    if(d !== null && d <= twoMonths) alerts.push({type: d<=0?"danger":"warn", msg:"驗車"+(d<=0?"已逾期":"到期："+v.inspect+"（還有"+d+"天）")});
+  }
+  if(v.insuranceExp){
+    var d2 = daysUntil(v.insuranceExp);
+    if(d2 !== null && d2 <= twoMonths) alerts.push({type: d2<=0?"danger":"warn", msg:"車險"+(d2<=0?"已逾期":"到期："+v.insuranceExp+"（還有"+d2+"天）")});
+  }
+  return alerts;
+}
+
+function filterVeh(f, el){
+  vehFilter = f;
+  document.querySelectorAll("#veh-admin-tabs .filter-chip").forEach(function(b){ b.classList.remove("on"); });
+  el.classList.add("on");
+  renderVehiclePage();
+}
+
+function renderVehiclePage(){
+  var list = document.getElementById("veh-list");
+  if(!list) return;
+  list.innerHTML = "";
+
+  var isAdmin = curUser && curUser.role === "admin";
+  document.getElementById("veh-admin-tabs").style.display = isAdmin ? "block" : "none";
+
+  var myPlate = curUser ? localStorage.getItem("carPlate_"+curUser.email) : null;
+
+  // 決定要顯示哪些車
+  var toShow = VEHICLES.filter(function(v){
+    if(!isAdmin){
+      // 技師只看自己的車
+      return v.plate === myPlate;
+    }
+    if(vehFilter === "all") return true;
+    if(vehFilter === "空車") return !vehAssignments[v.plate] || !vehAssignments[v.plate].driver;
+    return v.company === vehFilter;
+  });
+
+  if(toShow.length === 0){
+    var em = document.createElement("div"); em.className = "empty-msg";
+    em.textContent = isAdmin ? "此分類暫無車輛" : "你尚未綁定車輛，請在首頁設定車牌";
+    list.appendChild(em); return;
+  }
+
+  toShow.forEach(function(v){
+    var alerts = getVehAlerts(v);
+    var assign = vehAssignments[v.plate] || {};
+    var myBoxes = Object.keys(toolboxStatus).filter(function(k){
+      return toolboxStatus[k] && toolboxStatus[k].plate === v.plate;
+    });
+
+    var card = document.createElement("div");
+    card.className = "veh-card" + (v.status==="forsale"?" status-forsale":"") + (alerts.some(function(a){return a.type==="danger";})?" alert-danger":alerts.length?" alert-warn":"");
+    card.onclick = function(){ openVehDetail(v.plate); };
+
+    // Header
+    var hd = document.createElement("div"); hd.className = "veh-hd";
+    var ico = document.createElement("div"); ico.className = "veh-icon";
+    ico.innerHTML = '<i class="ti ti-car" style="font-size:18px;color:var(--blue);"></i>';
+    var info = document.createElement("div"); info.style.flex = "1";
+
+    var plateLine = document.createElement("div");
+    plateLine.innerHTML = '<span class="veh-plate">'+v.plate+'</span>';
+
+    var metaLine = document.createElement("div"); metaLine.className = "veh-meta";
+    metaLine.textContent = v.company + " ‧ " + v.type + (assign.driver ? " ‧ " + assign.driver : "");
+
+    info.appendChild(plateLine); info.appendChild(metaLine);
+    var chevron = document.createElement("i"); chevron.className = "ti ti-chevron-right"; chevron.style.cssText = "font-size:18px;color:var(--sub);";
+    hd.appendChild(ico); hd.appendChild(info); hd.appendChild(chevron);
+    card.appendChild(hd);
+
+    // Tags
+    var tags = document.createElement("div"); tags.className = "veh-tags";
+    tags.innerHTML = '<span class="veh-tag veh-tag-loc">'+v.loc+'</span>';
+    if(v.status==="forsale") tags.innerHTML += '<span class="veh-tag veh-tag-warn">待售出</span>';
+    if(!assign.driver) tags.innerHTML += '<span class="veh-tag veh-tag-danger">空車</span>';
+    if(v.isFreight && !v.hasSticker) tags.innerHTML += '<span class="veh-tag veh-tag-warn">貼紙未確認</span>';
+    alerts.forEach(function(a){ tags.innerHTML += '<span class="veh-tag '+(a.type==="danger"?"veh-tag-danger":"veh-tag-warn")+'">⚠ '+(a.msg.slice(0,6))+'</span>'; });
+    card.appendChild(tags);
+
+    // Toolboxes
+    var boxes = document.createElement("div"); boxes.className = "veh-boxes";
+    if(myBoxes.length > 0){
+      boxes.innerHTML = '<b>工具箱：</b>' + myBoxes.join(" / ");
+    } else {
+      boxes.innerHTML = '<span style="color:var(--amber);">⚠ 未安排工具箱</span>';
+    }
+    card.appendChild(boxes);
+
+    list.appendChild(card);
+  });
+}
+
+function openVehDetail(plate){
+  var v = VEHICLES.find(function(x){ return x.plate === plate; });
+  if(!v) return;
+  curVehPlate = plate;
+  var assign = vehAssignments[plate] || {};
+  var alerts = getVehAlerts(v);
+  var isAdmin = curUser && curUser.role === "admin";
+  var myPlate = curUser ? localStorage.getItem("carPlate_"+curUser.email) : null;
+
+  document.getElementById("vd-plate").textContent = plate;
+  document.getElementById("vd-meta").textContent = v.company + " ‧ " + v.type + " ‧ " + v.yearMonth;
+
+  // Status badge
+  var badge = document.getElementById("vd-status-badge");
+  badge.innerHTML = v.status==="forsale"
+    ? '<span class="veh-tag veh-tag-warn">待售出</span>'
+    : assign.driver ? '<span class="veh-tag veh-tag-ok">使用中</span>' : '<span class="veh-tag veh-tag-danger">空車</span>';
+
+  // Alerts banner
+  var alertsEl = document.getElementById("vd-alerts");
+  alertsEl.innerHTML = "";
+  alerts.forEach(function(a){
+    var div = document.createElement("div");
+    div.style.cssText = "padding:10px 13px;border-radius:11px;font-size:12px;font-weight:600;margin-bottom:8px;background:"+(a.type==="danger"?"var(--red-light)":"var(--amber-light)")+";color:"+(a.type==="danger"?"var(--red)":"var(--amber)")+";";
+    div.innerHTML = '<i class="ti ti-alert-triangle"></i> ' + a.msg;
+    alertsEl.appendChild(div);
+  });
+
+  // Stats grid
+  var stats = document.getElementById("vd-stats");
+  stats.innerHTML = "";
+  function addStat(lbl, val, note, noteClass){
+    var div = document.createElement("div"); div.className = "veh-stat";
+    div.innerHTML = '<div class="veh-stat-lbl">'+lbl+'</div><div class="veh-stat-val">'+val+'</div>'+(note?'<div class="veh-stat-note '+(noteClass||"")+'">'+note+'</div>':"");
+    stats.appendChild(div);
+  }
+  var inspDays = v.inspect ? daysUntil(v.inspect) : null;
+  addStat("驗車到期", v.inspect||"未設定", inspDays!==null?(inspDays<=0?"已逾期!":"還有"+inspDays+"天"):"", inspDays!==null&&inspDays<=60?"warn":"ok");
+  var insDays = v.insuranceExp ? daysUntil(v.insuranceExp) : null;
+  addStat("車險到期", v.insuranceExp||"未設定", insDays!==null?(insDays<=0?"已逾期!":"還有"+insDays+"天"):"", insDays!==null&&insDays<=60?"warn":"ok");
+  addStat("上次保養", v.lastMaintKm ? v.lastMaintKm.toLocaleString()+" km" : "未記錄", "");
+  addStat("下次保養", v.nextMaintKm ? v.nextMaintKm.toLocaleString()+" km" : "未設定", v.lastMaintKm&&v.nextMaintKm ? "還差"+(v.nextMaintKm-v.lastMaintKm).toLocaleString()+"km" : "", "ok");
+
+  // Toolboxes
+  var myBoxes = Object.keys(toolboxStatus).filter(function(k){ return toolboxStatus[k] && toolboxStatus[k].plate === plate; });
+  var vdBoxes = document.getElementById("vd-boxes");
+  vdBoxes.innerHTML = "";
+  if(myBoxes.length > 0){
+    myBoxes.forEach(function(bid){
+      var ts = toolboxStatus[bid];
+      var gNum = parseInt(bid.split("-")[0]);
+      var typeName = TOOLBOX_TYPES.find(function(t){ return t.group===gNum; });
+      var row = document.createElement("div");
+      row.style.cssText = "display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;";
+      row.innerHTML = '<span><b>'+bid+'</b> '+(typeName?typeName.name:"")+'</span><span style="color:var(--sub);">'+ts.since+'</span>';
+      vdBoxes.appendChild(row);
+    });
+  } else {
+    vdBoxes.innerHTML = '<div style="font-size:13px;color:var(--amber);padding:10px 0;">⚠ 尚未安排工具箱</div>';
+  }
+  if(isAdmin) vdBoxes.innerHTML += '<div style="font-size:11px;color:var(--sub);margin-top:6px;">貨車貼紙：'+(v.isFreight?(v.hasSticker?"已貼":"未確認是否已貼"):"非貨車不需要")+'</div>';
+
+  // Show admin actions
+  document.getElementById("vd-admin-actions").style.display = isAdmin ? "block" : "none";
+  // Show change car btn for own car or admin
+  document.getElementById("vd-change-car-btn").style.display = (plate===myPlate||isAdmin) ? "block" : "none";
+
+  document.getElementById("veh-detail-screen").style.display = "block";
+  document.getElementById("veh-detail-screen").scrollTop = 0;
+}
+
+function closeVehDetail(){
+  document.getElementById("veh-detail-screen").style.display = "none";
+}
+
+// 換車流程
+function openChangeCarFlow(){
+  var myPlate = curVehPlate || (curUser ? localStorage.getItem("carPlate_"+curUser.email) : null);
+  var sel = document.getElementById("veh-new-plate");
+  sel.innerHTML = '<option value="">── 選擇新車牌 ──</option>';
+  VEHICLES.filter(function(v){ return v.plate!==myPlate && v.status!=="forsale"; }).forEach(function(v){
+    var assign = vehAssignments[v.plate];
+    var opt = document.createElement("option");
+    opt.value = v.plate;
+    opt.textContent = v.plate + " (" + v.company + (assign&&assign.driver?" ‧ "+assign.driver:" ‧ 空車") + ")";
+    sel.appendChild(opt);
+  });
+  // 我的工具箱
+  var myBoxes = Object.keys(toolboxStatus).filter(function(k){ return toolboxStatus[k] && toolboxStatus[k].plate === myPlate; });
+  var cl = document.getElementById("veh-box-checklist");
+  cl.innerHTML = "";
+  selectedBoxesToMove = {};
+  myBoxes.forEach(function(bid){
+    selectedBoxesToMove[bid] = true; // 預設全選
+    var gNum = parseInt(bid.split("-")[0]);
+    var typeName = TOOLBOX_TYPES.find(function(t){ return t.group===gNum; });
+    var item = document.createElement("div");
+    item.className = "veh-box-item checked";
+    item.id = "boxitem-"+bid;
+    item.onclick = function(){ vehToggleBox(bid); };
+    item.innerHTML = '<div class="veh-box-item-info"><div class="veh-box-id">'+bid+'</div><div class="veh-box-name">'+(typeName?typeName.name:"")+'</div></div><div class="veh-check"><i class="ti ti-check" style="font-size:12px;color:#fff;"></i></div>';
+    cl.appendChild(item);
+  });
+  if(myBoxes.length === 0){
+    cl.innerHTML = '<div style="font-size:13px;color:var(--sub);padding:8px 0;">目前此車無登記的工具箱</div>';
+  }
+  changeCarBoxDest = "原車";
+  document.getElementById("veh-unsel-dest").classList.remove("show");
+  document.getElementById("veh-change-overlay").classList.add("show");
+  document.getElementById("veh-detail-screen").style.display = "none";
+}
+
+function vehToggleBox(bid){
+  selectedBoxesToMove[bid] = !selectedBoxesToMove[bid];
+  var item = document.getElementById("boxitem-"+bid);
+  if(selectedBoxesToMove[bid]){ item.classList.add("checked"); }
+  else { item.classList.remove("checked"); }
+  // 如果有未勾選的，顯示去向選擇
+  var hasUnsel = Object.values(selectedBoxesToMove).some(function(v){ return !v; });
+  var dest = document.getElementById("veh-unsel-dest");
+  if(hasUnsel){ dest.classList.add("show"); } else { dest.classList.remove("show"); }
+}
+
+function vehToggleAllBoxes(){
+  var allSel = Object.values(selectedBoxesToMove).every(function(v){ return v; });
+  Object.keys(selectedBoxesToMove).forEach(function(bid){
+    selectedBoxesToMove[bid] = !allSel;
+    var item = document.getElementById("boxitem-"+bid);
+    if(!allSel){ item.classList.add("checked"); } else { item.classList.remove("checked"); }
+  });
+  var hasUnsel = !allSel ? false : true;
+  var dest = document.getElementById("veh-unsel-dest");
+  if(hasUnsel){ dest.classList.add("show"); } else { dest.classList.remove("show"); }
+}
+
+function setBoxDest(dest){
+  changeCarBoxDest = dest;
+  ["dest-orig","dest-tn","dest-pt"].forEach(function(id){ document.getElementById(id).classList.remove("active"); });
+  var map = {"原車":"dest-orig","台南倉庫":"dest-tn","屏東倉庫":"dest-pt"};
+  if(map[dest]) document.getElementById(map[dest]).classList.add("active");
+}
+
+function confirmChangeCarFlow(){
+  var newPlate = document.getElementById("veh-new-plate").value;
+  if(!newPlate){ alert("請選擇新車牌"); return; }
+  var oldPlate = curVehPlate || (curUser ? localStorage.getItem("carPlate_"+curUser.email) : null);
+  var t = nowStr();
+  var moved = [], stayed = [];
+
+  Object.keys(selectedBoxesToMove).forEach(function(bid){
+    if(selectedBoxesToMove[bid]){
+      if(toolboxStatus[bid]) toolboxStatus[bid].plate = newPlate;
+      moved.push(bid);
+    } else {
+      // 去向
+      if(toolboxStatus[bid]){
+        if(changeCarBoxDest === "原車"){ /* 不動 */ stayed.push(bid+"(原車)"); }
+        else { toolboxStatus[bid].plate = changeCarBoxDest; stayed.push(bid+"("+changeCarBoxDest+")"); }
+      }
+    }
+  });
+
+  // 更新人員綁定
+  if(curUser){
+    vehAssignments[newPlate] = { driver: curUser.name, since: t };
+    if(oldPlate && oldPlate !== newPlate){
+      delete vehAssignments[oldPlate];
+      localStorage.setItem("carPlate_"+curUser.email, newPlate);
+      document.getElementById("hd-car").textContent = newPlate;
+    }
+  }
+
+  saveVehicleData();
+  closeVehOverlay();
+
+  var note = "換車:"+oldPlate+"→"+newPlate+"，移動工具箱:["+moved.join(",")+"]，留置:["+stayed.join(",")+"]";
+  sendToSheets({type:"換車",box:"車輛",part:oldPlate+"→"+newPlate,qty:0,
+    name:curUser?curUser.name:"",email:curUser?curUser.email:"",
+    note:note,time:t,loc:curUser?curUser.location:"",serial:""});
+
+  renderVehiclePage();
+  showToast("✅ 換車完成：" + newPlate);
+}
+
+function closeVehOverlay(){
+  document.getElementById("veh-change-overlay").classList.remove("show");
+  document.getElementById("veh-fuel-overlay").classList.remove("show");
+  if(curVehPlate) document.getElementById("veh-detail-screen").style.display = "block";
+}
+
+// 加油記錄
+function openFuelForm(){
+  var myPlate = curUser ? localStorage.getItem("carPlate_"+curUser.email) : null;
+  var sel = document.getElementById("fuel-plate");
+  sel.innerHTML = "";
+  VEHICLES.filter(function(v){ return v.status!=="forsale"; }).forEach(function(v){
+    var opt = document.createElement("option");
+    opt.value = v.plate;
+    opt.textContent = v.plate + " (" + v.company + ")";
+    if(v.plate === myPlate) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  document.getElementById("fuel-amount").value = "";
+  document.getElementById("fuel-mileage").value = "";
+  document.getElementById("fuel-note").value = "";
+  document.getElementById("veh-fuel-overlay").classList.add("show");
+}
+
+function openVehFuelLog(){ openFuelForm(); }
+
+function submitFuelRecord(){
+  var plate = document.getElementById("fuel-plate").value;
+  var amount = parseInt(document.getElementById("fuel-amount").value)||0;
+  var mileage = parseInt(document.getElementById("fuel-mileage").value)||0;
+  var note = document.getElementById("fuel-note").value.trim();
+  if(!plate){ alert("請選擇車牌"); return; }
+  if(!amount){ alert("請填寫加油金額"); return; }
+  if(!mileage){ alert("請填寫目前里程數"); return; }
+  var t = nowStr();
+  closeVehOverlay();
+  sendToSheets({type:"加油",box:plate,part:curUser?curUser.name:"",qty:amount,
+    name:curUser?curUser.name:"",email:curUser?curUser.email:"",
+    note:"里程:"+mileage+"km，"+note,time:t,loc:curUser?curUser.location:"",
+    serial:"",fuelAmount:amount,mileage:mileage,plate:plate});
+  showToast("✅ 加油記錄已送出");
+}
+
+function openVehMaintLog(){ showToast("保養記錄功能開發中"); }
+function openVehBigCheck(){ showToast("大整理清單功能開發中"); }
+function openVehInsurance(){ showToast("車險資料功能開發中"); }
+function openVehTax(){ showToast("稅費記錄功能開發中"); }
+function openVehEdit(){ showToast("車輛編輯功能開發中"); }
 
 // ─────────────────────────────────────────────
 
