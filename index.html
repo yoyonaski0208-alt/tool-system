@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260624-01">
+<meta name="app-version" content="20260625-02">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -577,18 +577,18 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
   <div id="pg-vehicle" class="page">
     <!-- 管理員篩選 -->
     <div id="veh-admin-tabs" style="display:none;margin-bottom:6px;">
-      <!-- 第一排：地區 -->
+      <!-- 第一排：指派狀態 -->
       <div style="display:flex;gap:6px;margin-bottom:7px;overflow-x:auto;padding-bottom:2px;">
-        <button class="filter-chip on" id="vfil-loc-all" onclick="filterVeh('loc-all',this,'loc')">全部</button>
-        <button class="filter-chip" id="vfil-loc-tn" onclick="filterVeh('loc-台南',this,'loc')">台南</button>
-        <button class="filter-chip" id="vfil-loc-pt" onclick="filterVeh('loc-屏東',this,'loc')">屏東</button>
-      </div>
-      <!-- 第二排：指派狀態 -->
-      <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;">
         <button class="filter-chip on" id="vfil-all" onclick="filterVeh('all',this,'status')">全部</button>
         <button class="filter-chip" id="vfil-assigned" onclick="filterVeh('assigned',this,'status')">已指派</button>
         <button class="filter-chip" id="vfil-unassigned" onclick="filterVeh('unassigned',this,'status')">未指派</button>
         <button class="filter-chip" id="vfil-forsale" onclick="filterVeh('forsale',this,'status')">待售出</button>
+      </div>
+      <!-- 第二排：地區 -->
+      <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;">
+        <button class="filter-chip on" id="vfil-loc-all" onclick="filterVeh('loc-all',this,'loc')">全部</button>
+        <button class="filter-chip" id="vfil-loc-tn" onclick="filterVeh('loc-台南',this,'loc')">台南</button>
+        <button class="filter-chip" id="vfil-loc-pt" onclick="filterVeh('loc-屏東',this,'loc')">屏東</button>
       </div>
     </div>
     <div id="veh-list"></div>
@@ -616,13 +616,16 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
         </button>
       </div>
     </div>
-    <!-- 管理員加油入口 -->
+    <!-- 管理員操作區（新增/加油/刪除） -->
     <div id="veh-fuel-btn-wrap" style="display:none;margin-top:4px;">
       <button class="confirm-btn" style="background:var(--blue);color:#fff;width:100%;padding:13px;border-radius:13px;font-size:14px;font-weight:700;margin-bottom:8px;" onclick="openAddVehicle()">
         <i class="ti ti-plus"></i> 新增車輛
       </button>
-      <button class="confirm-btn" style="background:var(--amber);color:#fff;width:100%;padding:13px;border-radius:13px;font-size:14px;font-weight:700;" onclick="openFuelForm()">
+      <button class="confirm-btn" style="background:var(--amber);color:#fff;width:100%;padding:13px;border-radius:13px;font-size:14px;font-weight:700;margin-bottom:8px;" onclick="openFuelForm()">
         <i class="ti ti-droplet"></i> 登記加油記錄
+      </button>
+      <button id="veh-delete-btn" style="display:none;width:100%;padding:12px;background:var(--red-light);color:var(--red);border:1.5px solid var(--red);border-radius:13px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;" onclick="openDeleteVehicleConfirm()">
+        <i class="ti ti-trash"></i> 刪除車輛
       </button>
     </div>
   </div>
@@ -659,11 +662,6 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
         <button class="veh-action-btn" onclick="openVehInsurance()"><i class="ti ti-shield"></i>車險資料</button>
         <button class="veh-action-btn" onclick="openVehTax()"><i class="ti ti-receipt"></i>稅費記錄</button>
         <button class="veh-action-btn" onclick="openVehEdit()"><i class="ti ti-edit"></i>編輯車輛</button>
-      </div>
-      <div style="margin-top:6px;">
-        <button style="width:100%;padding:10px;background:var(--red-light);color:var(--red);border:1.5px solid var(--red);border-radius:11px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;" onclick="deleteVehicle(curVehPlate)">
-          <i class="ti ti-trash"></i> 刪除此車輛
-        </button>
       </div>
     </div>
     <!-- 換車按鈕（技師+管理員都有） -->
@@ -914,6 +912,29 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       <button class="btn-primary" id="part-form-confirm-btn" onclick="confirmPartForm()">確認新增</button>
       <button class="btn-safe" onclick="closePartForm()">取消</button>
     </div>
+  </div>
+</div>
+
+<!-- 刪除車輛二次確認 overlay -->
+<div class="equip-overlay" id="veh-delete-overlay">
+  <div class="equip-sheet">
+    <div class="equip-sheet-title" style="color:var(--red);">⚠️ 刪除車輛</div>
+    <div class="equip-sheet-sub">此操作無法復原，刪除後所有綁定資料將一併清除</div>
+    <div style="background:var(--red-light);border-radius:11px;padding:11px 13px;margin-bottom:14px;">
+      <div style="font-size:15px;color:var(--red);font-weight:700;" id="veh-delete-plate-show"></div>
+      <div style="font-size:11px;color:var(--red);margin-top:3px;" id="veh-delete-sub"></div>
+    </div>
+    <div class="equip-field">
+      <label class="fuel-input-lbl">請手動輸入車牌號碼確認刪除</label>
+      <input class="fuel-input" id="veh-delete-confirm-input" placeholder="輸入車牌號碼" maxlength="10"
+        style="text-transform:uppercase;border:1.5px solid var(--red);"
+        oninput="this.value=this.value.toUpperCase()">
+      <div id="veh-delete-err" style="font-size:11px;color:var(--red);margin-top:5px;display:none;">車牌輸入錯誤，請重新確認</div>
+    </div>
+    <button style="width:100%;padding:14px;background:var(--red);color:#fff;border:none;border-radius:13px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px;" onclick="confirmDeleteVehicle()">
+      <i class="ti ti-trash"></i> 確認永久刪除
+    </button>
+    <button class="equip-cancel-btn" onclick="closeDeleteOverlay()">取消</button>
   </div>
 </div>
 
@@ -3331,8 +3352,14 @@ function renderVehiclePage(){
     if(!isAdmin) return v.plate === myPlate;
     var assign = vehAssignments[v.plate] || {};
     var hasDriver = !!(assign.driver);
-    if(vehFilterStatus === "assigned" && !hasDriver) return false;
-    if(vehFilterStatus === "unassigned" && hasDriver) return false;
+    // 待售出篩選
+    if(vehFilterStatus === "forsale") return v.status === "forsale";
+    // 已退役不顯示（除非專門找）
+    if(v.status === "retired") return false;
+    // 已/未指派篩選（排除待售出）
+    if(vehFilterStatus === "assigned") return hasDriver && v.status !== "forsale";
+    if(vehFilterStatus === "unassigned") return !hasDriver && v.status !== "forsale";
+    // 地區篩選
     if(vehFilterLoc === "loc-台南" && v.loc !== "台南") return false;
     if(vehFilterLoc === "loc-屏東" && v.loc !== "屏東") return false;
     return true;
@@ -3449,7 +3476,7 @@ function openVehDetail(plate){
   } else {
     vdBoxes.innerHTML = '<div style="font-size:13px;color:var(--amber);padding:10px 0;">⚠ 尚未安排工具箱</div>';
   }
-  if(isAdmin) vdBoxes.innerHTML += '<div style="font-size:11px;color:var(--sub);margin-top:6px;">貨車貼紙：'+(v.isFreight?(v.hasSticker?"已貼":"未確認是否已貼"):"非貨車不需要")+'</div>';
+  vdBoxes.innerHTML += '<div style="font-size:11px;color:var(--sub);margin-top:6px;"><b>貨車大車牌貼紙：</b>'+(v.isFreight?"需確認是否已貼":"不需要")+'</div>';
 
   // Show admin actions
   document.getElementById("vd-admin-actions").style.display = isAdmin ? "block" : "none";
@@ -3458,10 +3485,16 @@ function openVehDetail(plate){
 
   document.getElementById("veh-detail-screen").style.display = "block";
   document.getElementById("veh-detail-screen").scrollTop = 0;
+  // 顯示刪除按鈕在列表底部（管理員才有）
+  var delBtn = document.getElementById("veh-delete-btn");
+  if(delBtn) delBtn.style.display = isAdmin ? "block" : "none";
 }
 
 function closeVehDetail(){
   document.getElementById("veh-detail-screen").style.display = "none";
+  var delBtn = document.getElementById("veh-delete-btn");
+  if(delBtn) delBtn.style.display = "none";
+  curVehPlate = null;
 }
 
 // 換車流程
@@ -3580,8 +3613,8 @@ function closeVehOverlay(){
 }
 
 // 加油記錄
-function openFuelForm(){
-  var myPlate = curUser ? localStorage.getItem("carPlate_"+curUser.email) : null;
+function openFuelForm(preselect){
+  var myPlate = preselect || (curUser ? localStorage.getItem("carPlate_"+curUser.email) : null);
   var isAdmin = curUser && curUser.role === "admin";
   var sel = document.getElementById("fuel-plate");
   sel.innerHTML = "";
@@ -3603,7 +3636,7 @@ function openFuelForm(){
   document.getElementById("veh-fuel-overlay").classList.add("show");
 }
 
-function openVehFuelLog(){ openFuelForm(); }
+function openVehFuelLog(){ openFuelForm(curVehPlate); }
 
 function submitFuelRecord(){
   var plate = document.getElementById("fuel-plate").value;
@@ -3803,6 +3836,36 @@ function confirmWorkerChangeCar(){
 
 function closeVehWorkerOverlay(){
   document.getElementById("veh-worker-change-overlay").classList.remove("show");
+}
+
+function openDeleteVehicleConfirm(){
+  var plate = curVehPlate; if(!plate) return;
+  var v = VEHICLES.find(function(x){ return x.plate===plate; });
+  document.getElementById("veh-delete-plate-show").textContent = plate;
+  document.getElementById("veh-delete-sub").textContent = v ? v.company+" ‧ "+v.type : "";
+  document.getElementById("veh-delete-confirm-input").value = "";
+  document.getElementById("veh-delete-err").style.display = "none";
+  document.getElementById("veh-delete-overlay").classList.add("show");
+}
+
+function confirmDeleteVehicle(){
+  var input = document.getElementById("veh-delete-confirm-input").value.trim().toUpperCase();
+  var errEl = document.getElementById("veh-delete-err");
+  if(input !== curVehPlate){ errEl.style.display = "block"; return; }
+  errEl.style.display = "none";
+  var plate = curVehPlate;
+  var idx = VEHICLES.findIndex(function(v){ return v.plate===plate; });
+  if(idx >= 0) VEHICLES.splice(idx, 1);
+  delete vehAssignments[plate];
+  try{ localStorage.setItem("vehicles_override", JSON.stringify(VEHICLES)); }catch(e){}
+  saveVehicleData();
+  sendToSheets({type:"刪除車輛",box:plate,part:"",qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"管理員刪除",time:nowStr(),loc:"",serial:""});
+  closeDeleteOverlay(); closeVehDetail(); renderVehiclePage();
+  showToast("已刪除 "+plate);
+}
+
+function closeDeleteOverlay(){
+  document.getElementById("veh-delete-overlay").classList.remove("show");
 }
 
 // ─────────────────────────────────────────────
