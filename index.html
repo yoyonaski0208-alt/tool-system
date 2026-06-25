@@ -657,8 +657,8 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
 <!-- 特殊器具：申請借出 overlay -->
 <div class="equip-overlay" id="equip-borrow-overlay">
   <div class="equip-sheet">
-    <div class="equip-sheet-title" id="equip-borrow-title">申請借出</div>
-    <div class="equip-sheet-sub">借出申請將送交管理者審核，核准後即可帶走器具</div>
+    <div class="equip-sheet-title" id="equip-borrow-title">登記借出</div>
+    <div class="equip-sheet-sub">填寫後直接登記，請確認器具可以帶走</div>
     <div class="equip-field">
       <label>借出地點</label>
       <select class="equip-select" id="equip-borrow-loc">
@@ -675,7 +675,7 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       <label>用途說明（選填）</label>
       <input class="equip-input" id="equip-borrow-note" placeholder="例：冷卻水塔清洗工程…">
     </div>
-    <button class="equip-submit-btn" onclick="submitBorrowRequest()"><i class="ti ti-send"></i> 送出申請</button>
+    <button class="equip-submit-btn" onclick="submitBorrowRequest()"><i class="ti ti-arrow-right"></i> 確認借出</button>
     <button class="equip-cancel-btn" onclick="closeEquipOverlay()">取消</button>
   </div>
 </div>
@@ -1272,7 +1272,16 @@ var fVal="all", curLoc="台南", pendingDelPart=null;
 
 function pshow(id){ document.querySelectorAll(".screen").forEach(function(s){s.classList.remove("active");}); document.getElementById(id).classList.add("active"); }
 function setAv(id,name,bg,fg){ var el=document.getElementById(id); if(!el)return; el.textContent=name[0]; el.style.background=bg; el.style.color=fg; }
-function nowStr(){ return new Date().toLocaleString("zh-TW",{hour12:false}); }
+function nowStr(){
+  var d=new Date();
+  var y=d.getFullYear();
+  var mo=String(d.getMonth()+1).padStart(2,"0");
+  var day=String(d.getDate()).padStart(2,"0");
+  var h=String(d.getHours()).padStart(2,"0");
+  var mi=String(d.getMinutes()).padStart(2,"0");
+  var s=String(d.getSeconds()).padStart(2,"0");
+  return y+"/"+mo+"/"+day+" "+h+":"+mi+":"+s;
+}
 function closeOverlay(id){ document.getElementById(id).classList.remove("show"); }
 function gk(bid,pname){ return bid+"-"+pname; }
 
@@ -1431,7 +1440,10 @@ async function verifyEmail(email,isAuto){
 function setupHeaderInfo(){
   var roleLabel={admin:"管理者",senior:"資深作業員",worker:"作業員"}[curUser.role]||curUser.role;
   var locLabel=curUser.location==="全部"?"全區":curUser.location;
-  document.getElementById("hd-date").textContent=new Date().toLocaleDateString("zh-TW",{year:"numeric",month:"long",day:"numeric",weekday:"short"});
+  var wd=["日","一","二","三","四","五","六"];
+  var now=new Date();
+  var dateStr=now.getFullYear()+"年"+(now.getMonth()+1)+"月"+now.getDate()+"日（週"+wd[now.getDay()]+"）";
+  document.getElementById("hd-date").textContent=dateStr;
   setAv("hd-av",curUser.name,curUser.bg,curUser.fg);
   document.getElementById("hd-name").textContent=curUser.name;
   document.getElementById("hd-sub").textContent=roleLabel+"　"+locLabel;
@@ -1637,7 +1649,7 @@ function renderPartList(loc){
     info.appendChild(name);info.appendChild(sub);
     var btn=document.createElement("button");
     btn.className="take-btn";
-    btn.textContent=outOfStock?"無庫存":"領取 ("+q+")";
+    btn.textContent=outOfStock?"無庫存":"領取";
     if(outOfStock){
       btn.disabled=true;
       btn.style.cssText="background:var(--border);color:var(--sub);cursor:not-allowed;border:none;border-radius:9px;padding:8px 13px;font-size:12px;font-weight:500;flex-shrink:0;";
@@ -2328,7 +2340,11 @@ function renderEquip(){
       }
       if(st.borrower) metaRow.appendChild(metaItem("ti-user", st.borrower));
       if(st.loc) metaRow.appendChild(metaItem("ti-map-pin", st.loc));
-      if(st.borrowTime) metaRow.appendChild(metaItem("ti-clock", st.borrowTime.slice(0,10)));
+      if(st.borrowTime){
+        // 取日期部分（格式 2026/06/24 或舊格式）
+        var btShow = st.borrowTime.slice(0,10).replace(/(\d+)\/(\d+)\/(\d+)/,"$1/$2/$3");
+        metaRow.appendChild(metaItem("ti-clock", btShow));
+      }
       if(st.returnDue){
         var rd = relativeDay(st.returnDue);
         metaRow.appendChild(metaItem("ti-calendar-due", rd, overdue));
@@ -2394,7 +2410,7 @@ function renderEquip(){
       } else {
         var reqBtn = document.createElement("button");
         reqBtn.className = "equip-btn-out";
-        reqBtn.innerHTML = '<i class="ti ti-send"></i> 申請借出';
+        reqBtn.innerHTML = '<i class="ti ti-arrow-right"></i> 登記借出';
         reqBtn.onclick = (function(eid,ename){ return function(){ openBorrowRequest(eid,ename); }; })(eq.id,eq.name);
         actionRow.appendChild(reqBtn);
       }
@@ -2411,7 +2427,8 @@ function renderEquip(){
         var who = document.createElement("div"); who.className = "equip-history-who";
         who.innerHTML = '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+(h.action==="歸還"?"var(--green)":"var(--amber)")+';;margin-right:4px;"></span>'
           + h.action + "　" + (h.who||"") + (h.loc?" @ "+h.loc:"");
-        var tm = document.createElement("div"); tm.className = "equip-history-time"; tm.textContent = (h.time||"").slice(0,10);
+        var tm = document.createElement("div"); tm.className = "equip-history-time";
+        tm.textContent = (h.time||"").slice(0,10);
         row.appendChild(who); row.appendChild(tm);
         hist.appendChild(row);
       });
@@ -2458,37 +2475,38 @@ function closeReturnOverlay(){
   document.getElementById("equip-return-overlay").classList.remove("show");
 }
 
-// 送出借出申請（一般人）
+// 送出借出（直接借出，不需審核）
 function submitBorrowRequest(){
   var loc = document.getElementById("equip-borrow-loc").value;
   var returnDue = document.getElementById("equip-borrow-date").value;
   var note = document.getElementById("equip-borrow-note").value.trim();
   var t = nowStr();
-  var req = {
-    id: Date.now(),
-    equipId: curEquipId,
-    requester: curUser ? curUser.name : "",
-    requesterEmail: curUser ? curUser.email : "",
-    loc: loc,
-    returnDue: returnDue,
-    note: note,
-    time: t
-  };
-  // 將器具標為 pending
+  var eq = SPECIAL_EQUIP.find(function(e){ return e.id === curEquipId; });
+
   if(!equipStatus[curEquipId]) equipStatus[curEquipId] = { history:[] };
-  equipStatus[curEquipId].status = "pending";
-  equipStatus[curEquipId].borrower = curUser ? curUser.name : "";
-  equipStatus[curEquipId].loc = loc;
-  equipStatus[curEquipId].borrowTime = t;
-  equipStatus[curEquipId].returnDue = returnDue;
-  equipStatus[curEquipId].note = note;
-  equipPendingRequests.push(req);
+  var st = equipStatus[curEquipId];
+  st.history = st.history || [];
+  st.history.unshift({ action:"借出", who:curUser?curUser.name:"", loc:loc, time:t });
+  if(st.history.length > 10) st.history = st.history.slice(0,10);
+
+  // 直接設為借出中，不走待審核
+  st.status = "out";
+  st.borrower = curUser ? curUser.name : "";
+  st.borrowerEmail = curUser ? curUser.email : "";
+  st.loc = loc;
+  st.borrowTime = t;
+  st.returnDue = returnDue;
+  st.note = note;
+
   saveEquipToStorage();
   closeEquipOverlay();
   renderEquip();
-  var eq = SPECIAL_EQUIP.find(function(e){ return e.id === curEquipId; });
-  sendToSheets({type:"器具申請借出",box:eq?eq.name:"",equipId:curEquipId,equipName:eq?eq.name:"",part:curUser?curUser.name:"",qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"預計"+returnDue+"歸還"+(note?"，"+note:""),time:t,loc:loc,serial:"",returnDue:returnDue,borrowTime:t});
-  alert("✅ 申請已送出，等待管理者審核！");
+
+  sendToSheets({type:"器具借出",box:eq?eq.name:"",equipId:curEquipId,equipName:eq?eq.name:"",
+    part:curUser?curUser.name:"",qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",
+    note:"地點:"+loc+"，預計"+returnDue+"歸還"+(note?"，"+note:""),
+    time:t,loc:loc,serial:"",returnDue:returnDue,borrowTime:t});
+  showToast("✅ 已登記借出：" + (eq?eq.name:""));
 }
 
 // 管理者直接借出
