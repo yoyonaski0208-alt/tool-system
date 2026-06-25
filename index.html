@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260625-02">
+<meta name="app-version" content="20260625-03">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -308,7 +308,28 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
 .veh-tag-gray{background:var(--bg);color:var(--sub);border:1px solid var(--border);}
 .veh-boxes{font-size:11px;color:var(--sub);margin-top:6px;padding-top:7px;border-top:1px solid var(--border);}
 .veh-boxes b{color:var(--text);font-weight:600;}
-/* 車輛詳細頁 */
+/* 工具箱管理 */
+.tbox-item{display:flex;align-items:center;gap:10px;padding:11px 13px;border:1.5px solid var(--border);border-radius:12px;margin-bottom:7px;transition:border-color .15s;}
+.tbox-item.tbox-warn{border-color:var(--amber);}
+.tbox-item.tbox-danger{border-color:var(--red);}
+.tbox-item.tbox-clickable{cursor:pointer;}
+.tbox-item.tbox-clickable:active{background:var(--bg);}
+.tbox-num{font-size:15px;font-weight:700;color:var(--blue);min-width:36px;}
+.tbox-info{flex:1;min-width:0;}
+.tbox-name{font-size:13px;font-weight:600;color:var(--text);}
+.tbox-loc{font-size:11px;color:var(--sub);margin-top:2px;}
+.tbox-status{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;flex-shrink:0;}
+.tbox-status-ok{background:var(--green-light);color:var(--green);}
+.tbox-status-warn{background:var(--amber-light);color:var(--amber);}
+.tbox-status-bad{background:var(--red-light);color:var(--red);}
+/* 工具箱編輯 overlay */
+.tbox-overview-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.tbox-mini{padding:9px 11px;border:1.5px solid var(--border);border-radius:10px;cursor:pointer;transition:border-color .15s;}
+.tbox-mini:active{background:var(--bg);}
+.tbox-mini-num{font-size:13px;font-weight:700;color:var(--blue);}
+.tbox-mini-loc{font-size:10px;color:var(--sub);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tbox-mini.warn{border-color:var(--amber);}
+.tbox-mini.danger{border-color:var(--red);}
 .veh-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
 .veh-stat{background:var(--bg);border-radius:12px;padding:11px 12px;}
 .veh-stat-lbl{font-size:10px;color:var(--sub);margin-bottom:3px;}
@@ -631,6 +652,25 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
   </div>
 
   <!-- 車輛詳細頁（全螢幕 overlay） -->
+  <!-- 工具箱總覽頁（管理員，全螢幕） -->
+  <div id="tbox-overview-screen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:210;overflow-y:auto;padding:16px 16px 100px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+      <button onclick="closeTboxOverview()" style="width:36px;height:36px;border-radius:50%;background:var(--card);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="ti ti-arrow-left" style="font-size:18px;"></i>
+      </button>
+      <div style="font-size:18px;font-weight:700;">工具箱總覽</div>
+    </div>
+    <!-- 篩選 -->
+    <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px;">
+      <button class="filter-chip on" id="tbox-f-all" onclick="filterTbox('all',this)">全部</button>
+      <button class="filter-chip" id="tbox-f-car" onclick="filterTbox('car',this)">在車上</button>
+      <button class="filter-chip" id="tbox-f-store" onclick="filterTbox('store',this)">在倉庫</button>
+      <button class="filter-chip" id="tbox-f-none" onclick="filterTbox('none',this)">未指派</button>
+      <button class="filter-chip" id="tbox-f-bad" onclick="filterTbox('bad',this)">異常</button>
+    </div>
+    <div id="tbox-overview-list"></div>
+  </div>
+
   <div id="veh-detail-screen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:200;overflow-y:auto;padding:16px 16px 100px;">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
       <button onclick="closeVehDetail()" style="width:36px;height:36px;border-radius:50%;background:var(--card);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
@@ -663,6 +703,10 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
         <button class="veh-action-btn" onclick="openVehTax()"><i class="ti ti-receipt"></i>稅費記錄</button>
         <button class="veh-action-btn" onclick="openVehEdit()"><i class="ti ti-edit"></i>編輯車輛</button>
       </div>
+      <!-- 工具箱管理快捷入口 -->
+      <button onclick="openTboxOverview()" style="width:100%;padding:11px;background:var(--blue-light);color:var(--blue);border:1.5px solid var(--blue);border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:7px;">
+        <i class="ti ti-package"></i> 管理全部工具箱
+      </button>
     </div>
     <!-- 換車按鈕（技師+管理員都有） -->
     <button id="vd-change-car-btn" style="display:none;width:100%;padding:13px;background:var(--blue);color:#fff;border:none;border-radius:13px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;" onclick="openChangeCarFlow()">
@@ -912,6 +956,37 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       <button class="btn-primary" id="part-form-confirm-btn" onclick="confirmPartForm()">確認新增</button>
       <button class="btn-safe" onclick="closePartForm()">取消</button>
     </div>
+  </div>
+</div>
+
+<!-- 工具箱編輯 overlay（管理員）-->
+<div class="equip-overlay" id="tbox-edit-overlay">
+  <div class="equip-sheet">
+    <div class="equip-sheet-title" id="tbox-edit-title">編輯工具箱</div>
+    <div class="equip-field">
+      <label class="fuel-input-lbl">目前位置</label>
+      <select class="equip-select" id="tbox-edit-loc">
+        <option value="">── 選擇位置 ──</option>
+        <optgroup label="在車上" id="tbox-loc-car-group"></optgroup>
+        <option value="台南倉庫">台南倉庫</option>
+        <option value="屏東倉庫">屏東倉庫</option>
+        <option value="未指派">未指派</option>
+      </select>
+    </div>
+    <div class="equip-field">
+      <label class="fuel-input-lbl">工具箱狀態</label>
+      <div style="display:flex;gap:7px;">
+        <button class="take-reason-btn sel-first" id="tbox-s-ok" onclick="setTboxStatus('正常')">✅ 正常</button>
+        <button class="take-reason-btn" id="tbox-s-wear" onclick="setTboxStatus('損壞')">🔧 損壞</button>
+        <button class="take-reason-btn" id="tbox-s-lost" onclick="setTboxStatus('遺失')">❌ 遺失</button>
+      </div>
+    </div>
+    <div class="equip-field">
+      <label class="fuel-input-lbl">備註（選填）</label>
+      <input class="equip-input" id="tbox-edit-note" placeholder="例：箱蓋損壞、需修理">
+    </div>
+    <button class="equip-submit-btn" onclick="confirmTboxEdit()"><i class="ti ti-check"></i> 確認儲存</button>
+    <button class="equip-cancel-btn" onclick="closeTboxEdit()">取消</button>
   </div>
 </div>
 
@@ -3374,8 +3449,8 @@ function renderVehiclePage(){
   toShow.forEach(function(v){
     var alerts = getVehAlerts(v);
     var assign = vehAssignments[v.plate] || {};
-    var myBoxes = Object.keys(toolboxStatus).filter(function(k){
-      return toolboxStatus[k] && toolboxStatus[k].plate === v.plate;
+    var myBoxes = ALL_TOOLBOXES.filter(function(b){
+      return toolboxStatus[b.id] && toolboxStatus[b.id].plate === v.plate;
     });
 
     var hasDriver = !!(assign.driver);
@@ -3459,24 +3534,8 @@ function openVehDetail(plate){
   addStat("上次保養", v.lastMaintKm ? v.lastMaintKm.toLocaleString()+" km" : "未記錄", "");
   addStat("下次保養", v.nextMaintKm ? v.nextMaintKm.toLocaleString()+" km" : "未設定", v.lastMaintKm&&v.nextMaintKm ? "還差"+(v.nextMaintKm-v.lastMaintKm).toLocaleString()+"km" : "", "ok");
 
-  // Toolboxes
-  var myBoxes = Object.keys(toolboxStatus).filter(function(k){ return toolboxStatus[k] && toolboxStatus[k].plate === plate; });
-  var vdBoxes = document.getElementById("vd-boxes");
-  vdBoxes.innerHTML = "";
-  if(myBoxes.length > 0){
-    myBoxes.forEach(function(bid){
-      var ts = toolboxStatus[bid];
-      var gNum = parseInt(bid.split("-")[0]);
-      var typeName = TOOLBOX_TYPES.find(function(t){ return t.group===gNum; });
-      var row = document.createElement("div");
-      row.style.cssText = "display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;";
-      row.innerHTML = '<span><b>'+bid+'</b> '+(typeName?typeName.name:"")+'</span><span style="color:var(--sub);">'+ts.since+'</span>';
-      vdBoxes.appendChild(row);
-    });
-  } else {
-    vdBoxes.innerHTML = '<div style="font-size:13px;color:var(--amber);padding:10px 0;">⚠ 尚未安排工具箱</div>';
-  }
-  vdBoxes.innerHTML += '<div style="font-size:11px;color:var(--sub);margin-top:6px;"><b>貨車大車牌貼紙：</b>'+(v.isFreight?"需確認是否已貼":"不需要")+'</div>';
+  // 工具箱配備
+  renderVehBoxes(plate, isAdmin);
 
   // Show admin actions
   document.getElementById("vd-admin-actions").style.display = isAdmin ? "block" : "none";
@@ -3866,6 +3925,241 @@ function confirmDeleteVehicle(){
 
 function closeDeleteOverlay(){
   document.getElementById("veh-delete-overlay").classList.remove("show");
+}
+
+// ─────────────────────────────────────────────
+
+// ─────────────────────────────────────────────
+// 工具箱管理系統
+// ─────────────────────────────────────────────
+
+// 產生所有工具箱編號（依 TOOLBOX_TYPES 中的 count）
+var TOOLBOX_COUNTS = [11, 12, 12, 9, 9, 10, 6, 6]; // 1-1~1-11, 2-1~2-12, ...
+var ALL_TOOLBOXES = [];
+TOOLBOX_TYPES.forEach(function(t, i){
+  var count = TOOLBOX_COUNTS[i] || 10;
+  for(var n = 1; n <= count; n++){
+    ALL_TOOLBOXES.push({ id: t.group + "-" + n, group: t.group, name: t.name });
+  }
+});
+
+// toolboxStatus[id] = { plate, loc, status:"正常"|"損壞"|"遺失", since, note }
+// plate: 車牌 or "台南倉庫" or "屏東倉庫" or ""
+
+var curTboxId = null;
+var curTboxStatus = "正常";
+var tboxFilter = "all";
+
+function getTboxDisplay(id){
+  var ts = toolboxStatus[id];
+  if(!ts || !ts.plate) return { locText:"未指派", type:"none", driverText:"" };
+  if(ts.plate === "台南倉庫" || ts.plate === "屏東倉庫"){
+    return { locText: ts.plate, type:"store", driverText:"" };
+  }
+  var assign = vehAssignments[ts.plate] || {};
+  return {
+    locText: ts.plate,
+    type: "car",
+    driverText: assign.driver || "空車"
+  };
+}
+
+// ── 在車輛詳細頁渲染工具箱 ──
+function renderVehBoxes(plate, isAdmin){
+  var vdBoxes = document.getElementById("vd-boxes");
+  vdBoxes.innerHTML = "";
+
+  // 屬於此車的工具箱
+  var myBoxes = ALL_TOOLBOXES.filter(function(b){
+    return toolboxStatus[b.id] && toolboxStatus[b.id].plate === plate;
+  });
+
+  if(myBoxes.length === 0){
+    vdBoxes.innerHTML = '<div style="font-size:13px;color:var(--amber);padding:8px 0;">⚠ 尚未安排工具箱</div>';
+  } else {
+    myBoxes.forEach(function(b){
+      var ts = toolboxStatus[b.id] || {};
+      var statusClass = ts.status==="損壞" ? "tbox-warn" : ts.status==="遺失" ? "tbox-danger" : "";
+      var statusBadge = ts.status==="損壞" ? "tbox-status-warn" : ts.status==="遺失" ? "tbox-status-bad" : "tbox-status-ok";
+      var statusText = ts.status || "正常";
+      var item = document.createElement("div");
+      item.className = "tbox-item " + statusClass + (isAdmin ? " tbox-clickable" : "");
+      if(isAdmin) item.onclick = (function(bid){ return function(){ openTboxEdit(bid); }; })(b.id);
+
+      item.innerHTML =
+        '<div class="tbox-num">' + b.id + '</div>' +
+        '<div class="tbox-info">' +
+          '<div class="tbox-name">' + b.name + '</div>' +
+          '<div class="tbox-loc">' + (ts.since ? "換箱："+ts.since.slice(0,10) : "未記錄換箱日期") + (ts.note ? "　"+ts.note : "") + '</div>' +
+        '</div>' +
+        '<span class="tbox-status ' + statusBadge + '">' + statusText + '</span>' +
+        (isAdmin ? '<i class="ti ti-chevron-right" style="font-size:14px;color:var(--sub);margin-left:4px;"></i>' : '');
+      vdBoxes.appendChild(item);
+    });
+  }
+
+  // 貼紙資訊
+  var v = VEHICLES.find(function(x){ return x.plate===plate; });
+  if(v) vdBoxes.innerHTML += '<div style="font-size:11px;color:var(--sub);margin-top:8px;"><b>貨車大車牌貼紙：</b>'+(v.isFreight?"需確認是否已貼":"不需要")+'</div>';
+}
+
+// ── 工具箱總覽（管理員）──
+var _tboxOvShown = false;
+function openTboxOverview(){
+  _tboxOvShown = true;
+  tboxFilter = "all";
+  document.querySelectorAll("#tbox-overview-list .filter-chip, [id^=tbox-f-]").forEach(function(b){ b.classList.remove("on"); });
+  var fall = document.getElementById("tbox-f-all"); if(fall) fall.classList.add("on");
+  renderTboxOverview();
+  document.getElementById("tbox-overview-screen").style.display = "block";
+}
+
+function closeTboxOverview(){
+  document.getElementById("tbox-overview-screen").style.display = "none";
+}
+
+function filterTbox(f, el){
+  tboxFilter = f;
+  ["tbox-f-all","tbox-f-car","tbox-f-store","tbox-f-none","tbox-f-bad"].forEach(function(id){
+    var b = document.getElementById(id); if(b) b.classList.remove("on");
+  });
+  el.classList.add("on");
+  renderTboxOverview();
+}
+
+function renderTboxOverview(){
+  var list = document.getElementById("tbox-overview-list");
+  if(!list) return;
+  list.innerHTML = "";
+
+  var toShow = ALL_TOOLBOXES.filter(function(b){
+    var ts = toolboxStatus[b.id] || {};
+    var plate = ts.plate || "";
+    if(tboxFilter === "car") return plate && plate!=="台南倉庫" && plate!=="屏東倉庫";
+    if(tboxFilter === "store") return plate==="台南倉庫" || plate==="屏東倉庫";
+    if(tboxFilter === "none") return !plate;
+    if(tboxFilter === "bad") return ts.status==="損壞" || ts.status==="遺失";
+    return true;
+  });
+
+  // 按 group 分組顯示
+  var groups = {};
+  toShow.forEach(function(b){
+    if(!groups[b.group]) groups[b.group] = [];
+    groups[b.group].push(b);
+  });
+
+  Object.keys(groups).sort(function(a,b){return a-b;}).forEach(function(g){
+    var typeName = TOOLBOX_TYPES.find(function(t){ return t.group===parseInt(g); });
+    var header = document.createElement("div");
+    header.style.cssText = "font-size:11px;font-weight:700;color:var(--sub);letter-spacing:.5px;margin:12px 0 7px;padding:0 2px;";
+    header.textContent = g + " 組　" + (typeName?typeName.name:"");
+    list.appendChild(header);
+
+    groups[g].forEach(function(b){
+      var ts = toolboxStatus[b.id] || {};
+      var disp = getTboxDisplay(b.id);
+      var statusClass = ts.status==="損壞"?"warn":ts.status==="遺失"?"danger":"";
+      var item = document.createElement("div");
+      item.className = "tbox-item tbox-clickable " + (statusClass==="warn"?"tbox-warn":statusClass==="danger"?"tbox-danger":"");
+      item.onclick = function(){ openTboxEdit(b.id); };
+
+      var locHtml = disp.type==="none"
+        ? '<span style="color:var(--sub);">未指派</span>'
+        : disp.type==="store"
+          ? '<span style="color:var(--blue);">'+disp.locText+'</span>'
+          : disp.locText + (disp.driverText ? ' <span style="color:var(--sub);">（'+disp.driverText+'）</span>' : '');
+
+      item.innerHTML =
+        '<div class="tbox-num">' + b.id + '</div>' +
+        '<div class="tbox-info">' +
+          '<div class="tbox-name">' + b.name + '</div>' +
+          '<div class="tbox-loc">' + locHtml + (ts.since ? '　換：'+ts.since.slice(0,10) : '') + '</div>' +
+        '</div>' +
+        '<span class="tbox-status '+(ts.status==="損壞"?"tbox-status-warn":ts.status==="遺失"?"tbox-status-bad":"tbox-status-ok")+'">'+(ts.status||"正常")+'</span>' +
+        '<i class="ti ti-chevron-right" style="font-size:14px;color:var(--sub);margin-left:4px;"></i>';
+      list.appendChild(item);
+    });
+  });
+
+  if(toShow.length === 0){
+    var em = document.createElement("div"); em.className = "empty-msg";
+    em.textContent = "此分類無工具箱"; list.appendChild(em);
+  }
+}
+
+// ── 工具箱編輯 ──
+function openTboxEdit(bid){
+  curTboxId = bid;
+  var b = ALL_TOOLBOXES.find(function(x){ return x.id===bid; });
+  var ts = toolboxStatus[bid] || {};
+  document.getElementById("tbox-edit-title").textContent = "工具箱 " + bid + "　" + (b?b.name:"");
+
+  // 建立車牌 optgroup
+  var grp = document.getElementById("tbox-loc-car-group");
+  grp.innerHTML = "";
+  VEHICLES.filter(function(v){ return v.status!=="retired"; }).forEach(function(v){
+    var assign = vehAssignments[v.plate] || {};
+    var opt = document.createElement("option");
+    opt.value = v.plate;
+    opt.textContent = v.plate + (assign.driver?" ("+assign.driver+")":"（空車）");
+    grp.appendChild(opt);
+  });
+
+  // 設定目前值
+  var sel = document.getElementById("tbox-edit-loc");
+  sel.value = ts.plate || "未指派";
+  document.getElementById("tbox-edit-note").value = ts.note || "";
+
+  // 狀態按鈕
+  curTboxStatus = ts.status || "正常";
+  setTboxStatus(curTboxStatus);
+
+  document.getElementById("tbox-edit-overlay").classList.add("show");
+}
+
+function setTboxStatus(s){
+  curTboxStatus = s;
+  var map = {"正常":"tbox-s-ok","損壞":"tbox-s-wear","遺失":"tbox-s-lost"};
+  var cls = {"正常":"sel-first","損壞":"sel-wear","遺失":"sel-loss"};
+  ["tbox-s-ok","tbox-s-wear","tbox-s-lost"].forEach(function(id){
+    var el = document.getElementById(id); if(!el) return;
+    el.className = "take-reason-btn" + (id===map[s]?" "+cls[s]:"");
+  });
+}
+
+function confirmTboxEdit(){
+  var plate = document.getElementById("tbox-edit-loc").value;
+  var note = document.getElementById("tbox-edit-note").value.trim();
+  var t = nowStr();
+
+  if(!toolboxStatus[curTboxId]) toolboxStatus[curTboxId] = {};
+  var ts = toolboxStatus[curTboxId];
+  var oldPlate = ts.plate;
+  ts.plate = plate;
+  ts.status = curTboxStatus;
+  ts.note = note;
+  ts.since = t;
+
+  saveVehicleData();
+  closeTboxEdit();
+
+  // 重新渲染
+  if(_tboxOvShown) renderTboxOverview();
+  if(curVehPlate){
+    var isAdmin = curUser && curUser.role==="admin";
+    renderVehBoxes(curVehPlate, isAdmin);
+  }
+
+  sendToSheets({type:"工具箱更新",box:curTboxId,part:plate,qty:0,
+    name:curUser?curUser.name:"",email:curUser?curUser.email:"",
+    note:"狀態:"+curTboxStatus+(note?"，"+note:"")+"，從"+oldPlate+"→"+plate,
+    time:t,loc:"",serial:""});
+  showToast("✅ 工具箱 " + curTboxId + " 已更新");
+}
+
+function closeTboxEdit(){
+  document.getElementById("tbox-edit-overlay").classList.remove("show");
 }
 
 // ─────────────────────────────────────────────
