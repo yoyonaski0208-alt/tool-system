@@ -246,6 +246,13 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
 .update-banner-text{flex:1;font-size:13px;font-weight:600;line-height:1.4;}
 .update-banner-btn{background:#fff;color:#185FA5;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;}
 .update-banner-btn:active{opacity:.85;}
+/* 領取原因按鈕 */
+.take-reason-row{display:flex;gap:7px;margin-bottom:14px;}
+.take-reason-btn{flex:1;padding:9px 4px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--sub);font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;text-align:center;transition:all .15s;line-height:1.3;}
+.take-reason-btn.sel-loss{border-color:var(--red);background:var(--red-light);color:var(--red);font-weight:700;}
+.take-reason-btn.sel-wear{border-color:var(--amber);background:var(--amber-light);color:var(--amber);font-weight:700;}
+.take-reason-btn.sel-first{border-color:var(--green);background:var(--green-light);color:var(--green);font-weight:700;}
+
 .restock-header{display:flex;align-items:center;justify-content:space-between;margin:12px 0 0;cursor:pointer;user-select:none;}
 .restock-title{font-size:12px;font-weight:600;color:var(--sub);}
 .restock-badges{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
@@ -438,7 +445,9 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     </div>
     <div class="filter-row" id="filter-row">
       <button class="filter-chip on" onclick="flog('all',this)">全部</button>
-      <button class="filter-chip" onclick="flog('領取',this)">領取</button>
+      <button class="filter-chip" onclick="flog('首次領取',this)">🆕首次</button>
+      <button class="filter-chip" onclick="flog('耗損',this)">🔧耗損</button>
+      <button class="filter-chip" onclick="flog('遺失',this)">🗑️遺失</button>
       <button class="filter-chip worker-hide" onclick="flog('進貨',this)">進貨</button>
       <button class="filter-chip worker-hide" onclick="flog('調整',this)">調整</button>
     </div>
@@ -447,7 +456,7 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
 
 
   <div id="pg-serial" class="page">
-    <p style="font-size:11px;color:var(--sub);margin-bottom:11px;">有填寫序號的工具持有記錄</p>
+    <p style="font-size:11px;color:var(--sub);margin-bottom:11px;">有填寫序號的工具更換記錄</p>
     <div id="serial-list"></div>
   </div>
 
@@ -538,8 +547,8 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     <button class="nav-btn active" id="nav-take" onclick="navTo('take',this)"><i class="ti ti-package"></i>領取</button>
     <button class="nav-btn" id="nav-log" onclick="navTo('log',this)"><i class="ti ti-list-details"></i>記錄</button>
     <button class="nav-btn" id="nav-equip" onclick="navTo('equip',this)"><i class="ti ti-key"></i>器具</button>
-    <button class="nav-btn" id="nav-repair" onclick="navTo('repair',this)"><i class="ti ti-tool"></i>報修</button>
-    <button class="nav-btn" id="nav-serial" onclick="navTo('serial',this)" style="display:none;"><i class="ti ti-qrcode"></i>序號</button>
+    <button class="nav-btn" id="nav-repair" onclick="navTo('repair',this)" style="display:none;"><i class="ti ti-tool"></i>報修</button>
+    <button class="nav-btn" id="nav-serial" onclick="navTo('serial',this)" style="display:none;"><i class="ti ti-replace"></i>更換記錄</button>
     <button class="nav-btn" id="nav-admin" onclick="navTo('admin',this)" style="display:none;"><i class="ti ti-settings"></i>後台</button>
   </div>
 </div>
@@ -580,6 +589,15 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       <div class="avatar" id="mod-av" style="width:36px;height:36px;font-size:13px;"></div>
       <div><div class="auto-label">身份自動帶入</div><div class="auto-name" id="mod-who"></div></div>
     </div>
+    <!-- 領取原因（只在「領取」動作時顯示） -->
+    <div id="take-reason-wrap" style="display:none;margin-bottom:14px;">
+      <div class="field-lbl" style="margin-bottom:7px;">領取原因</div>
+      <div class="take-reason-row">
+        <button class="take-reason-btn sel-first" id="reason-first" onclick="setReason('首次領取')">🆕<br>首次領取</button>
+        <button class="take-reason-btn" id="reason-wear" onclick="setReason('耗損')">🔧<br>耗損補領</button>
+        <button class="take-reason-btn" id="reason-loss" onclick="setReason('遺失')">🗑️<br>遺失補領</button>
+      </div>
+    </div>
     <div class="field-lbl" id="qty-lbl">領取數量</div>
     <div style="display:flex;align-items:center;border:1px solid var(--border);border-radius:13px;overflow:hidden;margin-bottom:14px;width:100%;">
       <button onclick="adjQ(-1)" style="width:56px;height:56px;border:none;background:var(--bg);font-size:28px;font-weight:300;color:var(--text);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;">−</button>
@@ -587,7 +605,7 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       <button onclick="adjQ(1)" style="width:56px;height:56px;border:none;background:var(--bg);font-size:28px;font-weight:300;color:var(--text);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;">＋</button>
     </div>
     <div class="serial-wrap">
-      <div class="serial-label"><i class="ti ti-qrcode" style="font-size:13px;"></i> 序號（選填，有序號的工具請填寫）</div>
+      <div class="serial-label"><i class="ti ti-replace" style="font-size:13px;"></i> 更換記錄序號（選填，有序號的工具請填寫）</div>
       <input class="serial-input" id="serial-input" placeholder="輸入工具序號，例：SN-001">
     </div>
     <div class="note-wrap">
@@ -689,6 +707,30 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     </div>
     <button class="equip-submit-btn" onclick="adminDirectBorrow()"><i class="ti ti-check"></i> 確認借出</button>
     <button class="equip-cancel-btn" onclick="closeEquipOverlay()">取消</button>
+  </div>
+</div>
+
+<!-- 特殊器具：歸還地點 overlay -->
+<div class="equip-overlay" id="equip-return-overlay">
+  <div class="equip-sheet">
+    <div class="equip-sheet-title" id="equip-return-title">登記歸還</div>
+    <div class="equip-sheet-sub" id="equip-return-sub">請確認器具目前放置的倉庫位置</div>
+    <div class="equip-field">
+      <label>歸還地點（器具目前放在哪裡）</label>
+      <select class="equip-select" id="equip-return-loc">
+        <option value="台南">台南倉庫</option>
+        <option value="屏東">屏東倉庫</option>
+        <option value="其他">其他</option>
+      </select>
+    </div>
+    <div class="equip-field">
+      <label>備註（選填）</label>
+      <input class="equip-input" id="equip-return-note" placeholder="例：放置於倉庫 B 區…">
+    </div>
+    <button class="equip-btn-in" style="width:100%;padding:14px;font-size:15px;border-radius:13px;margin-top:4px;" onclick="executeReturn()">
+      <i class="ti ti-corner-down-left"></i> 確認歸還
+    </button>
+    <button class="equip-cancel-btn" onclick="closeReturnOverlay()">取消</button>
   </div>
 </div>
 
@@ -1421,6 +1463,7 @@ function enterMainApp(){
   document.getElementById("car-row").style.display=curUser.role==="admin"?"none":"flex";
   document.getElementById("nav-serial").style.display=(curUser.role==="admin"||curUser.role==="senior")?"flex":"none";
   document.getElementById("nav-admin").style.display=curUser.role==="admin"?"flex":"none";
+  document.getElementById("nav-repair").style.display=curUser.role==="admin"?"flex":"none";
   // 作業員隱藏進貨/調整篩選按鈕
   document.querySelectorAll(".worker-hide").forEach(function(el){
     el.style.display=curUser.role==="worker"?"none":"inline-block";
@@ -1786,6 +1829,19 @@ function executeDel(){
   alert("已刪除「"+part+"」");
 }
 
+var curReason = "首次領取"; // 領取原因：首次領取 / 耗損 / 遺失
+
+function setReason(r){
+  curReason = r;
+  var map = { "首次領取":"reason-first","耗損":"reason-wear","遺失":"reason-loss" };
+  var cls = { "首次領取":"sel-first","耗損":"sel-wear","遺失":"sel-loss" };
+  ["reason-first","reason-wear","reason-loss"].forEach(function(id){
+    var el = document.getElementById(id);
+    if(!el) return;
+    el.className = "take-reason-btn" + (id === map[r] ? " " + cls[r] : "");
+  });
+}
+
 function openModal(action,partName,fromAdmin){
   curAction=action;
   if(partName)curPart=partName;
@@ -1802,6 +1858,15 @@ function openModal(action,partName,fromAdmin){
   document.getElementById("qty-show").value=mQty;
   document.getElementById("serial-input").value="";
   document.getElementById("f-note").value="";
+  // 領取原因：只在領取時顯示，預設為「首次領取」
+  var reasonWrap = document.getElementById("take-reason-wrap");
+  if(action === "take"){
+    reasonWrap.style.display = "block";
+    curReason = "首次領取";
+    setReason("首次領取");
+  } else {
+    reasonWrap.style.display = "none";
+  }
   var h2s={take:"登記領取",in:"進貨登記",adj:"調整庫存"};
   document.getElementById("mod-h2").textContent=h2s[action];
   var cs={take:{bg:"#185FA5",txt:"確認領取"},in:{bg:"#3B6D11",txt:"確認進貨"},adj:{bg:"#854F0B",txt:"確認調整"}};
@@ -1831,7 +1896,13 @@ async function confirmAction(){
     if(mQty<1){alert("請輸入領取數量！");return;}
     if(mQty>(stocks[loc][key]||0)){alert("數量超過庫存！");return;}
     stocks[loc][key]=(stocks[loc][key]||0)-mQty;
-    type="領取";icon="✅";title="領取完成！";detail=curUser.name+" 領取 "+curPart+" × "+mQty+" 個";
+    type=curReason; // 首次領取 / 耗損 / 遺失
+    var reasonIcon = {首次領取:"🆕",耗損:"🔧",遺失:"🗑️"};
+    icon = reasonIcon[type] || "🆕";
+    title = (type==="領取"?"領取完成！":type+"登記完成！");
+    detail = curUser.name+" "+type+" "+curPart+" × "+mQty+" 個";
+    // 把原因帶入備註（若備註空白）
+    if(!note && type !== "領取") note = type;
     if(serialVal){
       serialRecords.push({part:curPart,box:curBox.name,serial:serialVal,holder:curUser.name,email:curUser.email,loc:loc,time:t});
     }
@@ -1899,9 +1970,10 @@ function renderLogs(){
   }
   var fl=fVal==="all"?allLogs:allLogs.filter(function(l){return l.type===fVal;});
   document.getElementById("sl-tot").textContent=allLogs.length;
-  document.getElementById("sl-tak").textContent=allLogs.filter(function(l){return l.type==="領取";}).length;
+  var takeTypes = ["首次領取","耗損","遺失"];
+  document.getElementById("sl-tak").textContent=allLogs.filter(function(l){return takeTypes.indexOf(l.type)>-1;}).length;
   document.getElementById("sl-in").textContent=allLogs.filter(function(l){return l.type==="進貨";}).length;
-  var tc={領取:"badge-take",進貨:"badge-in",調整:"badge-adj",新增工具:"badge-ok",刪除工具:"badge-low"};
+  var tc={首次領取:"badge-ok",耗損:"badge-adj",遺失:"badge-low",進貨:"badge-in",調整:"badge-adj",新增工具:"badge-ok",刪除工具:"badge-low"};
   var container=document.getElementById("log-list");
   container.innerHTML="";
   if(!fl.length){
@@ -2102,7 +2174,7 @@ function loadEquipFromStorage(){
   // 確保每個器具都有基本結構
   SPECIAL_EQUIP.forEach(function(e){
     if(!equipStatus[e.id]){
-      equipStatus[e.id] = { status:"in", borrower:"", borrowerEmail:"", loc:"", borrowTime:"", returnDue:"", note:"", history:[] };
+      equipStatus[e.id] = { status:"in", borrower:"", borrowerEmail:"", loc:"", borrowTime:"", returnDue:"", note:"", currentLoc:"", history:[] };
     }
   });
 }
@@ -2128,6 +2200,10 @@ async function syncEquipFromSheets(){
       st.borrowTime= row.borrowTime|| "";
       st.returnDue = row.returnDue || "";
       st.note      = row.note      || "";
+      // 在庫時，從 Sheets 的備註欄讀取目前位置
+      if(st.status === "in" && row.currentLoc){
+        st.currentLoc = row.currentLoc;
+      }
       equipStatus[id] = st;
     });
     // 同時從 Sheets 同步各器具的歷史記錄
@@ -2262,7 +2338,8 @@ function renderEquip(){
     } else {
       var infoDiv = document.createElement("div");
       infoDiv.style.cssText = "font-size:11px;color:var(--sub);margin-bottom:10px;";
-      infoDiv.textContent = eq.desc + "　目前在庫";
+      var locTxt = st.currentLoc ? "目前位置：" + st.currentLoc : "目前在庫";
+      infoDiv.textContent = eq.desc + "　" + locTxt;
       card.appendChild(infoDiv);
     }
 
@@ -2376,6 +2453,9 @@ function openAdminBorrow(equipId, equipName){
 function closeEquipOverlay(){
   document.getElementById("equip-borrow-overlay").classList.remove("show");
   document.getElementById("equip-admin-borrow-overlay").classList.remove("show");
+}
+function closeReturnOverlay(){
+  document.getElementById("equip-return-overlay").classList.remove("show");
 }
 
 // 送出借出申請（一般人）
@@ -2512,29 +2592,65 @@ function rejectEquip(req){
   alert("已拒絕申請。");
 }
 
-// 歸還確認
+// 歸還：開啟選擇地點 overlay
 function confirmReturnEquip(equipId){
+  curEquipId = equipId;
   var eq = SPECIAL_EQUIP.find(function(e){ return e.id === equipId; });
   var st = equipStatus[equipId];
-  var msg = "確認「" + (eq?eq.name:"") + "」已歸還？\n借出人：" + (st?st.borrower:"");
-  if(!confirm(msg)) return;
+  document.getElementById("equip-return-title").textContent = "歸還：" + (eq ? eq.name : "");
+  document.getElementById("equip-return-sub").textContent =
+    "借出人：" + (st ? st.borrower : "") + "　借出地點：" + (st ? st.loc : "");
+  // 預設選借出地點
+  var locSel = document.getElementById("equip-return-loc");
+  locSel.value = (st && st.loc) ? st.loc : "台南";
+  document.getElementById("equip-return-note").value = "";
+  document.getElementById("equip-return-overlay").classList.add("show");
+}
+
+// 執行歸還（從 overlay 確認後）
+function executeReturn(){
+  var returnLoc = document.getElementById("equip-return-loc").value;
+  var returnNote = document.getElementById("equip-return-note").value.trim();
+  var eq = SPECIAL_EQUIP.find(function(e){ return e.id === curEquipId; });
+  var st = equipStatus[curEquipId];
+  if(!st) return;
   var t = nowStr();
-  st.history = st.history || [];
-  st.history.unshift({ action:"歸還", who:curUser?curUser.name:"", loc:st.loc, time:t });
-  if(st.history.length > 10) st.history = st.history.slice(0,10);
   var oldBorrower = st.borrower;
-  var oldLoc = st.loc;
+  var borrowLoc = st.loc;
+
+  st.history = st.history || [];
+  st.history.unshift({ action:"歸還", who:curUser?curUser.name:"", loc:returnLoc, time:t });
+  if(st.history.length > 10) st.history = st.history.slice(0,10);
+
   st.status = "in";
   st.borrower = "";
   st.borrowerEmail = "";
-  st.loc = "";
   st.borrowTime = "";
   st.returnDue = "";
   st.note = "";
+  // 記錄目前所在地點
+  st.currentLoc = returnLoc;
+
   saveEquipToStorage();
+  closeReturnOverlay();
   renderEquip();
-  sendToSheets({type:"器具歸還",box:eq?eq.name:"",equipId:equipId,equipName:eq?eq.name:"",part:oldBorrower,qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"已歸還",time:t,loc:oldLoc,serial:""});
-  alert("✅ 已登記歸還！");
+
+  sendToSheets({
+    type:"器具歸還",
+    box: eq ? eq.name : "",
+    equipId: curEquipId,
+    equipName: eq ? eq.name : "",
+    part: oldBorrower,
+    qty: 0,
+    name: curUser ? curUser.name : "",
+    email: curUser ? curUser.email : "",
+    note: "歸還至" + returnLoc + (returnNote ? "，" + returnNote : ""),
+    time: t,
+    loc: returnLoc,   // 歸還地點（目前存放位置）
+    serial: "",
+    currentLoc: returnLoc
+  });
+  showToast("✅ 已登記歸還，目前位置：" + returnLoc);
 }
 
 // ─────────────────────────────────────────────
