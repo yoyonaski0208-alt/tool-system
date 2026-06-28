@@ -613,9 +613,14 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
 
   <!-- ── 車輛管理頁 ── -->
   <div id="pg-vehicle" class="page">
-    <!-- 管理員篩選 -->
-    <!-- 管理員篩選：地區（指派狀態已移到上方大按鈕）-->
+    <!-- 管理員篩選：搜尋 + 地區 -->
     <div id="veh-admin-tabs" style="display:none;margin-bottom:6px;">
+      <div style="position:relative;margin-bottom:8px;">
+        <i class="ti ti-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px;color:var(--sub);pointer-events:none;"></i>
+        <input id="veh-search-input" class="fuel-input" placeholder="搜尋車牌…" maxlength="15"
+          style="padding-left:36px;font-size:14px;border-radius:11px;height:44px;"
+          oninput="renderVehiclePage()" autocomplete="off">
+      </div>
       <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;">
         <button class="filter-chip on" id="vfil-loc-all" onclick="filterVeh('loc-all',this,'loc')">全部</button>
         <button class="filter-chip" id="vfil-loc-tn" onclick="filterVeh('loc-台南',this,'loc')">台南</button>
@@ -747,7 +752,7 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     <button class="nav-btn" id="nav-equip" onclick="navTo('equip',this)"><i class="ti ti-key"></i>器具</button>
     <button class="nav-btn" id="nav-vehicle" onclick="navTo('vehicle',this)"><i class="ti ti-car"></i>車輛</button>
     <button class="nav-btn" id="nav-repair" onclick="navTo('repair',this)" style="display:none;"><i class="ti ti-tool"></i>報修</button>
-    <button class="nav-btn" id="nav-serial" onclick="navTo('serial',this)" style="display:none;"><i class="ti ti-replace"></i>更換記錄</button>
+    <button class="nav-btn" id="nav-serial" onclick="openTboxOverview()" style="display:none;"><i class="ti ti-box"></i>工具箱</button>
     <button class="nav-btn" id="nav-admin" onclick="navTo('admin',this)" style="display:none;"><i class="ti ti-settings"></i>後台</button>
   </div>
 </div>
@@ -1911,7 +1916,7 @@ function enterMainApp(){
     curLoc=curUser.location;
   }
   document.getElementById("car-row").style.display=curUser.role==="admin"?"none":"flex";
-  document.getElementById("nav-serial").style.display=(curUser.role==="admin"||curUser.role==="senior")?"flex":"none";
+  document.getElementById("nav-serial").style.display=curUser.role==="admin"?"flex":"none";
   document.getElementById("nav-admin").style.display=curUser.role==="admin"?"flex":"none";
   // 報修功能暫時關閉，管理員和操作員都不顯示
   document.getElementById("nav-repair").style.display="none";
@@ -3495,13 +3500,17 @@ function renderVehiclePage(){
   // 決定要顯示哪些車
   var toShow = VEHICLES.filter(function(v){
     if(!isAdmin) return v.plate === myPlate;
+    // 搜尋車牌關鍵字
+    var searchEl = document.getElementById("veh-search-input");
+    var keyword = searchEl ? searchEl.value.trim().toUpperCase() : "";
+    if(keyword && v.plate.indexOf(keyword) === -1) return false;
     var assign = vehAssignments[v.plate] || {};
     var hasDriver = !!(assign.driver);
     // 待售出篩選
     if(vehFilterStatus === "forsale") return v.status === "forsale";
-    // 已退役不顯示（除非專門找）
+    // 已退役不顯示
     if(v.status === "retired") return false;
-    // 已/未指派篩選（排除待售出）
+    // 已/未指派篩選
     if(vehFilterStatus === "assigned") return hasDriver && v.status !== "forsale";
     if(vehFilterStatus === "unassigned") return !hasDriver && v.status !== "forsale";
     // 地區篩選
