@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260628-01">
+<meta name="app-version" content="20260628-02">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -337,6 +337,31 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
 .inspect-record-date{font-size:14px;font-weight:700;color:var(--text);}
 .inspect-record-km{font-size:12px;color:var(--sub);margin-top:2px;}
 .inspect-record-badge{font-size:10px;padding:3px 8px;border-radius:20px;background:var(--blue-light);color:var(--blue);font-weight:600;}
+/* 車險 / 稅費共用卡片 */
+.ins-card{border:1.5px solid var(--border);border-radius:13px;padding:13px;margin-bottom:9px;}
+.ins-card.ins-active{border-color:var(--green);}
+.ins-card.ins-warn{border-color:var(--amber);}
+.ins-card.ins-danger{border-color:var(--red);}
+.ins-card-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;}
+.ins-type{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;}
+.ins-type-compulsory{background:#E6F1FB;color:#185FA5;}
+.ins-type-voluntary{background:#EAF3DE;color:#3B6D11;}
+.ins-type-plate{background:#F3E9FB;color:#6B3EA6;}
+.ins-type-fuel{background:#FEF3CD;color:#854F0B;}
+.ins-days{font-size:11px;font-weight:600;}
+.ins-days.ok{color:var(--green);}
+.ins-days.warn{color:var(--amber);}
+.ins-days.danger{color:var(--red);}
+.ins-company{font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.ins-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--sub);margin-top:3px;}
+.ins-row b{color:var(--text);}
+.ins-paid{display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;}
+.ins-paid-yes{background:var(--green-light);color:var(--green);}
+.ins-paid-no{background:var(--red-light);color:var(--red);}
+/* 車險稅費 overlay tab */
+.ins-tabs{display:flex;gap:7px;margin-bottom:14px;}
+.ins-tab{flex:1;padding:9px;border:1.5px solid var(--border);border-radius:10px;background:none;font-size:12px;font-family:inherit;cursor:pointer;color:var(--sub);text-align:center;font-weight:500;}
+.ins-tab.active{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:700;}
 .veh-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
 .veh-stat{background:var(--bg);border-radius:12px;padding:11px 12px;}
 .veh-stat-lbl{font-size:10px;color:var(--sub);margin-bottom:3px;}
@@ -970,6 +995,100 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     <div style="display:flex;flex-direction:column;gap:8px;margin-top:18px;">
       <button class="btn-primary" id="part-form-confirm-btn" onclick="confirmPartForm()">確認新增</button>
       <button class="btn-safe" onclick="closePartForm()">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 車險資料 + 稅費記錄 overlay -->
+<div class="equip-overlay" id="ins-overlay">
+  <div class="equip-sheet" style="max-height:90vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div>
+        <div class="equip-sheet-title" style="margin-bottom:0;" id="ins-overlay-title">車險 / 稅費</div>
+        <div style="font-size:12px;color:var(--sub);margin-top:3px;" id="ins-overlay-plate"></div>
+      </div>
+      <button onclick="closeInsOverlay()" style="background:none;border:none;font-size:22px;color:var(--sub);cursor:pointer;">✕</button>
+    </div>
+    <!-- Tabs -->
+    <div class="ins-tabs">
+      <button class="ins-tab active" id="ins-tab-compulsory" onclick="switchInsTab('compulsory',this)">強制險</button>
+      <button class="ins-tab" id="ins-tab-voluntary" onclick="switchInsTab('voluntary',this)">任意險</button>
+      <button class="ins-tab" id="ins-tab-tax" onclick="switchInsTab('tax',this)">稅費</button>
+    </div>
+
+    <!-- 強制險 panel -->
+    <div id="ins-panel-compulsory">
+      <div class="veh-section-title">目前強制險</div>
+      <div id="ins-compulsory-current"></div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+        <div class="veh-section-title">更新強制險資料</div>
+        <div class="equip-field"><label class="fuel-input-lbl">保險公司</label>
+          <input class="fuel-input" id="ins-c-company" placeholder="例：新光產險"></div>
+        <div class="equip-field"><label class="fuel-input-lbl">投保日期</label>
+          <input class="fuel-input" id="ins-c-start" type="date"></div>
+        <div class="equip-field"><label class="fuel-input-lbl">到期日期</label>
+          <input class="fuel-input" id="ins-c-end" type="date"></div>
+        <div class="equip-field"><label class="fuel-input-lbl">保費金額（元）</label>
+          <input class="fuel-input" id="ins-c-fee" type="number" inputmode="numeric" placeholder="例：3500"></div>
+        <button class="equip-submit-btn" onclick="saveInsurance('compulsory')"><i class="ti ti-check"></i> 儲存強制險</button>
+      </div>
+    </div>
+
+    <!-- 任意險 panel -->
+    <div id="ins-panel-voluntary" style="display:none;">
+      <div class="veh-section-title">目前任意險</div>
+      <div id="ins-voluntary-current"></div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+        <div class="veh-section-title">更新任意險資料</div>
+        <div class="equip-field"><label class="fuel-input-lbl">保險公司</label>
+          <input class="fuel-input" id="ins-v-company" placeholder="例：富邦產險"></div>
+        <div class="equip-field"><label class="fuel-input-lbl">投保日期</label>
+          <input class="fuel-input" id="ins-v-start" type="date"></div>
+        <div class="equip-field"><label class="fuel-input-lbl">到期日期</label>
+          <input class="fuel-input" id="ins-v-end" type="date"></div>
+        <div class="equip-field"><label class="fuel-input-lbl">保費金額（元）</label>
+          <input class="fuel-input" id="ins-v-fee" type="number" inputmode="numeric" placeholder="例：12000"></div>
+        <div class="equip-field"><label class="fuel-input-lbl">保障範圍備註（選填）</label>
+          <input class="equip-input" id="ins-v-note" placeholder="例：乘客險、第三責任險…"></div>
+        <button class="equip-submit-btn" onclick="saveInsurance('voluntary')"><i class="ti ti-check"></i> 儲存任意險</button>
+      </div>
+    </div>
+
+    <!-- 稅費 panel -->
+    <div id="ins-panel-tax" style="display:none;">
+      <div class="veh-section-title">牌照稅（每年 3-4 月）</div>
+      <div id="ins-tax-plate-current"></div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);margin-bottom:14px;">
+        <div style="font-size:11px;color:var(--sub);margin-bottom:7px;font-weight:600;">更新牌照稅</div>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <div style="flex:1;"><label class="fuel-input-lbl">繳納年份</label>
+            <input class="fuel-input" id="tax-plate-year" type="number" placeholder="例：2026" style="font-size:14px;"></div>
+          <div style="flex:1;"><label class="fuel-input-lbl">金額（元）</label>
+            <input class="fuel-input" id="tax-plate-fee" type="number" inputmode="numeric" placeholder="例：7120" style="font-size:14px;"></div>
+        </div>
+        <div style="display:flex;gap:7px;margin-bottom:8px;">
+          <button class="veh-dest-btn active" id="tax-plate-paid-yes" onclick="setTaxPaid('plate','yes')">✅ 已繳</button>
+          <button class="veh-dest-btn" id="tax-plate-paid-no" onclick="setTaxPaid('plate','no')">❌ 未繳</button>
+        </div>
+        <button class="equip-submit-btn" style="padding:11px;" onclick="saveTax('plate')"><i class="ti ti-check"></i> 儲存牌照稅</button>
+      </div>
+
+      <div class="veh-section-title">燃料稅（每年 7 月）</div>
+      <div id="ins-tax-fuel-current"></div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);">
+        <div style="font-size:11px;color:var(--sub);margin-bottom:7px;font-weight:600;">更新燃料稅</div>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <div style="flex:1;"><label class="fuel-input-lbl">繳納年份</label>
+            <input class="fuel-input" id="tax-fuel-year" type="number" placeholder="例：2026" style="font-size:14px;"></div>
+          <div style="flex:1;"><label class="fuel-input-lbl">金額（元）</label>
+            <input class="fuel-input" id="tax-fuel-fee" type="number" inputmode="numeric" placeholder="例：4800" style="font-size:14px;"></div>
+        </div>
+        <div style="display:flex;gap:7px;margin-bottom:8px;">
+          <button class="veh-dest-btn active" id="tax-fuel-paid-yes" onclick="setTaxPaid('fuel','yes')">✅ 已繳</button>
+          <button class="veh-dest-btn" id="tax-fuel-paid-no" onclick="setTaxPaid('fuel','no')">❌ 未繳</button>
+        </div>
+        <button class="equip-submit-btn" style="padding:11px;" onclick="saveTax('fuel')"><i class="ti ti-check"></i> 儲存燃料稅</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1897,6 +2016,7 @@ function enterMainApp(){
   loadEquipFromStorage();
   loadVehicleData();
   loadInspectRecords();
+  loadInsData();
   // 報修設備下拉選單在 BOXES 載入後才能建立
   populateRepairDevices();
   setupHeaderInfo();
@@ -3777,10 +3897,195 @@ function openFuelForm(preselect){
 function openVehFuelLog(){ openFuelForm(curVehPlate); }
 function openVehMaintLog(){ showToast("保養記錄功能開發中"); }
 function openVehBigCheck(){ showToast("大整理清單功能開發中"); }
-function openVehTax(){ showToast("稅費記錄功能開發中"); }
+function openVehTax(){ openInsOverlay(curVehPlate, 'tax'); }
+function openVehInsurance(){ openInsOverlay(curVehPlate, 'compulsory'); }
 
-function openVehInsurance(){
-  openInspectOverlay(curVehPlate);
+// ─── 車險 + 稅費 ───
+// insData[plate] = {
+//   compulsory: {company, start, end, fee, updatedAt},
+//   voluntary:  {company, start, end, fee, note, updatedAt},
+//   taxPlate:   {year, fee, paid, updatedAt},
+//   taxFuel:    {year, fee, paid, updatedAt}
+// }
+var insData = {};
+var taxPlatePaid = "yes";
+var taxFuelPaid  = "yes";
+var curInsTab    = "compulsory";
+
+function loadInsData(){
+  try{
+    var s = localStorage.getItem("ins_data");
+    if(s) insData = JSON.parse(s);
+  }catch(e){ insData = {}; }
+}
+function saveInsData(){
+  try{ localStorage.setItem("ins_data", JSON.stringify(insData)); }catch(e){}
+}
+
+function openInsOverlay(plate, tab){
+  if(!plate) return;
+  curVehPlate = plate;
+  var v = VEHICLES.find(function(x){ return x.plate===plate; });
+  document.getElementById("ins-overlay-title").textContent = "車險 / 稅費";
+  document.getElementById("ins-overlay-plate").textContent = plate + (v?" ‧ "+v.company:"");
+
+  var today = new Date().toISOString().slice(0,10);
+  var thisYear = new Date().getFullYear();
+  var d = insData[plate] || {};
+
+  // 強制險預填
+  document.getElementById("ins-c-company").value = (d.compulsory||{}).company || (v?v.insurance:"") || "";
+  document.getElementById("ins-c-start").value   = ((d.compulsory||{}).start||"").replace(/\//g,"-");
+  document.getElementById("ins-c-end").value      = ((d.compulsory||{}).end||(v?v.insuranceExp:"")||"").replace(/\//g,"-");
+  document.getElementById("ins-c-fee").value      = (d.compulsory||{}).fee || "";
+
+  // 任意險預填
+  document.getElementById("ins-v-company").value  = (d.voluntary||{}).company || "";
+  document.getElementById("ins-v-start").value    = ((d.voluntary||{}).start||"").replace(/\//g,"-");
+  document.getElementById("ins-v-end").value      = ((d.voluntary||{}).end||"").replace(/\//g,"-");
+  document.getElementById("ins-v-fee").value      = (d.voluntary||{}).fee || "";
+  document.getElementById("ins-v-note").value     = (d.voluntary||{}).note || "";
+
+  // 牌照稅預填
+  document.getElementById("tax-plate-year").value = (d.taxPlate||{}).year || thisYear;
+  document.getElementById("tax-plate-fee").value  = (d.taxPlate||{}).fee || (v&&v.plateTax?v.plateTax.amount:"") || "";
+  taxPlatePaid = (d.taxPlate||{}).paid || "yes";
+  setTaxPaid("plate", taxPlatePaid);
+
+  // 燃料稅預填
+  document.getElementById("tax-fuel-year").value  = (d.taxFuel||{}).year || thisYear;
+  document.getElementById("tax-fuel-fee").value   = (d.taxFuel||{}).fee || (v&&v.fuelTax?v.fuelTax.amount:"") || "";
+  taxFuelPaid = (d.taxFuel||{}).paid || "yes";
+  setTaxPaid("fuel", taxFuelPaid);
+
+  // 渲染目前資料
+  renderInsCurrent(plate);
+
+  switchInsTab(tab, document.getElementById("ins-tab-"+tab));
+  document.getElementById("ins-overlay").classList.add("show");
+}
+
+function switchInsTab(tab, el){
+  curInsTab = tab;
+  ["compulsory","voluntary","tax"].forEach(function(t){
+    document.getElementById("ins-tab-"+t).classList.remove("active");
+    document.getElementById("ins-panel-"+t).style.display = "none";
+  });
+  el.classList.add("active");
+  document.getElementById("ins-panel-"+tab).style.display = "block";
+}
+
+function renderInsCurrent(plate){
+  var d = insData[plate] || {};
+
+  // 強制險
+  var cc = document.getElementById("ins-compulsory-current");
+  cc.innerHTML = d.compulsory ? renderInsCard(d.compulsory, "compulsory") : '<div style="font-size:13px;color:var(--sub);padding:6px 0;">尚未設定強制險</div>';
+
+  // 任意險
+  var vc = document.getElementById("ins-voluntary-current");
+  vc.innerHTML = d.voluntary ? renderInsCard(d.voluntary, "voluntary") : '<div style="font-size:13px;color:var(--sub);padding:6px 0;">尚未設定任意險</div>';
+
+  // 牌照稅
+  var ptc = document.getElementById("ins-tax-plate-current");
+  ptc.innerHTML = d.taxPlate ? renderTaxCard(d.taxPlate, "plate") : '<div style="font-size:13px;color:var(--sub);padding:6px 0 10px;">尚未設定</div>';
+
+  // 燃料稅
+  var ftc = document.getElementById("ins-tax-fuel-current");
+  ftc.innerHTML = d.taxFuel ? renderTaxCard(d.taxFuel, "fuel") : '<div style="font-size:13px;color:var(--sub);padding:6px 0 10px;">尚未設定</div>';
+}
+
+function renderInsCard(ins, type){
+  var typeLabel = type==="compulsory" ? "強制險" : "任意險";
+  var typeCls   = type==="compulsory" ? "ins-type-compulsory" : "ins-type-voluntary";
+  var days = ins.end ? daysUntil(ins.end) : null;
+  var daysCls = days===null?"ok":days<=0?"danger":days<=60?"warn":"ok";
+  var daysText = days===null?"" : days<=0?"已到期！":"還有"+days+"天";
+  var cardCls = days===null||days>60?"ins-active":days<=0?"ins-danger":"ins-warn";
+  return '<div class="ins-card '+cardCls+'">'
+    + '<div class="ins-card-hd"><span class="ins-type '+typeCls+'">'+typeLabel+'</span>'
+    + (daysText?'<span class="ins-days '+daysCls+'">'+daysText+'</span>':'')+'</div>'
+    + '<div class="ins-company">'+(ins.company||"未填寫")+'</div>'
+    + '<div class="ins-row"><span>投保：'+(ins.start||"—")+'</span><span>到期：<b>'+(ins.end||"—")+'</b></span></div>'
+    + '<div class="ins-row"><span>保費：<b>'+(ins.fee?Number(ins.fee).toLocaleString()+" 元":"未填")+'</b></span></div>'
+    + (ins.note?'<div class="ins-row"><span>'+ins.note+'</span></div>':'')
+    + '</div>';
+}
+
+function renderTaxCard(tax, type){
+  var paid = tax.paid === "yes";
+  return '<div class="ins-card '+(paid?"ins-active":"ins-danger")+'" style="margin-bottom:8px;">'
+    + '<div class="ins-card-hd"><span style="font-size:12px;font-weight:600;color:var(--text);">'+(tax.year||"")+'年</span>'
+    + '<span class="ins-paid '+(paid?"ins-paid-yes":"ins-paid-no")+'">'+(paid?"已繳":"未繳")+'</span></div>'
+    + '<div style="font-size:14px;font-weight:700;color:var(--text);">'+(tax.fee?Number(tax.fee).toLocaleString()+" 元":"金額未填")+'</div>'
+    + '</div>';
+}
+
+function setTaxPaid(type, val){
+  if(type==="plate"){ taxPlatePaid=val; }
+  else { taxFuelPaid=val; }
+  var yesId = "tax-"+type+"-paid-yes";
+  var noId  = "tax-"+type+"-paid-no";
+  document.getElementById(yesId).className = "veh-dest-btn"+(val==="yes"?" active":"");
+  document.getElementById(noId).className  = "veh-dest-btn"+(val==="no" ?" active":"");
+}
+
+function saveInsurance(type){
+  var plate = curVehPlate; if(!plate) return;
+  if(!insData[plate]) insData[plate] = {};
+  var t = nowStr();
+  var rec;
+  if(type==="compulsory"){
+    var end = document.getElementById("ins-c-end").value;
+    rec = {
+      company: document.getElementById("ins-c-company").value.trim(),
+      start:   document.getElementById("ins-c-start").value.replace(/-/g,"/"),
+      end:     end.replace(/-/g,"/"),
+      fee:     parseInt(document.getElementById("ins-c-fee").value)||0,
+      updatedAt: t
+    };
+    insData[plate].compulsory = rec;
+    // 同步更新車輛的車險到期日
+    var v = VEHICLES.find(function(x){ return x.plate===plate; });
+    if(v && end){ v.insuranceExp = end.replace(/-/g,"/"); v.insurance = rec.company; try{ localStorage.setItem("vehicles_override", JSON.stringify(VEHICLES)); }catch(e){} }
+  } else {
+    rec = {
+      company: document.getElementById("ins-v-company").value.trim(),
+      start:   document.getElementById("ins-v-start").value.replace(/-/g,"/"),
+      end:     document.getElementById("ins-v-end").value.replace(/-/g,"/"),
+      fee:     parseInt(document.getElementById("ins-v-fee").value)||0,
+      note:    document.getElementById("ins-v-note").value.trim(),
+      updatedAt: t
+    };
+    insData[plate].voluntary = rec;
+  }
+  saveInsData();
+  renderInsCurrent(plate);
+  sendToSheets({type:"車險更新",box:plate,part:type==="compulsory"?"強制險":"任意險",
+    qty:rec.fee,name:curUser?curUser.name:"",email:curUser?curUser.email:"",
+    note:(rec.company||"")+"，"+rec.start+"~"+rec.end,time:t,loc:"",serial:""});
+  showToast("✅ "+(type==="compulsory"?"強制險":"任意險")+"已儲存");
+}
+
+function saveTax(type){
+  var plate = curVehPlate; if(!plate) return;
+  if(!insData[plate]) insData[plate] = {};
+  var t = nowStr();
+  var year = parseInt(document.getElementById("tax-"+type+"-year").value)||new Date().getFullYear();
+  var fee  = parseInt(document.getElementById("tax-"+type+"-fee").value)||0;
+  var paid = type==="plate" ? taxPlatePaid : taxFuelPaid;
+  var key  = type==="plate" ? "taxPlate" : "taxFuel";
+  insData[plate][key] = { year:year, fee:fee, paid:paid, updatedAt:t };
+  saveInsData();
+  renderInsCurrent(plate);
+  sendToSheets({type:"稅費更新",box:plate,part:type==="plate"?"牌照稅":"燃料稅",
+    qty:fee,name:curUser?curUser.name:"",email:curUser?curUser.email:"",
+    note:year+"年，"+(paid==="yes"?"已繳":"未繳"),time:t,loc:"",serial:""});
+  showToast("✅ "+(type==="plate"?"牌照稅":"燃料稅")+"已儲存");
+}
+
+function closeInsOverlay(){
+  document.getElementById("ins-overlay").classList.remove("show");
 }
 
 // 驗車紀錄
