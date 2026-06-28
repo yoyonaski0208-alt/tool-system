@@ -500,9 +500,19 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     </div>
   </div>
   <div class="location-bar" id="location-bar" style="display:none;">
-    <button class="loc-btn active" id="loc-all" onclick="setLoc(this)">全部</button>
-    <button class="loc-btn" id="loc-tainan" onclick="setLoc(this)">台南</button>
-    <button class="loc-btn" id="loc-pingtung" onclick="setLoc(this)">屏東</button>
+    <!-- 工具庫存地點模式（預設） -->
+    <div id="loc-bar-stock" style="display:flex;gap:0;width:100%;">
+      <button class="loc-btn active" id="loc-all" onclick="setLoc(this)">全部</button>
+      <button class="loc-btn" id="loc-tainan" onclick="setLoc(this)">台南</button>
+      <button class="loc-btn" id="loc-pingtung" onclick="setLoc(this)">屏東</button>
+    </div>
+    <!-- 車輛指派狀態模式 -->
+    <div id="loc-bar-vehicle" style="display:none;gap:0;width:100%;">
+      <button class="loc-btn active" id="vloc-all" onclick="setVehLocBar('all',this)">全部</button>
+      <button class="loc-btn" id="vloc-assigned" onclick="setVehLocBar('assigned',this)">已指派</button>
+      <button class="loc-btn" id="vloc-unassigned" onclick="setVehLocBar('unassigned',this)">未指派</button>
+      <button class="loc-btn" id="vloc-forsale" onclick="setVehLocBar('forsale',this)">待售出</button>
+    </div>
   </div>
 
   <div id="pg-take" class="page active">
@@ -604,15 +614,8 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
   <!-- ── 車輛管理頁 ── -->
   <div id="pg-vehicle" class="page">
     <!-- 管理員篩選 -->
+    <!-- 管理員篩選：地區（指派狀態已移到上方大按鈕）-->
     <div id="veh-admin-tabs" style="display:none;margin-bottom:6px;">
-      <!-- 第一排：指派狀態 -->
-      <div style="display:flex;gap:6px;margin-bottom:7px;overflow-x:auto;padding-bottom:2px;">
-        <button class="filter-chip on" id="vfil-all" onclick="filterVeh('all',this,'status')">全部</button>
-        <button class="filter-chip" id="vfil-assigned" onclick="filterVeh('assigned',this,'status')">已指派</button>
-        <button class="filter-chip" id="vfil-unassigned" onclick="filterVeh('unassigned',this,'status')">未指派</button>
-        <button class="filter-chip" id="vfil-forsale" onclick="filterVeh('forsale',this,'status')">待售出</button>
-      </div>
-      <!-- 第二排：地區 -->
       <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;">
         <button class="filter-chip on" id="vfil-loc-all" onclick="filterVeh('loc-all',this,'loc')">全部</button>
         <button class="filter-chip" id="vfil-loc-tn" onclick="filterVeh('loc-台南',this,'loc')">台南</button>
@@ -1952,6 +1955,17 @@ document.addEventListener("DOMContentLoaded",function(){
   document.getElementById("car-overlay-input").addEventListener("keydown",function(e){if(e.key==="Enter")confirmChangeCar();});
 });
 
+function setVehLocBar(f, el){
+  // 同步更新上方 bar 的 active 狀態
+  ["vloc-all","vloc-assigned","vloc-unassigned","vloc-forsale"].forEach(function(id){
+    var b = document.getElementById(id); if(b) b.classList.remove("active");
+  });
+  el.classList.add("active");
+  // 同步到 vehFilterStatus
+  vehFilterStatus = f;
+  renderVehiclePage();
+}
+
 function setLoc(el){
   if(!el)return;
   var txt=el.textContent;
@@ -1975,7 +1989,18 @@ function navTo(pg,el){
     renderEquip();
     syncEquipFromSheets();
   }
-  if(pg==="vehicle"){ renderVehiclePage(); }
+  if(pg==="vehicle"){
+    // 管理員：把上方 bar 換成指派狀態模式
+    if(curUser && curUser.role==="admin" && curUser.location==="全部"){
+      document.getElementById("loc-bar-stock").style.display="none";
+      document.getElementById("loc-bar-vehicle").style.display="flex";
+    }
+    renderVehiclePage();
+  } else {
+    // 離開車輛頁：恢復庫存地點模式
+    document.getElementById("loc-bar-stock").style.display="flex";
+    document.getElementById("loc-bar-vehicle").style.display="none";
+  }
 }
 function showMain(pg){pshow("s-main");navTo(pg,document.getElementById("nav-"+pg));}
 
@@ -3437,18 +3462,13 @@ function getVehAlerts(v){
 }
 
 function filterVeh(f, el, dim){
-  if(dim === "status"){
-    vehFilterStatus = f;
-    ["vfil-all","vfil-assigned","vfil-unassigned"].forEach(function(id){
-      var b = document.getElementById(id); if(b) b.classList.remove("on");
-    });
-  } else {
+  if(dim === "loc"){
     vehFilterLoc = f;
     ["vfil-loc-all","vfil-loc-tn","vfil-loc-pt"].forEach(function(id){
       var b = document.getElementById(id); if(b) b.classList.remove("on");
     });
+    el.classList.add("on");
   }
-  el.classList.add("on");
   renderVehiclePage();
 }
 
