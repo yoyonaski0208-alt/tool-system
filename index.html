@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260625-03">
+<meta name="app-version" content="20260628-01">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -330,6 +330,13 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
 .tbox-mini-loc{font-size:10px;color:var(--sub);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .tbox-mini.warn{border-color:var(--amber);}
 .tbox-mini.danger{border-color:var(--red);}
+/* 驗車紀錄 */
+.inspect-record{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border:1.5px solid var(--border);border-radius:12px;margin-bottom:7px;}
+.inspect-record.latest{border-color:var(--blue);background:var(--blue-light);}
+.inspect-record-left{flex:1;}
+.inspect-record-date{font-size:14px;font-weight:700;color:var(--text);}
+.inspect-record-km{font-size:12px;color:var(--sub);margin-top:2px;}
+.inspect-record-badge{font-size:10px;padding:3px 8px;border-radius:20px;background:var(--blue-light);color:var(--blue);font-weight:600;}
 .veh-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
 .veh-stat{background:var(--bg);border-radius:12px;padding:11px 12px;}
 .veh-stat-lbl{font-size:10px;color:var(--sub);margin-bottom:3px;}
@@ -955,6 +962,47 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     <div style="display:flex;flex-direction:column;gap:8px;margin-top:18px;">
       <button class="btn-primary" id="part-form-confirm-btn" onclick="confirmPartForm()">確認新增</button>
       <button class="btn-safe" onclick="closePartForm()">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 驗車紀錄 overlay -->
+<div class="equip-overlay" id="inspect-overlay">
+  <div class="equip-sheet" style="max-height:88vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div>
+        <div class="equip-sheet-title" style="margin-bottom:0;" id="inspect-overlay-title">驗車紀錄</div>
+        <div style="font-size:12px;color:var(--sub);margin-top:3px;" id="inspect-overlay-plate"></div>
+      </div>
+      <button onclick="closeInspectOverlay()" style="background:none;border:none;font-size:22px;color:var(--sub);cursor:pointer;">✕</button>
+    </div>
+
+    <!-- 近兩次紀錄 -->
+    <div class="veh-section-title">近期驗車紀錄</div>
+    <div id="inspect-records-list"></div>
+
+    <!-- 新增紀錄表單 -->
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+      <div class="veh-section-title">新增驗車紀錄</div>
+      <div class="equip-field">
+        <label class="fuel-input-lbl">驗車日期</label>
+        <input class="fuel-input" id="inspect-date" type="date">
+      </div>
+      <div class="equip-field">
+        <label class="fuel-input-lbl">當時里程數（公里）</label>
+        <input class="fuel-input" id="inspect-km" type="number" inputmode="numeric" placeholder="例：183347">
+      </div>
+      <div class="equip-field">
+        <label class="fuel-input-lbl">下次驗車日期（預計）</label>
+        <input class="fuel-input" id="inspect-next-date" type="date">
+      </div>
+      <div class="equip-field">
+        <label class="fuel-input-lbl">備註（選填）</label>
+        <input class="equip-input" id="inspect-note" placeholder="例：通過、待補件…">
+      </div>
+      <button class="equip-submit-btn" onclick="submitInspectRecord()">
+        <i class="ti ti-plus"></i> 新增紀錄
+      </button>
     </div>
   </div>
 </div>
@@ -1840,6 +1888,7 @@ function enterMainApp(){
   loadRepairsFromStorage();
   loadEquipFromStorage();
   loadVehicleData();
+  loadInspectRecords();
   // 報修設備下拉選單在 BOXES 載入後才能建立
   populateRepairDevices();
   setupHeaderInfo();
@@ -1861,7 +1910,8 @@ function enterMainApp(){
   document.getElementById("car-row").style.display=curUser.role==="admin"?"none":"flex";
   document.getElementById("nav-serial").style.display=(curUser.role==="admin"||curUser.role==="senior")?"flex":"none";
   document.getElementById("nav-admin").style.display=curUser.role==="admin"?"flex":"none";
-  document.getElementById("nav-repair").style.display=curUser.role==="admin"?"flex":"none";
+  // 報修功能暫時關閉，管理員和操作員都不顯示
+  document.getElementById("nav-repair").style.display="none";
   // 作業員隱藏進貨/調整篩選按鈕
   document.querySelectorAll(".worker-hide").forEach(function(el){
     el.style.display=curUser.role==="worker"?"none":"inline-block";
@@ -3696,6 +3746,104 @@ function openFuelForm(preselect){
 }
 
 function openVehFuelLog(){ openFuelForm(curVehPlate); }
+function openVehMaintLog(){ showToast("保養記錄功能開發中"); }
+function openVehBigCheck(){ showToast("大整理清單功能開發中"); }
+function openVehTax(){ showToast("稅費記錄功能開發中"); }
+
+function openVehInsurance(){
+  openInspectOverlay(curVehPlate);
+}
+
+// 驗車紀錄
+var inspectRecords = {};
+
+function loadInspectRecords(){
+  try{
+    var s = localStorage.getItem("inspect_records");
+    if(s) inspectRecords = JSON.parse(s);
+  }catch(e){ inspectRecords = {}; }
+}
+
+function saveInspectRecords(){
+  try{ localStorage.setItem("inspect_records", JSON.stringify(inspectRecords)); }catch(e){}
+}
+
+function openInspectOverlay(plate){
+  if(!plate) return;
+  curVehPlate = plate;
+  var v = VEHICLES.find(function(x){ return x.plate===plate; });
+  document.getElementById("inspect-overlay-title").textContent = "驗車紀錄";
+  document.getElementById("inspect-overlay-plate").textContent = plate + (v?" ‧ "+v.company:"");
+  // 預設下次驗車日期帶入車輛資料
+  var nextDateEl = document.getElementById("inspect-next-date");
+  if(v && v.inspect) nextDateEl.value = v.inspect.replace(/\//g,"-");
+  else nextDateEl.value = "";
+  var today = new Date();
+  document.getElementById("inspect-date").value = today.toISOString().slice(0,10);
+  document.getElementById("inspect-km").value = "";
+  document.getElementById("inspect-note").value = "";
+  renderInspectRecords(plate);
+  document.getElementById("inspect-overlay").classList.add("show");
+}
+
+function renderInspectRecords(plate){
+  var list = document.getElementById("inspect-records-list");
+  list.innerHTML = "";
+  var records = (inspectRecords[plate] || []).slice(0,2);
+  if(records.length === 0){
+    list.innerHTML = '<div style="font-size:13px;color:var(--sub);padding:8px 0 4px;">尚無驗車紀錄</div>';
+    return;
+  }
+  records.forEach(function(r, i){
+    var item = document.createElement("div");
+    item.className = "inspect-record" + (i===0?" latest":"");
+    item.innerHTML =
+      '<div class="inspect-record-left">' +
+        '<div class="inspect-record-date">' + r.date + '</div>' +
+        '<div class="inspect-record-km">里程：' + (r.km ? Number(r.km).toLocaleString()+" km" : "未記錄") + '</div>' +
+        (r.nextDate ? '<div style="font-size:11px;color:var(--blue);margin-top:3px;">下次：'+r.nextDate+'</div>' : '') +
+        (r.note ? '<div style="font-size:11px;color:var(--sub);margin-top:2px;">'+r.note+'</div>' : '') +
+      '</div>' +
+      (i===0 ? '<span class="inspect-record-badge">最新</span>' : '');
+    list.appendChild(item);
+  });
+}
+
+function submitInspectRecord(){
+  var date = document.getElementById("inspect-date").value;
+  var km = document.getElementById("inspect-km").value;
+  var nextDate = document.getElementById("inspect-next-date").value;
+  var note = document.getElementById("inspect-note").value.trim();
+  if(!date){ alert("請填寫驗車日期"); return; }
+  var plate = curVehPlate;
+  if(!inspectRecords[plate]) inspectRecords[plate] = [];
+  var record = {
+    date: date.replace(/-/g,"/"),
+    km: km ? parseInt(km) : null,
+    nextDate: nextDate ? nextDate.replace(/-/g,"/") : "",
+    note: note,
+    recorder: curUser ? curUser.name : "",
+    time: nowStr()
+  };
+  inspectRecords[plate].unshift(record);
+  if(inspectRecords[plate].length > 10) inspectRecords[plate] = inspectRecords[plate].slice(0,10);
+  // 同步更新車輛下次驗車日期
+  var v = VEHICLES.find(function(x){ return x.plate===plate; });
+  if(v && nextDate){ v.inspect = nextDate.replace(/-/g,"/"); try{ localStorage.setItem("vehicles_override", JSON.stringify(VEHICLES)); }catch(e){} }
+  saveInspectRecords();
+  renderInspectRecords(plate);
+  document.getElementById("inspect-km").value = "";
+  document.getElementById("inspect-note").value = "";
+  sendToSheets({type:"驗車紀錄",box:plate,part:date,qty:km||0,
+    name:curUser?curUser.name:"",email:curUser?curUser.email:"",
+    note:"里程:"+(km||"未記錄")+"，下次:"+nextDate+(note?"，"+note:""),
+    time:nowStr(),loc:"",serial:""});
+  showToast("✅ 驗車紀錄已新增");
+}
+
+function closeInspectOverlay(){
+  document.getElementById("inspect-overlay").classList.remove("show");
+}
 
 function submitFuelRecord(){
   var plate = document.getElementById("fuel-plate").value;
