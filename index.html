@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260628-02">
+<meta name="app-version" content="20260628-01">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -362,6 +362,35 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
 .ins-tabs{display:flex;gap:7px;margin-bottom:14px;}
 .ins-tab{flex:1;padding:9px;border:1.5px solid var(--border);border-radius:10px;background:none;font-size:12px;font-family:inherit;cursor:pointer;color:var(--sub);text-align:center;font-weight:500;}
 .ins-tab.active{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:700;}
+/* 加油報表 */
+.fuel-report-card{background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:13px;margin-bottom:9px;}
+.fuel-report-plate{font-size:15px;font-weight:700;color:var(--text);}
+.fuel-report-sub{font-size:11px;color:var(--sub);margin-top:2px;margin-bottom:8px;}
+.fuel-report-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;}
+.fuel-stat-box{background:var(--bg);border-radius:10px;padding:8px 10px;text-align:center;}
+.fuel-stat-val{font-size:15px;font-weight:700;color:var(--text);}
+.fuel-stat-lbl{font-size:10px;color:var(--sub);margin-top:2px;}
+.fuel-period-tabs{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;}
+.fuel-period-btn{padding:6px 14px;border:1.5px solid var(--border);border-radius:20px;background:none;font-size:12px;font-family:inherit;cursor:pointer;white-space:nowrap;color:var(--sub);}
+.fuel-period-btn.active{background:var(--amber);color:#fff;border-color:var(--amber);font-weight:700;}
+.fuel-total-banner{background:var(--amber-light);border:1.5px solid var(--amber);border-radius:13px;padding:12px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;}
+.fuel-detail-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.fuel-detail-row:last-child{border-bottom:none;}
+/* 行照借還 */
+.license-item{background:var(--card);border:1.5px solid var(--border);border-radius:13px;padding:12px;margin-bottom:8px;}
+.license-item.active{border-color:var(--amber);}
+.license-item.returned{border-color:var(--green);opacity:.8;}
+.license-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.license-plate-big{font-size:16px;font-weight:700;}
+.license-status{font-size:10px;padding:3px 9px;border-radius:20px;font-weight:600;}
+.license-status-out{background:var(--amber-light);color:var(--amber);}
+.license-status-pending{background:var(--blue-light);color:var(--blue);}
+.license-status-done{background:var(--green-light);color:var(--green);}
+/* 加油即時油耗提示 */
+.fuel-instant-calc{background:var(--green-light);border:1.5px solid var(--green);border-radius:11px;padding:10px 13px;margin-top:8px;display:none;}
+.fuel-instant-calc.show{display:block;}
+.fuel-instant-row{display:flex;justify-content:space-between;font-size:12px;color:var(--green);margin-bottom:2px;}
+.fuel-instant-row b{font-weight:700;}
 .veh-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
 .veh-stat{background:var(--bg);border-radius:12px;padding:11px 12px;}
 .veh-stat-lbl{font-size:10px;color:var(--sub);margin-bottom:3px;}
@@ -669,6 +698,12 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
         <button style="width:100%;padding:12px;background:var(--blue-light);color:var(--blue);border:1.5px solid var(--blue);border-radius:13px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;" onclick="openWorkerChangeCar()">
           <i class="ti ti-arrows-exchange"></i> 換車 / 工具箱調整
         </button>
+        <button style="width:100%;padding:12px;background:var(--amber-light);color:var(--amber);border:1.5px solid var(--amber);border-radius:13px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px;" onclick="openLicenseOverlay(null)">
+          <i class="ti ti-id-badge"></i> 行照借還
+        </button>
+        <button style="width:100%;padding:12px;background:var(--bg);color:var(--text);border:1.5px solid var(--border);border-radius:13px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px;" onclick="openWorkerFuelReport()">
+          <i class="ti ti-chart-bar"></i> 我的加油記錄
+        </button>
       </div>
       <!-- 加油按鈕（有車才顯示） -->
       <div id="veh-fuel-btn-worker" style="display:none;">
@@ -684,6 +719,12 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       </button>
       <button class="confirm-btn" style="background:var(--amber);color:#fff;width:100%;padding:13px;border-radius:13px;font-size:14px;font-weight:700;margin-bottom:8px;" onclick="openFuelForm()">
         <i class="ti ti-droplet"></i> 登記加油記錄
+      </button>
+      <button class="confirm-btn" style="background:var(--bg);color:var(--text);border:1.5px solid var(--border);width:100%;padding:13px;border-radius:13px;font-size:14px;font-weight:600;margin-bottom:8px;" onclick="openAdminFuelReport()">
+        <i class="ti ti-chart-bar"></i> 全車隊加油報表
+      </button>
+      <button class="confirm-btn" style="background:var(--bg);color:var(--text);border:1.5px solid var(--border);width:100%;padding:13px;border-radius:13px;font-size:14px;font-weight:600;margin-bottom:8px;" onclick="openLicenseOverlay(null)">
+        <i class="ti ti-id-badge"></i> 行照管理
       </button>
       <button id="veh-delete-btn" style="display:none;width:100%;padding:12px;background:var(--red-light);color:var(--red);border:1.5px solid var(--red);border-radius:13px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;" onclick="openDeleteVehicleConfirm()">
         <i class="ti ti-trash"></i> 刪除車輛
@@ -742,6 +783,10 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
         <button class="veh-action-btn" onclick="openVehInsurance()"><i class="ti ti-shield"></i>車險資料</button>
         <button class="veh-action-btn" onclick="openVehTax()"><i class="ti ti-receipt"></i>稅費記錄</button>
         <button class="veh-action-btn" onclick="openVehEdit()"><i class="ti ti-edit"></i>編輯車輛</button>
+      </div>
+      <div class="veh-action-row">
+        <button class="veh-action-btn" onclick="openVehFuelReport()"><i class="ti ti-chart-bar"></i>加油報表</button>
+        <button class="veh-action-btn" onclick="openLicenseOverlay(curVehPlate)"><i class="ti ti-id-badge"></i>行照管理</button>
       </div>
       <!-- 工具箱管理快捷入口 -->
       <button onclick="openTboxOverview()" style="width:100%;padding:11px;background:var(--blue-light);color:var(--blue);border:1.5px solid var(--blue);border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:7px;">
@@ -995,6 +1040,76 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     <div style="display:flex;flex-direction:column;gap:8px;margin-top:18px;">
       <button class="btn-primary" id="part-form-confirm-btn" onclick="confirmPartForm()">確認新增</button>
       <button class="btn-safe" onclick="closePartForm()">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 加油報表（全螢幕） -->
+<div id="fuel-report-screen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:210;overflow-y:auto;padding:16px 16px 100px;">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+    <button onclick="closeFuelReport()" style="width:36px;height:36px;border-radius:50%;background:var(--card);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+      <i class="ti ti-arrow-left" style="font-size:18px;"></i>
+    </button>
+    <div style="font-size:18px;font-weight:700;" id="frs-title">加油報表</div>
+  </div>
+  <div class="fuel-period-tabs" id="frs-period-tabs">
+    <button class="fuel-period-btn active" onclick="setFuelPeriod(1,this)">本週</button>
+    <button class="fuel-period-btn" onclick="setFuelPeriod(30,this)">本月</button>
+    <button class="fuel-period-btn" onclick="setFuelPeriod(90,this)">3個月</button>
+    <button class="fuel-period-btn" onclick="setFuelPeriod(180,this)">6個月</button>
+    <button class="fuel-period-btn" onclick="setFuelPeriod(365,this)">12個月</button>
+  </div>
+  <!-- 管理員：總覽 banner -->
+  <div id="frs-total-wrap" style="display:none;">
+    <div class="fuel-total-banner">
+      <div>
+        <div style="font-size:11px;color:var(--amber);font-weight:600;">全車隊加油總計</div>
+        <div style="font-size:22px;font-weight:700;color:var(--text);" id="frs-total-amount">$0</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:11px;color:var(--sub);" id="frs-total-count">0 次</div>
+        <div style="font-size:11px;color:var(--sub);" id="frs-total-km">0 km</div>
+      </div>
+    </div>
+  </div>
+  <div id="frs-list"></div>
+</div>
+
+<!-- 行照借還 overlay -->
+<div class="equip-overlay" id="license-overlay">
+  <div class="equip-sheet" style="max-height:90vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div class="equip-sheet-title" style="margin-bottom:0;">行照管理</div>
+      <button onclick="closeLicenseOverlay()" style="background:none;border:none;font-size:22px;color:var(--sub);cursor:pointer;">✕</button>
+    </div>
+    <div class="ins-tabs">
+      <button class="ins-tab active" id="lic-tab-borrow" onclick="switchLicTab('borrow',this)">借出行照</button>
+      <button class="ins-tab" id="lic-tab-records" onclick="switchLicTab('records',this)">借還記錄</button>
+    </div>
+    <!-- 借出表單 -->
+    <div id="lic-panel-borrow">
+      <div style="background:var(--amber-light);border-radius:11px;padding:10px 13px;margin-bottom:14px;font-size:12px;color:var(--amber);line-height:1.5;">
+        <b>注意：</b>借出行照後請妥善保管，驗車完成後須立即歸還，並在 App 上按「登記歸還」通知管理員確認。
+      </div>
+      <div class="equip-field">
+        <label class="fuel-input-lbl">車牌（自動帶入，可修改）</label>
+        <select class="equip-select" id="lic-plate"></select>
+      </div>
+      <div class="equip-field">
+        <label class="fuel-input-lbl">預計驗車日期</label>
+        <input class="fuel-input" id="lic-inspect-date" type="date">
+      </div>
+      <div class="equip-field">
+        <label class="fuel-input-lbl">備註（選填）</label>
+        <input class="equip-input" id="lic-note" placeholder="例：屏東監理站">
+      </div>
+      <button class="equip-submit-btn" style="background:var(--amber);" onclick="submitLicenseBorrow()">
+        <i class="ti ti-arrow-right"></i> 確認借出行照
+      </button>
+    </div>
+    <!-- 記錄列表 -->
+    <div id="lic-panel-records" style="display:none;">
+      <div id="lic-records-list"></div>
     </div>
   </div>
 </div>
@@ -1316,7 +1431,12 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     </div>
     <div class="equip-field">
       <label class="fuel-input-lbl">目前里程數（公里）</label>
-      <input class="fuel-input" id="fuel-mileage" type="number" inputmode="numeric" placeholder="例：183347">
+      <input class="fuel-input" id="fuel-mileage" type="number" inputmode="numeric" placeholder="例：183347" oninput="calcInstantFuel()">
+    </div>
+    <!-- 即時油耗計算 -->
+    <div class="fuel-instant-calc" id="fuel-instant-calc">
+      <div class="fuel-instant-row"><span>距上次加油</span><b id="fic-km">— km</b></div>
+      <div class="fuel-instant-row"><span>油耗</span><b id="fic-rate">— 元/km</b></div>
     </div>
     <div class="equip-field" style="display:none;" id="fuel-photo-wrap">
       <label class="fuel-input-lbl">加油收據照片（功能即將開放）</label>
@@ -2017,6 +2137,8 @@ function enterMainApp(){
   loadVehicleData();
   loadInspectRecords();
   loadInsData();
+  loadFuelRecords();
+  loadLicenseRecords();
   // 報修設備下拉選單在 BOXES 載入後才能建立
   populateRepairDevices();
   setupHeaderInfo();
@@ -4642,6 +4764,346 @@ function confirmTboxEdit(){
 
 function closeTboxEdit(){
   document.getElementById("tbox-edit-overlay").classList.remove("show");
+}
+
+// ─────────────────────────────────────────────
+
+// ─────────────────────────────────────────────
+// 加油記錄本地快取 + 即時油耗計算
+// ─────────────────────────────────────────────
+var fuelRecords = []; // 從 Sheets 讀回來的加油記錄（或本地暫存）
+
+function loadFuelRecords(){
+  try{
+    var s = localStorage.getItem("fuel_records_local");
+    if(s) fuelRecords = JSON.parse(s);
+  }catch(e){ fuelRecords = []; }
+}
+
+function saveFuelRecordLocal(rec){
+  fuelRecords.unshift(rec);
+  if(fuelRecords.length > 500) fuelRecords = fuelRecords.slice(0,500);
+  try{ localStorage.setItem("fuel_records_local", JSON.stringify(fuelRecords)); }catch(e){}
+}
+
+// 即時油耗：輸入里程時計算
+function calcInstantFuel(){
+  var plate = document.getElementById("fuel-plate").value;
+  var mileage = parseInt(document.getElementById("fuel-mileage").value)||0;
+  var amount = parseInt(document.getElementById("fuel-amount").value)||0;
+  var calc = document.getElementById("fuel-instant-calc");
+  if(!plate || !mileage){ calc.classList.remove("show"); return; }
+  // 找此車上一筆加油記錄
+  var prev = fuelRecords.find(function(r){ return r.plate===plate && r.mileage; });
+  if(!prev || !prev.mileage){ calc.classList.remove("show"); return; }
+  var km = mileage - prev.mileage;
+  if(km <= 0){ calc.classList.remove("show"); return; }
+  document.getElementById("fic-km").textContent = km.toLocaleString() + " km";
+  document.getElementById("fic-rate").textContent = amount ? (amount/km).toFixed(1)+" 元/km" : "請填金額";
+  calc.classList.add("show");
+}
+
+// Override submitFuelRecord to also save locally
+var _origSubmitFuel = null;
+(function(){
+  var orig = window.submitFuelRecord;
+  window.submitFuelRecord = function(){
+    var plate   = document.getElementById("fuel-plate").value;
+    var amount  = parseInt(document.getElementById("fuel-amount").value)||0;
+    var mileage = parseInt(document.getElementById("fuel-mileage").value)||0;
+    var note    = document.getElementById("fuel-note").value.trim();
+    if(!plate||!amount||!mileage){ orig && orig(); return; }
+    var t = nowStr();
+    var rec = { plate:plate, amount:amount, mileage:mileage, note:note,
+                name:curUser?curUser.name:"", time:t, loc:curUser?curUser.location:"" };
+    saveFuelRecordLocal(rec);
+    // 隱藏油耗提示
+    document.getElementById("fuel-instant-calc").classList.remove("show");
+    orig && orig();
+  };
+})();
+
+// ─────────────────────────────────────────────
+// 加油報表
+// ─────────────────────────────────────────────
+var fuelReportDays = 7;
+var fuelReportPlate = null; // null = 全部（管理員）
+
+function openVehFuelReport(){
+  fuelReportPlate = curVehPlate;
+  fuelReportDays = 30;
+  document.getElementById("frs-title").textContent = "加油報表：" + (curVehPlate||"全部");
+  document.getElementById("frs-total-wrap").style.display = "none";
+  renderFuelReport();
+  document.getElementById("fuel-report-screen").style.display = "block";
+}
+
+function openWorkerFuelReport(){
+  var myPlate = curUser ? localStorage.getItem("carPlate_"+curUser.email) : null;
+  fuelReportPlate = myPlate;
+  fuelReportDays = 7;
+  document.getElementById("frs-title").textContent = "我的加油記錄";
+  document.getElementById("frs-total-wrap").style.display = "none";
+  renderFuelReport();
+  document.getElementById("fuel-report-screen").style.display = "block";
+}
+
+function openAdminFuelReport(){
+  fuelReportPlate = null;
+  fuelReportDays = 30;
+  document.getElementById("frs-title").textContent = "全車隊加油報表";
+  document.getElementById("frs-total-wrap").style.display = "block";
+  renderFuelReport();
+  document.getElementById("fuel-report-screen").style.display = "block";
+}
+
+function closeFuelReport(){
+  document.getElementById("fuel-report-screen").style.display = "none";
+}
+
+function setFuelPeriod(days, el){
+  fuelReportDays = days;
+  document.querySelectorAll(".fuel-period-btn").forEach(function(b){ b.classList.remove("active"); });
+  el.classList.add("active");
+  renderFuelReport();
+}
+
+function renderFuelReport(){
+  var list = document.getElementById("frs-list");
+  list.innerHTML = "";
+  var isAdmin = curUser && curUser.role==="admin";
+  var cutoff = Date.now() - fuelReportDays * 86400000;
+
+  // 篩選記錄
+  var filtered = fuelRecords.filter(function(r){
+    var t = new Date(r.time.replace(/\//g,"-")).getTime();
+    if(t < cutoff) return false;
+    if(fuelReportPlate && r.plate !== fuelReportPlate) return false;
+    return true;
+  });
+
+  if(isAdmin && !fuelReportPlate){
+    // 管理員總覽：計算全車隊
+    var totalAmt = filtered.reduce(function(s,r){ return s+(r.amount||0); },0);
+    var totalCnt = filtered.length;
+    // 計算總里程（比較複雜，用各車最大-最小里程）
+    document.getElementById("frs-total-amount").textContent = "$"+totalAmt.toLocaleString();
+    document.getElementById("frs-total-count").textContent = totalCnt+" 次";
+
+    // 按車牌分組
+    var byPlate = {};
+    filtered.forEach(function(r){
+      if(!byPlate[r.plate]) byPlate[r.plate] = [];
+      byPlate[r.plate].push(r);
+    });
+    Object.keys(byPlate).sort().forEach(function(plate){
+      list.appendChild(makeFuelPlateCard(plate, byPlate[plate]));
+    });
+  } else {
+    // 單車或技師：按筆顯示
+    if(filtered.length === 0){
+      list.innerHTML = '<div class="empty-msg">此期間無加油記錄</div>'; return;
+    }
+    // 月小結
+    var totalAmt2 = filtered.reduce(function(s,r){ return s+(r.amount||0); },0);
+    var totalCnt2 = filtered.length;
+    var maxKm = Math.max.apply(null, filtered.map(function(r){ return r.mileage||0; }));
+    var minKm = Math.min.apply(null, filtered.filter(function(r){ return r.mileage; }).map(function(r){ return r.mileage; }));
+    var totalKm = maxKm > minKm ? maxKm - minKm : 0;
+
+    var banner = document.createElement("div");
+    banner.className = "fuel-total-banner";
+    banner.innerHTML = '<div><div style="font-size:11px;color:var(--amber);font-weight:600;">期間加油總計</div>'
+      + '<div style="font-size:22px;font-weight:700;">$'+totalAmt2.toLocaleString()+'</div></div>'
+      + '<div style="text-align:right;"><div style="font-size:11px;color:var(--sub);">'+totalCnt2+' 次</div>'
+      + (totalKm?'<div style="font-size:11px;color:var(--sub);">約 '+totalKm.toLocaleString()+' km</div>'
+        +'<div style="font-size:11px;color:var(--amber);font-weight:600;">'+(totalKm?( totalAmt2/totalKm).toFixed(1)+' 元/km':'')+'</div>':"")
+      + '</div>';
+    list.appendChild(banner);
+
+    filtered.forEach(function(r){
+      var row = document.createElement("div");
+      row.className = "fuel-detail-row";
+      row.innerHTML = '<div><div style="font-size:13px;font-weight:600;">'+(r.plate||"")+(r.name?' <span style="color:var(--sub);font-size:11px;">'+r.name+'</span>':'')+'</div>'
+        + '<div style="font-size:11px;color:var(--sub);">'+(r.time||"").slice(0,10)+(r.mileage?' ‧ '+r.mileage.toLocaleString()+' km':'')+'</div>'
+        + (r.note?'<div style="font-size:11px;color:var(--sub);">'+r.note+'</div>':'')+'</div>'
+        + '<div style="font-size:15px;font-weight:700;color:var(--amber);">$'+(r.amount||0).toLocaleString()+'</div>';
+      list.appendChild(row);
+    });
+  }
+}
+
+function makeFuelPlateCard(plate, records){
+  var v = VEHICLES.find(function(x){ return x.plate===plate; });
+  var totalAmt = records.reduce(function(s,r){ return s+(r.amount||0); },0);
+  var maxKm = Math.max.apply(null, records.map(function(r){ return r.mileage||0; }));
+  var minKm = Math.min.apply(null, records.filter(function(r){ return r.mileage; }).map(function(r){ return r.mileage; }));
+  var km = maxKm>minKm ? maxKm-minKm : 0;
+  var rate = km ? (totalAmt/km).toFixed(1) : "—";
+  var card = document.createElement("div");
+  card.className = "fuel-report-card";
+  card.innerHTML = '<div class="fuel-report-plate">'+plate+'</div>'
+    + '<div class="fuel-report-sub">'+(v?v.company+" ‧ "+v.type:"")+(records[0]&&records[0].name?' ‧ '+records[0].name:'')+'</div>'
+    + '<div class="fuel-report-stats">'
+    + '<div class="fuel-stat-box"><div class="fuel-stat-val">$'+totalAmt.toLocaleString()+'</div><div class="fuel-stat-lbl">總金額</div></div>'
+    + '<div class="fuel-stat-box"><div class="fuel-stat-val">'+records.length+'</div><div class="fuel-stat-lbl">次數</div></div>'
+    + '<div class="fuel-stat-box"><div class="fuel-stat-val">'+rate+'</div><div class="fuel-stat-lbl">元/km</div></div>'
+    + '</div>';
+  return card;
+}
+
+// ─────────────────────────────────────────────
+// 行照借還
+// ─────────────────────────────────────────────
+var licenseRecords = []; // [{id, plate, borrower, borrowerEmail, borrowTime, inspectDate, note, status, returnTime, confirmedBy}]
+var curLicTab = "borrow";
+
+function loadLicenseRecords(){
+  try{
+    var s = localStorage.getItem("license_records");
+    if(s) licenseRecords = JSON.parse(s);
+  }catch(e){ licenseRecords = []; }
+}
+function saveLicenseRecords(){
+  try{ localStorage.setItem("license_records", JSON.stringify(licenseRecords)); }catch(e){}
+}
+
+function openLicenseOverlay(plate){
+  var myPlate = plate || (curUser ? localStorage.getItem("carPlate_"+curUser.email) : null);
+  // 填車牌選單
+  var sel = document.getElementById("lic-plate");
+  sel.innerHTML = "";
+  var isAdmin = curUser && curUser.role==="admin";
+  var vehicles = isAdmin ? VEHICLES.filter(function(v){ return v.status!=="retired"; })
+                         : VEHICLES.filter(function(v){ return v.plate===myPlate; });
+  vehicles.forEach(function(v){
+    var opt = document.createElement("option");
+    opt.value = v.plate;
+    opt.textContent = v.plate + " (" + v.company + ")";
+    if(v.plate===myPlate) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  // 預設驗車日期
+  var today = new Date(); today.setDate(today.getDate()+3);
+  document.getElementById("lic-inspect-date").value = today.toISOString().slice(0,10);
+  document.getElementById("lic-note").value = "";
+
+  switchLicTab("borrow", document.getElementById("lic-tab-borrow"));
+  document.getElementById("license-overlay").classList.add("show");
+}
+
+function switchLicTab(tab, el){
+  curLicTab = tab;
+  ["borrow","records"].forEach(function(t){
+    document.getElementById("lic-tab-"+t).classList.remove("active");
+    document.getElementById("lic-panel-"+t).style.display = "none";
+  });
+  el.classList.add("active");
+  document.getElementById("lic-panel-"+tab).style.display = "block";
+  if(tab==="records") renderLicenseRecords();
+}
+
+function submitLicenseBorrow(){
+  var plate = document.getElementById("lic-plate").value;
+  var inspectDate = document.getElementById("lic-inspect-date").value;
+  var note = document.getElementById("lic-note").value.trim();
+  if(!plate){ alert("請選擇車牌"); return; }
+  var t = nowStr();
+  var rec = {
+    id: Date.now(),
+    plate: plate,
+    borrower: curUser?curUser.name:"",
+    borrowerEmail: curUser?curUser.email:"",
+    borrowTime: t,
+    inspectDate: inspectDate.replace(/-/g,"/"),
+    note: note,
+    status: "借出中"   // 借出中 / 待確認歸還 / 已歸還
+  };
+  licenseRecords.unshift(rec);
+  saveLicenseRecords();
+  sendToSheets({type:"行照借出",box:plate,part:curUser?curUser.name:"",qty:0,
+    name:curUser?curUser.name:"",email:curUser?curUser.email:"",
+    note:"預計驗車:"+(inspectDate.replace(/-/g,"/"))+(note?"，"+note:""),
+    time:t,loc:curUser?curUser.location:"",serial:""});
+  closeLicenseOverlay();
+  showToast("✅ 行照借出已登記："+plate);
+}
+
+function returnLicense(recId){
+  var rec = licenseRecords.find(function(r){ return r.id===recId; });
+  if(!rec) return;
+  rec.status = "待確認歸還";
+  rec.returnTime = nowStr();
+  rec.returnBy = curUser?curUser.name:"";
+  saveLicenseRecords();
+  renderLicenseRecords();
+  sendToSheets({type:"行照歸還申請",box:rec.plate,part:curUser?curUser.name:"",qty:0,
+    name:curUser?curUser.name:"",email:curUser?curUser.email:"",
+    note:"申請歸還行照，等待管理員確認",time:nowStr(),loc:"",serial:""});
+  showToast("✅ 已通知管理員確認歸還");
+}
+
+function confirmLicenseReturn(recId){
+  var rec = licenseRecords.find(function(r){ return r.id===recId; });
+  if(!rec) return;
+  rec.status = "已歸還";
+  rec.confirmedBy = curUser?curUser.name:"";
+  rec.confirmedAt = nowStr();
+  saveLicenseRecords();
+  renderLicenseRecords();
+  sendToSheets({type:"行照歸還確認",box:rec.plate,part:rec.borrower,qty:0,
+    name:curUser?curUser.name:"",email:curUser?curUser.email:"",
+    note:"管理員確認行照已歸還",time:nowStr(),loc:"",serial:""});
+  showToast("✅ 行照歸還確認完成");
+}
+
+function renderLicenseRecords(){
+  var cont = document.getElementById("lic-records-list");
+  cont.innerHTML = "";
+  var isAdmin = curUser && curUser.role==="admin";
+  var myPlate = curUser ? localStorage.getItem("carPlate_"+curUser.email) : null;
+  var toShow = isAdmin ? licenseRecords
+    : licenseRecords.filter(function(r){ return r.plate===myPlate || r.borrowerEmail===(curUser?curUser.email:""); });
+
+  if(!toShow.length){
+    cont.innerHTML = '<div class="empty-msg">無行照記錄</div>'; return;
+  }
+  toShow.slice(0,20).forEach(function(r){
+    var item = document.createElement("div");
+    item.className = "license-item "+(r.status==="已歸還"?"returned":r.status==="待確認歸還"?"active":"active");
+    var statusCls = r.status==="已歸還"?"license-status-done":r.status==="待確認歸還"?"license-status-pending":"license-status-out";
+    item.innerHTML = '<div class="license-hd">'
+      + '<div class="license-plate-big">'+r.plate+'</div>'
+      + '<span class="license-status '+statusCls+'">'+r.status+'</span></div>'
+      + '<div style="font-size:12px;color:var(--sub);">借出人：'+r.borrower+'　'+r.borrowTime.slice(0,10)+'</div>'
+      + (r.inspectDate?'<div style="font-size:11px;color:var(--sub);">預計驗車：'+r.inspectDate+'</div>':"")
+      + (r.returnTime?'<div style="font-size:11px;color:var(--blue);">申請歸還：'+r.returnTime.slice(0,10)+'</div>':"")
+      + (r.confirmedBy?'<div style="font-size:11px;color:var(--green);">已確認：'+r.confirmedBy+'</div>':"");
+
+    // 按鈕
+    var btns = document.createElement("div");
+    btns.style.cssText = "display:flex;gap:7px;margin-top:9px;";
+    if(r.status==="借出中"){
+      var rb = document.createElement("button");
+      rb.style.cssText = "flex:1;padding:9px;background:var(--amber-light);color:var(--amber);border:1.5px solid var(--amber);border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;";
+      rb.textContent = "登記歸還";
+      rb.onclick = (function(id){ return function(){ returnLicense(id); }; })(r.id);
+      btns.appendChild(rb);
+    }
+    if(r.status==="待確認歸還" && isAdmin){
+      var cb = document.createElement("button");
+      cb.style.cssText = "flex:1;padding:9px;background:var(--green);color:#fff;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;";
+      cb.textContent = "✅ 確認已收到行照";
+      cb.onclick = (function(id){ return function(){ confirmLicenseReturn(id); }; })(r.id);
+      btns.appendChild(cb);
+    }
+    if(btns.children.length) item.appendChild(btns);
+    cont.appendChild(item);
+  });
+}
+
+function closeLicenseOverlay(){
+  document.getElementById("license-overlay").classList.remove("show");
 }
 
 // ─────────────────────────────────────────────
