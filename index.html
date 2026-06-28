@@ -698,6 +698,14 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
         <button style="width:100%;padding:12px;background:var(--blue-light);color:var(--blue);border:1.5px solid var(--blue);border-radius:13px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;" onclick="openWorkerChangeCar()">
           <i class="ti ti-arrows-exchange"></i> 換車 / 工具箱調整
         </button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+          <button style="padding:12px 8px;background:var(--bg);color:var(--text);border:1.5px solid var(--border);border-radius:13px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:5px;" onclick="openWorkerMaint()">
+            <i class="ti ti-tool" style="font-size:20px;color:var(--blue);"></i>保養紀錄
+          </button>
+          <button style="padding:12px 8px;background:var(--bg);color:var(--text);border:1.5px solid var(--border);border-radius:13px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:5px;" onclick="openWorkerBigCheck()">
+            <i class="ti ti-checklist" style="font-size:20px;color:var(--blue);"></i>大整理
+          </button>
+        </div>
         <button style="width:100%;padding:12px;background:var(--amber-light);color:var(--amber);border:1.5px solid var(--amber);border-radius:13px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px;" onclick="openLicenseOverlay(null)">
           <i class="ti ti-id-badge"></i> 行照借還
         </button>
@@ -1308,10 +1316,13 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
 <div class="equip-overlay" id="veh-worker-change-overlay">
   <div class="equip-sheet" style="max-height:85vh;overflow-y:auto;">
     <div class="equip-sheet-title">換車</div>
-    <div class="equip-sheet-sub">請選擇你要換去的公司車牌</div>
+    <div class="equip-sheet-sub">請輸入你要換去的車牌號碼</div>
     <div class="equip-field">
-      <label>新車牌</label>
-      <select class="equip-select" id="veh-worker-new-plate"></select>
+      <label>新車牌號碼</label>
+      <input class="fuel-input" id="veh-worker-new-plate" placeholder="例：BKF-6072" maxlength="10"
+        style="text-transform:uppercase;font-size:18px;font-weight:700;letter-spacing:1px;"
+        oninput="this.value=this.value.toUpperCase(); validateWorkerPlateInput()">
+      <div id="veh-worker-plate-validate" style="font-size:12px;margin-top:6px;display:none;padding:7px 11px;border-radius:9px;"></div>
     </div>
     <div class="equip-field">
       <label style="margin-bottom:8px;display:block;">工具箱去向（未勾選 = 留在原車或選擇倉庫）</label>
@@ -4017,8 +4028,10 @@ function openFuelForm(preselect){
 }
 
 function openVehFuelLog(){ openFuelForm(curVehPlate); }
-function openVehMaintLog(){ showToast("保養記錄功能開發中"); }
-function openVehBigCheck(){ showToast("大整理清單功能開發中"); }
+function openVehMaintLog(){ openWorkerMaint(); }
+function openVehBigCheck(){ openWorkerBigCheck(); }
+function openWorkerMaint(){ showToast("保養記錄功能開發中"); }
+function openWorkerBigCheck(){ showToast("大整理清單功能開發中"); }
 function openVehTax(){ openInsOverlay(curVehPlate, 'tax'); }
 function openVehInsurance(){ openInsOverlay(curVehPlate, 'compulsory'); }
 
@@ -4435,15 +4448,11 @@ function workerSetPlate(){
 // 操作員換車（從車輛頁）
 function openWorkerChangeCar(){
   var myPlate = curUser ? localStorage.getItem("carPlate_"+curUser.email) : null;
-  var sel = document.getElementById("veh-worker-new-plate");
-  sel.innerHTML = '<option value="">── 選擇新車牌 ──</option>';
-  VEHICLES.filter(function(v){ return v.plate!==myPlate && v.status==="active"; }).forEach(function(v){
-    var assign = vehAssignments[v.plate];
-    var opt = document.createElement("option");
-    opt.value = v.plate;
-    opt.textContent = v.plate + (assign&&assign.driver?" ("+assign.driver+")":" (空車)");
-    sel.appendChild(opt);
-  });
+  // 清空輸入框（不用 select，避免洩漏車牌清單）
+  var inp = document.getElementById("veh-worker-new-plate");
+  inp.value = "";
+  var vld = document.getElementById("veh-worker-plate-validate");
+  vld.style.display = "none";
   // 我的工具箱
   var myBoxes = Object.keys(toolboxStatus).filter(function(k){ return toolboxStatus[k] && toolboxStatus[k].plate === myPlate; });
   var bl = document.getElementById("veh-worker-box-list");
@@ -4474,9 +4483,33 @@ function workerToggleBox(bid){
   document.getElementById("veh-worker-unsel-dest").classList[hasUnsel?"add":"remove"]("show");
 }
 
+function validateWorkerPlateInput(){
+  var val = document.getElementById("veh-worker-new-plate").value.trim().toUpperCase();
+  var vld = document.getElementById("veh-worker-plate-validate");
+  if(!val){ vld.style.display="none"; return; }
+  var valid = VEHICLES.find(function(v){ return v.plate===val && v.status!=="retired"; });
+  var myPlate = curUser ? localStorage.getItem("carPlate_"+curUser.email) : null;
+  if(val === myPlate){
+    vld.style.cssText = "display:block;background:var(--amber-light);color:var(--amber);font-size:12px;padding:7px 11px;border-radius:9px;";
+    vld.textContent = "這是你目前的車牌，請輸入不同車牌";
+  } else if(valid){
+    vld.style.cssText = "display:block;background:var(--green-light);color:var(--green);font-size:12px;padding:7px 11px;border-radius:9px;";
+    vld.textContent = "✅ 車牌確認正確";
+  } else if(val.length >= 6){
+    vld.style.cssText = "display:block;background:var(--red-light);color:var(--red);font-size:12px;padding:7px 11px;border-radius:9px;";
+    vld.textContent = "❌ 此車牌不在設定清單中，請重新確認";
+  } else {
+    vld.style.display = "none";
+  }
+}
+
 function confirmWorkerChangeCar(){
-  var newPlate = document.getElementById("veh-worker-new-plate").value;
-  if(!newPlate){ alert("請選擇新車牌"); return; }
+  var newPlate = document.getElementById("veh-worker-new-plate").value.trim().toUpperCase();
+  if(!newPlate){ alert("請輸入新車牌"); return; }
+  var valid = VEHICLES.find(function(v){ return v.plate===newPlate && v.status!=="retired"; });
+  if(!valid){ alert("此車牌不在設定清單中，無法換車"); return; }
+  var myPlate = curUser ? localStorage.getItem("carPlate_"+curUser.email) : null;
+  if(newPlate===myPlate){ alert("這是你目前的車牌，請輸入不同車牌"); return; }
   var oldPlate = curUser ? localStorage.getItem("carPlate_"+curUser.email) : null;
   var t = nowStr();
   var moved=[], stayed=[];
@@ -4827,7 +4860,9 @@ var _origSubmitFuel = null;
 // 加油報表
 // ─────────────────────────────────────────────
 var fuelReportDays = 7;
-var fuelReportPlate = null; // null = 全部（管理員）
+var fuelReportPlate = null;
+var _fuelCutoffDate = 0;
+var _fuelEndDate = 0;
 
 function openVehFuelReport(){
   fuelReportPlate = curVehPlate;
@@ -4844,15 +4879,43 @@ function openWorkerFuelReport(){
   fuelReportDays = 7;
   document.getElementById("frs-title").textContent = "我的加油記錄";
   document.getElementById("frs-total-wrap").style.display = "none";
+  // 換成技師專用期間按鈕
+  document.getElementById("frs-period-tabs").innerHTML =
+    '<button class="fuel-period-btn" onclick="setFuelPeriod(1,this)">今天</button>' +
+    '<button class="fuel-period-btn active" onclick="setFuelPeriod(7,this)">本週</button>' +
+    '<button class="fuel-period-btn" onclick="setFuelPeriod(30,this)">本月</button>' +
+    '<button class="fuel-period-btn" onclick="setFuelPeriodLastMonth(this)">上個月</button>';
   renderFuelReport();
   document.getElementById("fuel-report-screen").style.display = "block";
+}
+
+function setFuelPeriodLastMonth(el){
+  document.querySelectorAll(".fuel-period-btn").forEach(function(b){ b.classList.remove("active"); });
+  el.classList.add("active");
+  // 計算上個月的起訖
+  var now = new Date();
+  var firstOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  var firstOfLastMonth = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  var ms = firstOfThisMonth - firstOfLastMonth;
+  fuelReportDays = Math.ceil(ms/86400000) + Math.ceil((now - firstOfThisMonth)/86400000);
+  // 重設 cutoff 為上月1日
+  _fuelCutoffDate = firstOfLastMonth.getTime();
+  _fuelEndDate = firstOfThisMonth.getTime();
+  renderFuelReport();
 }
 
 function openAdminFuelReport(){
   fuelReportPlate = null;
   fuelReportDays = 30;
+  _fuelCutoffDate = 0; _fuelEndDate = 0;
   document.getElementById("frs-title").textContent = "全車隊加油報表";
   document.getElementById("frs-total-wrap").style.display = "block";
+  document.getElementById("frs-period-tabs").innerHTML =
+    '<button class="fuel-period-btn" onclick="setFuelPeriod(7,this)">本週</button>' +
+    '<button class="fuel-period-btn active" onclick="setFuelPeriod(30,this)">本月</button>' +
+    '<button class="fuel-period-btn" onclick="setFuelPeriod(90,this)">3個月</button>' +
+    '<button class="fuel-period-btn" onclick="setFuelPeriod(180,this)">6個月</button>' +
+    '<button class="fuel-period-btn" onclick="setFuelPeriod(365,this)">12個月</button>';
   renderFuelReport();
   document.getElementById("fuel-report-screen").style.display = "block";
 }
@@ -4863,6 +4926,7 @@ function closeFuelReport(){
 
 function setFuelPeriod(days, el){
   fuelReportDays = days;
+  _fuelCutoffDate = 0; _fuelEndDate = 0; // 重設（不用上月模式）
   document.querySelectorAll(".fuel-period-btn").forEach(function(b){ b.classList.remove("active"); });
   el.classList.add("active");
   renderFuelReport();
@@ -4872,12 +4936,20 @@ function renderFuelReport(){
   var list = document.getElementById("frs-list");
   list.innerHTML = "";
   var isAdmin = curUser && curUser.role==="admin";
-  var cutoff = Date.now() - fuelReportDays * 86400000;
+  var now = Date.now();
+  var cutoff, endTime;
+  if(_fuelCutoffDate){
+    cutoff = _fuelCutoffDate;
+    endTime = _fuelEndDate || now;
+  } else {
+    cutoff = now - fuelReportDays * 86400000;
+    endTime = now;
+  }
 
   // 篩選記錄
   var filtered = fuelRecords.filter(function(r){
     var t = new Date(r.time.replace(/\//g,"-")).getTime();
-    if(t < cutoff) return false;
+    if(t < cutoff || t > endTime) return false;
     if(fuelReportPlate && r.plate !== fuelReportPlate) return false;
     return true;
   });
