@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260628-01">
+<meta name="app-version" content="20260629-01">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -391,6 +391,34 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
 .fuel-instant-calc.show{display:block;}
 .fuel-instant-row{display:flex;justify-content:space-between;font-size:12px;color:var(--green);margin-bottom:2px;}
 .fuel-instant-row b{font-weight:700;}
+/* 大整理 / 保養記錄 */
+.maint-type-row{display:flex;gap:8px;margin-bottom:16px;}
+.maint-type-btn{flex:1;padding:13px 8px;border:2px solid var(--border);border-radius:13px;background:var(--bg);cursor:pointer;font-family:inherit;text-align:center;transition:all .15s;}
+.maint-type-btn.active{border-color:var(--blue);background:var(--blue-light);}
+.maint-type-btn i{display:block;font-size:24px;color:var(--blue);margin-bottom:5px;}
+.maint-type-btn span{font-size:13px;font-weight:600;color:var(--text);}
+.maint-type-btn.active span{color:var(--blue);}
+/* 大整理項目 */
+.check-item{display:flex;align-items:flex-start;gap:10px;padding:11px 13px;border:1.5px solid var(--border);border-radius:12px;margin-bottom:7px;transition:border-color .15s;}
+.check-item.done{border-color:var(--green);background:var(--green-light);}
+.check-item.skip{border-color:var(--sub);opacity:.6;}
+.check-item-info{flex:1;min-width:0;}
+.check-item-name{font-size:13px;font-weight:600;color:var(--text);}
+.check-item-note{font-size:11px;color:var(--sub);margin-top:2px;}
+.check-item-btns{display:flex;gap:5px;flex-shrink:0;}
+.check-btn{width:34px;height:34px;border-radius:9px;border:1.5px solid var(--border);background:var(--bg);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.check-btn.active-done{background:var(--green);border-color:var(--green);}
+.check-btn.active-skip{background:var(--sub);border-color:var(--sub);}
+/* 保養項目勾選 */
+.maint-check-row{display:flex;align-items:center;gap:10px;padding:9px 13px;border:1.5px solid var(--border);border-radius:10px;margin-bottom:6px;cursor:pointer;transition:border-color .15s;}
+.maint-check-row.checked{border-color:var(--blue);background:var(--blue-light);}
+.maint-check-box{width:22px;height:22px;border-radius:6px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;}
+.maint-check-row.checked .maint-check-box{background:var(--blue);border-color:var(--blue);}
+.maint-check-label{font-size:13px;font-weight:500;color:var(--text);}
+/* 大修記錄 */
+.overhaul-item{background:var(--card);border:1.5px solid var(--amber);border-radius:13px;padding:12px;margin-bottom:8px;}
+.overhaul-hd{font-size:14px;font-weight:700;margin-bottom:5px;}
+.overhaul-meta{font-size:11px;color:var(--sub);}
 .veh-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
 .veh-stat{background:var(--bg);border-radius:12px;padding:11px 12px;}
 .veh-stat-lbl{font-size:10px;color:var(--sub);margin-bottom:3px;}
@@ -805,6 +833,15 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     <button id="vd-change-car-btn" style="display:none;width:100%;padding:13px;background:var(--blue);color:#fff;border:none;border-radius:13px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;" onclick="openChangeCarFlow()">
       <i class="ti ti-arrows-exchange"></i> 換車 / 工具箱調整
     </button>
+    <!-- 管理員專屬：指派/解除指派 -->
+    <div id="vd-assign-actions" style="display:none;margin-top:8px;">
+      <button style="width:100%;padding:12px;background:var(--green-light);color:var(--green);border:1.5px solid var(--green);border-radius:13px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;" onclick="openAssignDriver()">
+        <i class="ti ti-user-plus"></i> 指派駕駛人員
+      </button>
+      <button id="vd-unassign-btn" style="display:none;width:100%;padding:12px;background:var(--red-light);color:var(--red);border:1.5px solid var(--red);border-radius:13px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;" onclick="unassignDriver()">
+        <i class="ti ti-user-minus"></i> 解除指派（設為空車）
+      </button>
+    </div>
   </div>
     <div class="admin-stat-grid">
       <div class="admin-stat"><div class="admin-stat-num" id="adm-n-total" style="color:var(--blue);">0</div><div class="admin-stat-lbl">總項目數</div></div>
@@ -1048,6 +1085,158 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     <div style="display:flex;flex-direction:column;gap:8px;margin-top:18px;">
       <button class="btn-primary" id="part-form-confirm-btn" onclick="confirmPartForm()">確認新增</button>
       <button class="btn-safe" onclick="closePartForm()">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 指派駕駛 overlay（管理員專屬）-->
+<div class="equip-overlay" id="assign-driver-overlay">
+  <div class="equip-sheet">
+    <div class="equip-sheet-title" id="assign-driver-title">指派駕駛人員</div>
+    <div class="equip-sheet-sub" id="assign-driver-sub">從人員清單選擇，或直接輸入姓名</div>
+    <div class="equip-field">
+      <label class="fuel-input-lbl">駕駛人員</label>
+      <input class="fuel-input" id="assign-driver-name" placeholder="輸入姓名或從下方選擇"
+        oninput="filterDriverList(this.value)">
+    </div>
+    <!-- 人員清單（從 Sheets 讀取） -->
+    <div id="assign-driver-list" style="max-height:220px;overflow-y:auto;margin-bottom:12px;border:1.5px solid var(--border);border-radius:11px;"></div>
+    <div class="equip-field">
+      <label class="fuel-input-lbl">所在地點</label>
+      <select class="equip-select" id="assign-driver-loc">
+        <option value="台南">台南</option>
+        <option value="屏東">屏東</option>
+      </select>
+    </div>
+    <button class="equip-submit-btn" style="background:var(--green);" onclick="confirmAssignDriver()">
+      <i class="ti ti-user-check"></i> 確認指派
+    </button>
+    <button class="equip-cancel-btn" onclick="closeAssignOverlay()">取消</button>
+  </div>
+</div>
+
+<!-- 大整理 overlay -->
+<div class="equip-overlay" id="bigcheck-overlay">
+  <div class="equip-sheet" style="max-height:92vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div>
+        <div class="equip-sheet-title" style="margin-bottom:0;" id="bc-title">大整理</div>
+        <div style="font-size:12px;color:var(--sub);margin-top:3px;" id="bc-plate"></div>
+      </div>
+      <button onclick="closeBigCheck()" style="background:none;border:none;font-size:22px;color:var(--sub);cursor:pointer;">✕</button>
+    </div>
+    <!-- 類型選擇 -->
+    <div class="maint-type-row" id="bc-type-row">
+      <button class="maint-type-btn active" id="bc-type-tool" onclick="setBCType('tool',this)">
+        <i class="ti ti-package"></i><span>工具箱整理</span>
+      </button>
+      <button class="maint-type-btn" id="bc-type-car" onclick="setBCType('car',this)">
+        <i class="ti ti-car"></i><span>車內整理</span>
+      </button>
+    </div>
+    <!-- 保養廠（車內整理才顯示） -->
+    <div id="bc-garage-row" style="display:none;margin-bottom:12px;">
+      <label class="fuel-input-lbl">保養廠</label>
+      <select class="equip-select" id="bc-garage">
+        <option value="台南永康">台南永康</option>
+        <option value="屏東">屏東</option>
+      </select>
+    </div>
+    <!-- 整理日期 -->
+    <div style="margin-bottom:12px;">
+      <label class="fuel-input-lbl">整理日期</label>
+      <input class="fuel-input" id="bc-date" type="date" style="font-size:14px;">
+    </div>
+    <!-- 項目清單 -->
+    <div class="veh-section-title" id="bc-items-title">整理項目</div>
+    <div id="bc-items-list"></div>
+    <!-- 管理員加備用項目 -->
+    <div id="bc-extra-wrap" style="display:none;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);">
+      <div style="font-size:11px;color:var(--sub);margin-bottom:6px;font-weight:600;">加備用項目</div>
+      <div style="display:flex;gap:7px;">
+        <input class="fuel-input" id="bc-extra-input" placeholder="輸入項目名稱" style="flex:1;font-size:13px;">
+        <button style="padding:10px 14px;background:var(--blue);color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;white-space:nowrap;" onclick="addBCExtraItem()">＋加入</button>
+      </div>
+    </div>
+    <!-- 備註 -->
+    <div style="margin-top:12px;">
+      <label class="fuel-input-lbl">整體備註（選填）</label>
+      <input class="equip-input" id="bc-note" placeholder="例：下次需要注意冷氣">
+    </div>
+    <!-- 拍照（工具箱整理，暫時隱藏） -->
+    <div id="bc-photo-hint" style="display:none;background:var(--amber-light);border-radius:10px;padding:9px 12px;margin-top:8px;font-size:12px;color:var(--amber);">
+      📷 工具箱整理需附上照片，照片功能即將開放
+    </div>
+    <button class="equip-submit-btn" style="margin-top:14px;" onclick="submitBigCheck()">
+      <i class="ti ti-check"></i> 送出整理記錄
+    </button>
+  </div>
+</div>
+
+<!-- 保養記錄 overlay -->
+<div class="equip-overlay" id="maint-overlay">
+  <div class="equip-sheet" style="max-height:92vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div>
+        <div class="equip-sheet-title" style="margin-bottom:0;" id="maint-title">保養記錄</div>
+        <div style="font-size:12px;color:var(--sub);margin-top:3px;" id="maint-plate-sub"></div>
+      </div>
+      <button onclick="closeMaintOverlay()" style="background:none;border:none;font-size:22px;color:var(--sub);cursor:pointer;">✕</button>
+    </div>
+
+    <!-- 最新一筆保養 -->
+    <div class="veh-section-title">最新保養紀錄</div>
+    <div id="maint-latest"></div>
+
+    <!-- 大修記錄（管理員才看） -->
+    <div id="maint-overhaul-section" style="display:none;">
+      <div class="veh-section-title" style="margin-top:12px;">大修記錄</div>
+      <div id="maint-overhaul-list"></div>
+    </div>
+
+    <!-- 新增保養記錄 -->
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+      <div class="veh-section-title">新增保養記錄</div>
+      <!-- 是否大修 -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:10px 13px;border:1.5px solid var(--border);border-radius:11px;cursor:pointer;" id="maint-overhaul-toggle" onclick="toggleMaintOverhaul()">
+        <div id="maint-overhaul-check" class="maint-check-box"></div>
+        <div>
+          <div style="font-size:13px;font-weight:600;">大修紀錄</div>
+          <div style="font-size:11px;color:var(--sub);">勾選後管理員才看得到此筆記錄</div>
+        </div>
+      </div>
+      <div class="equip-field">
+        <label class="fuel-input-lbl">保養廠</label>
+        <select class="equip-select" id="maint-garage">
+          <option value="台南永康">台南永康</option>
+          <option value="屏東">屏東</option>
+          <option value="其他">其他</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <div style="flex:1;">
+          <label class="fuel-input-lbl">保養日期</label>
+          <input class="fuel-input" id="maint-date" type="date">
+        </div>
+        <div style="flex:1;">
+          <label class="fuel-input-lbl">當時里程(km)</label>
+          <input class="fuel-input" id="maint-km" type="number" inputmode="numeric" placeholder="例：183000">
+        </div>
+      </div>
+      <div class="equip-field">
+        <label class="fuel-input-lbl">費用（元）</label>
+        <input class="fuel-input" id="maint-fee" type="number" inputmode="numeric" placeholder="例：3500">
+      </div>
+      <!-- 保養項目勾選 -->
+      <div class="veh-section-title">保養項目</div>
+      <div id="maint-items-list"></div>
+      <div class="equip-field" style="margin-top:8px;">
+        <label class="fuel-input-lbl">其他備註</label>
+        <input class="equip-input" id="maint-note" placeholder="例：下次換輪胎、建議檢查煞車">
+      </div>
+      <button class="equip-submit-btn" onclick="submitMaintRecord()">
+        <i class="ti ti-tool"></i> 送出保養記錄
+      </button>
     </div>
   </div>
 </div>
@@ -2150,6 +2339,9 @@ function enterMainApp(){
   loadInsData();
   loadFuelRecords();
   loadLicenseRecords();
+  loadDriverList();
+  loadBigCheckData();
+  loadMaintData();
   // 報修設備下拉選單在 BOXES 載入後才能建立
   populateRepairDevices();
   setupHeaderInfo();
@@ -3871,6 +4063,15 @@ function openVehDetail(plate){
 
   // Show admin actions
   document.getElementById("vd-admin-actions").style.display = isAdmin ? "block" : "none";
+  // 指派/解除 按鈕（管理員專屬）
+  var assignArea = document.getElementById("vd-assign-actions");
+  var unassignBtn = document.getElementById("vd-unassign-btn");
+  if(isAdmin){
+    assignArea.style.display = "block";
+    unassignBtn.style.display = assign.driver ? "block" : "none";
+  } else {
+    assignArea.style.display = "none";
+  }
   // Show change car btn for own car or admin
   document.getElementById("vd-change-car-btn").style.display = (plate===myPlate||isAdmin) ? "block" : "none";
 
@@ -4028,10 +4229,344 @@ function openFuelForm(preselect){
 }
 
 function openVehFuelLog(){ openFuelForm(curVehPlate); }
-function openVehMaintLog(){ openWorkerMaint(); }
-function openVehBigCheck(){ openWorkerBigCheck(); }
-function openWorkerMaint(){ showToast("保養記錄功能開發中"); }
-function openWorkerBigCheck(){ showToast("大整理清單功能開發中"); }
+function openVehMaintLog(){ openWorkerMaint(curVehPlate); }
+function openVehBigCheck(){ openWorkerBigCheck(curVehPlate); }
+
+// ─────────────────────────────────────────────
+// 大整理系統
+// ─────────────────────────────────────────────
+// 固定項目清單
+var BIG_CHECK_TOOL = [
+  {id:"bc_seat",    name:"水洗座椅",       note:"每半年"},
+  {id:"bc_wiper",   name:"更換雨刷條",     note:"每半年"},
+  {id:"bc_ac",      name:"冷氣冷度",       note:"是否正常"},
+  {id:"bc_insulate",name:"老舊隔熱貼",     note:"是否需更換"},
+  {id:"bc_lock",    name:"修理後車廂鎖頭", note:""},
+  {id:"bc_curtain", name:"冷氣布簾",       note:"是否需更換"},
+  {id:"bc_glass",   name:"玻璃鍍膜",       note:"是否已鍍膜"},
+  {id:"bc_sticker", name:"貨車貼紙",       note:"是否已貼/狀態"},
+  {id:"bc_bar",     name:"拆除驗車橫桿",   note:"驗車後拆除"}
+];
+var BIG_CHECK_CAR = [
+  {id:"bc_seat",    name:"水洗座椅",       note:""},
+  {id:"bc_wiper",   name:"更換雨刷條",     note:"每半年"},
+  {id:"bc_ac",      name:"冷氣冷度",       note:"是否正常"},
+  {id:"bc_curtain", name:"冷氣布簾",       note:"是否需更換"},
+  {id:"bc_glass",   name:"玻璃鍍膜",       note:""},
+  {id:"bc_sticker", name:"貨車貼紙",       note:"是否已貼"},
+  {id:"bc_bar",     name:"拆除驗車橫桿",   note:"驗車後"},
+  {id:"bc_insulate",name:"老舊隔熱貼",     note:"是否更換"},
+  {id:"bc_lock",    name:"修理後車廂鎖頭", note:""}
+];
+
+var bigCheckData  = {};  // plate → [{type,date,garage,items:{id:{status,note}},note,recorder,time}]
+var bcType        = "tool";
+var bcItemStatus  = {};  // id → "done"|"skip"|null
+var bcExtraItems  = [];  // 管理員加的備用項目
+var curBCPlate    = null;
+
+function loadBigCheckData(){
+  try{ var s=localStorage.getItem("bigcheck_data"); if(s) bigCheckData=JSON.parse(s); }catch(e){}
+}
+function saveBigCheckData(){
+  try{ localStorage.setItem("bigcheck_data", JSON.stringify(bigCheckData)); }catch(e){}
+}
+
+function openWorkerBigCheck(plate){
+  curBCPlate = plate || (curUser?localStorage.getItem("carPlate_"+curUser.email):null);
+  if(!curBCPlate){ showToast("請先綁定車牌"); return; }
+  var v = VEHICLES.find(function(x){ return x.plate===curBCPlate; });
+  document.getElementById("bc-title").textContent = "大整理";
+  document.getElementById("bc-plate").textContent = curBCPlate + (v?" ‧ "+v.company:"");
+  // 日期預設今天
+  document.getElementById("bc-date").value = new Date().toISOString().slice(0,10);
+  document.getElementById("bc-note").value = "";
+  // 保養廠預設依地點
+  var loc = curUser?curUser.location:"台南";
+  document.getElementById("bc-garage").value = loc==="屏東" ? "屏東" : "台南永康";
+  // 管理員才能加備用項目
+  document.getElementById("bc-extra-wrap").style.display = (curUser&&curUser.role==="admin")?"block":"none";
+  bcExtraItems = [];
+  setBCType("tool", document.getElementById("bc-type-tool"));
+  document.getElementById("bigcheck-overlay").classList.add("show");
+}
+
+function setBCType(type, el){
+  bcType = type;
+  ["bc-type-tool","bc-type-car"].forEach(function(id){
+    document.getElementById(id).classList.remove("active");
+  });
+  el.classList.add("active");
+  // 車內整理才顯示保養廠
+  document.getElementById("bc-garage-row").style.display = type==="car"?"block":"none";
+  // 工具箱整理顯示拍照提示
+  document.getElementById("bc-photo-hint").style.display = type==="tool"?"block":"none";
+  // 渲染項目清單
+  renderBCItems();
+}
+
+function renderBCItems(){
+  var baseItems = bcType==="tool" ? BIG_CHECK_TOOL : BIG_CHECK_CAR;
+  var allItems = baseItems.concat(bcExtraItems);
+  bcItemStatus = {};
+  var list = document.getElementById("bc-items-list");
+  list.innerHTML = "";
+  allItems.forEach(function(item){
+    bcItemStatus[item.id] = null;
+    var row = document.createElement("div");
+    row.className = "check-item";
+    row.id = "bci-row-"+item.id;
+    row.innerHTML =
+      '<div class="check-item-info">'
+      + '<div class="check-item-name">'+item.name+'</div>'
+      + (item.note?'<div class="check-item-note">'+item.note+'</div>':'')
+      + '</div>'
+      + '<div class="check-item-btns">'
+      + '<button class="check-btn" id="bci-done-'+item.id+'" title="已完成" onclick="setBCStatus(\''+item.id+'\',\'done\')">✅</button>'
+      + '<button class="check-btn" id="bci-skip-'+item.id+'" title="不需要/略過" onclick="setBCStatus(\''+item.id+'\',\'skip\')">—</button>'
+      + '</div>';
+    list.appendChild(row);
+  });
+}
+
+function setBCStatus(id, status){
+  bcItemStatus[id] = bcItemStatus[id]===status ? null : status;
+  var row = document.getElementById("bci-row-"+id);
+  var doneBtn = document.getElementById("bci-done-"+id);
+  var skipBtn = document.getElementById("bci-skip-"+id);
+  row.className = "check-item" + (bcItemStatus[id]==="done"?" done":bcItemStatus[id]==="skip"?" skip":"");
+  doneBtn.className = "check-btn" + (bcItemStatus[id]==="done"?" active-done":"");
+  skipBtn.className = "check-btn" + (bcItemStatus[id]==="skip"?" active-skip":"");
+}
+
+function addBCExtraItem(){
+  var val = document.getElementById("bc-extra-input").value.trim();
+  if(!val) return;
+  var id = "bc_extra_"+Date.now();
+  bcExtraItems.push({id:id, name:val, note:"備用項目"});
+  document.getElementById("bc-extra-input").value = "";
+  renderBCItems();
+  // 還原已設定的狀態
+}
+
+function submitBigCheck(){
+  if(!curBCPlate){ closeBigCheck(); return; }
+  var date = document.getElementById("bc-date").value;
+  if(!date){ alert("請填寫整理日期"); return; }
+  var garage = bcType==="car" ? document.getElementById("bc-garage").value : "";
+  var note = document.getElementById("bc-note").value.trim();
+  var t = nowStr();
+  var rec = {
+    type: bcType,
+    date: date.replace(/-/g,"/"),
+    garage: garage,
+    items: JSON.parse(JSON.stringify(bcItemStatus)),
+    note: note,
+    recorder: curUser?curUser.name:"",
+    time: t
+  };
+  if(!bigCheckData[curBCPlate]) bigCheckData[curBCPlate] = [];
+  bigCheckData[curBCPlate].unshift(rec);
+  if(bigCheckData[curBCPlate].length > 20) bigCheckData[curBCPlate] = bigCheckData[curBCPlate].slice(0,20);
+  saveBigCheckData();
+  closeBigCheck();
+  // 統計有做/未做數量
+  var done = Object.values(bcItemStatus).filter(function(v){return v==="done";}).length;
+  var total = Object.keys(bcItemStatus).length;
+  sendToSheets({type:"大整理",box:curBCPlate,part:bcType==="tool"?"工具箱整理":"車內整理",qty:done,
+    name:curUser?curUser.name:"",email:curUser?curUser.email:"",
+    note:"完成"+done+"/"+total+"項"+(garage?"，"+garage:"")+(note?"，"+note:""),
+    time:t,loc:curUser?curUser.location:"",serial:""});
+  showToast("✅ 大整理記錄已送出（"+done+"/"+total+" 項完成）");
+}
+
+function closeBigCheck(){
+  document.getElementById("bigcheck-overlay").classList.remove("show");
+}
+
+// ─────────────────────────────────────────────
+// 保養記錄系統
+// ─────────────────────────────────────────────
+var MAINT_ITEMS = [
+  {id:"mi_oil",    name:"更換機油"},
+  {id:"mi_filter", name:"機油濾芯"},
+  {id:"mi_air",    name:"空氣濾網"},
+  {id:"mi_ac",     name:"冷氣濾網"},
+  {id:"mi_brake",  name:"煞車皮"},
+  {id:"mi_tire",   name:"輪胎"},
+  {id:"mi_belt",   name:"皮帶"},
+  {id:"mi_battery",name:"電瓶"},
+  {id:"mi_wiper",  name:"雨刷"},
+  {id:"mi_light",  name:"燈泡"},
+  {id:"mi_spark",  name:"火星塞"}
+];
+
+var maintData    = {};  // plate → [{isOverhaul,garage,date,km,fee,items:[],note,recorder,time}]
+var maintChecked = {};  // id → bool
+var isMaintOverhaul = false;
+var curMaintPlate = null;
+
+function loadMaintData(){
+  try{ var s=localStorage.getItem("maint_data"); if(s) maintData=JSON.parse(s); }catch(e){}
+}
+function saveMaintData(){
+  try{ localStorage.setItem("maint_data", JSON.stringify(maintData)); }catch(e){}
+}
+
+function openWorkerMaint(plate){
+  curMaintPlate = plate || (curUser?localStorage.getItem("carPlate_"+curUser.email):null);
+  if(!curMaintPlate){ showToast("請先綁定車牌"); return; }
+  var v = VEHICLES.find(function(x){ return x.plate===curMaintPlate; });
+  var isAdmin = curUser&&curUser.role==="admin";
+  document.getElementById("maint-title").textContent = "保養記錄";
+  document.getElementById("maint-plate-sub").textContent = curMaintPlate + (v?" ‧ "+v.company:"");
+  // 預設
+  document.getElementById("maint-date").value = new Date().toISOString().slice(0,10);
+  document.getElementById("maint-km").value = "";
+  document.getElementById("maint-fee").value = "";
+  document.getElementById("maint-note").value = "";
+  // 保養廠預設
+  var loc = curUser?curUser.location:"台南";
+  document.getElementById("maint-garage").value = loc==="屏東"?"屏東":"台南永康";
+  // 重設大修勾選
+  isMaintOverhaul = false;
+  updateMaintOverhaulUI();
+  // 渲染保養項目
+  maintChecked = {};
+  renderMaintItems();
+  // 渲染最新紀錄
+  renderMaintLatest(curMaintPlate, isAdmin);
+  // 大修區塊管理員才顯示
+  document.getElementById("maint-overhaul-section").style.display = isAdmin?"block":"none";
+  document.getElementById("maint-overlay").classList.add("show");
+}
+
+function toggleMaintOverhaul(){
+  isMaintOverhaul = !isMaintOverhaul;
+  updateMaintOverhaulUI();
+}
+function updateMaintOverhaulUI(){
+  var toggle = document.getElementById("maint-overhaul-toggle");
+  var check  = document.getElementById("maint-overhaul-check");
+  toggle.style.borderColor = isMaintOverhaul ? "var(--amber)" : "var(--border)";
+  toggle.style.background  = isMaintOverhaul ? "var(--amber-light)" : "var(--bg)";
+  check.style.background   = isMaintOverhaul ? "var(--amber)" : "";
+  check.style.borderColor  = isMaintOverhaul ? "var(--amber)" : "";
+  check.innerHTML           = isMaintOverhaul ? '<i class="ti ti-check" style="font-size:12px;color:#fff;"></i>' : "";
+}
+
+function renderMaintItems(){
+  var list = document.getElementById("maint-items-list");
+  list.innerHTML = "";
+  MAINT_ITEMS.forEach(function(item){
+    maintChecked[item.id] = false;
+    var row = document.createElement("div");
+    row.className = "maint-check-row";
+    row.id = "mi-row-"+item.id;
+    row.onclick = function(){ toggleMaintItem(item.id); };
+    row.innerHTML = '<div class="maint-check-box" id="mi-chk-'+item.id+'"></div>'
+      + '<div class="maint-check-label">'+item.name+'</div>';
+    list.appendChild(row);
+  });
+}
+
+function toggleMaintItem(id){
+  maintChecked[id] = !maintChecked[id];
+  var row = document.getElementById("mi-row-"+id);
+  var chk = document.getElementById("mi-chk-"+id);
+  row.className = "maint-check-row" + (maintChecked[id]?" checked":"");
+  chk.innerHTML = maintChecked[id]?'<i class="ti ti-check" style="font-size:12px;color:#fff;"></i>':"";
+  chk.style.background = maintChecked[id]?"var(--blue)":"";
+  chk.style.borderColor= maintChecked[id]?"var(--blue)":"";
+}
+
+function renderMaintLatest(plate, isAdmin){
+  var records = maintData[plate] || [];
+  var latest = document.getElementById("maint-latest");
+  // 操作員只看非大修的最新一筆
+  var visible = records.filter(function(r){ return isAdmin||!r.isOverhaul; });
+  if(!visible.length){
+    latest.innerHTML = '<div style="font-size:13px;color:var(--sub);padding:6px 0;">尚無保養記錄</div>';
+  } else {
+    var r = visible[0];
+    latest.innerHTML = '<div class="ins-card ins-active">'
+      + '<div class="ins-card-hd">'
+      + '<span style="font-size:13px;font-weight:700;">'+r.garage+'</span>'
+      + (r.isOverhaul?'<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:var(--amber-light);color:var(--amber);font-weight:600;">大修</span>':'')
+      + '</div>'
+      + '<div class="ins-row"><span>日期：<b>'+r.date+'</b></span>'
+      + (r.km?'<span>里程：<b>'+Number(r.km).toLocaleString()+' km</b></span>':'')+'</div>'
+      + (r.fee?'<div class="ins-row"><span>費用：<b>'+Number(r.fee).toLocaleString()+' 元</b></span></div>':'')
+      + (r.items&&r.items.length?'<div class="ins-row"><span>項目：'+r.items.join("、")+'</span></div>':'')
+      + (r.note?'<div class="ins-row"><span>'+r.note+'</span></div>':'')
+      + '</div>';
+  }
+  // 大修列表（管理員）
+  if(isAdmin){
+    var overhauls = records.filter(function(r){ return r.isOverhaul; }).slice(0,5);
+    var oList = document.getElementById("maint-overhaul-list");
+    oList.innerHTML = "";
+    if(!overhauls.length){
+      oList.innerHTML = '<div style="font-size:13px;color:var(--sub);padding:6px 0;">尚無大修記錄</div>';
+    } else {
+      overhauls.forEach(function(r){
+        var item = document.createElement("div");
+        item.className = "overhaul-item";
+        item.innerHTML = '<div class="overhaul-hd">'+r.date+'　'+r.garage+'</div>'
+          + '<div class="overhaul-meta">'
+          + (r.km?'里程：'+Number(r.km).toLocaleString()+' km　':'')
+          + (r.fee?'費用：'+Number(r.fee).toLocaleString()+' 元':'')+'</div>'
+          + (r.items&&r.items.length?'<div class="overhaul-meta" style="margin-top:3px;">'+r.items.join("、")+'</div>':'')
+          + (r.note?'<div class="overhaul-meta" style="margin-top:3px;">'+r.note+'</div>':'')
+          + '<div class="overhaul-meta" style="margin-top:3px;color:var(--sub);">登記人：'+r.recorder+'</div>';
+        oList.appendChild(item);
+      });
+    }
+  }
+}
+
+function submitMaintRecord(){
+  if(!curMaintPlate) return;
+  var date   = document.getElementById("maint-date").value;
+  var km     = parseInt(document.getElementById("maint-km").value)||0;
+  var fee    = parseInt(document.getElementById("maint-fee").value)||0;
+  var garage = document.getElementById("maint-garage").value;
+  var note   = document.getElementById("maint-note").value.trim();
+  if(!date){ alert("請填寫保養日期"); return; }
+  var checkedItems = MAINT_ITEMS.filter(function(i){ return maintChecked[i.id]; }).map(function(i){ return i.name; });
+  var t = nowStr();
+  var rec = {
+    isOverhaul: isMaintOverhaul,
+    garage: garage,
+    date: date.replace(/-/g,"/"),
+    km: km,
+    fee: fee,
+    items: checkedItems,
+    note: note,
+    recorder: curUser?curUser.name:"",
+    time: t
+  };
+  if(!maintData[curMaintPlate]) maintData[curMaintPlate] = [];
+  maintData[curMaintPlate].unshift(rec);
+  if(maintData[curMaintPlate].length>30) maintData[curMaintPlate]=maintData[curMaintPlate].slice(0,30);
+  saveMaintData();
+  // 更新車輛的上次保養里程
+  if(km){
+    var v = VEHICLES.find(function(x){ return x.plate===curMaintPlate; });
+    if(v){ v.lastMaintKm=km; try{localStorage.setItem("vehicles_override",JSON.stringify(VEHICLES));}catch(e){} }
+  }
+  closeMaintOverlay();
+  sendToSheets({type:isMaintOverhaul?"大修記錄":"保養記錄",box:curMaintPlate,part:garage,qty:fee,
+    name:curUser?curUser.name:"",email:curUser?curUser.email:"",
+    note:"里程:"+km+"km，項目:"+checkedItems.join("、")+(note?"，"+note:""),
+    time:t,loc:curUser?curUser.location:"",serial:"",isOverhaul:isMaintOverhaul});
+  showToast("✅ "+(isMaintOverhaul?"大修":"保養")+"記錄已送出");
+}
+
+function closeMaintOverlay(){
+  document.getElementById("maint-overlay").classList.remove("show");
+}
+// ─────────────────────────────────────────────
 function openVehTax(){ openInsOverlay(curVehPlate, 'tax'); }
 function openVehInsurance(){ openInsOverlay(curVehPlate, 'compulsory'); }
 
@@ -4329,6 +4864,108 @@ function submitFuelRecord(){
     note:"里程:"+mileage+"km，"+note,time:t,loc:curUser?curUser.location:"",
     serial:"",fuelAmount:amount,mileage:mileage,plate:plate});
   showToast("✅ 加油記錄已送出");
+}
+
+// ─── 指派 / 解除指派 ───
+var allDrivers = []; // 從 Sheets 人員清單讀取
+
+function loadDriverList(){
+  // 先用本地快取顯示，背景從 Sheets 讀
+  try{
+    var s = localStorage.getItem("driver_list_cache");
+    if(s) allDrivers = JSON.parse(s);
+  }catch(e){}
+  // 背景從 Sheets 讀取最新人員清單
+  if(GAS_URL){
+    fetch(GAS_URL + "?action=readUsers", { mode:"cors", cache:"no-cache" })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if(data.ok && data.data){
+          allDrivers = data.data;
+          try{ localStorage.setItem("driver_list_cache", JSON.stringify(allDrivers)); }catch(e){}
+        }
+      }).catch(function(){});
+  }
+}
+
+function openAssignDriver(){
+  var v = VEHICLES.find(function(x){ return x.plate===curVehPlate; });
+  document.getElementById("assign-driver-title").textContent = "指派駕駛：" + curVehPlate;
+  document.getElementById("assign-driver-sub").textContent =
+    (v ? v.company + " ‧ " + v.type : "") + "　目前：" +
+    ((vehAssignments[curVehPlate]||{}).driver || "空車");
+  document.getElementById("assign-driver-name").value = "";
+  var assign = vehAssignments[curVehPlate] || {};
+  document.getElementById("assign-driver-loc").value = assign.loc || (v?v.loc:"台南");
+  renderDriverList("");
+  document.getElementById("assign-driver-overlay").classList.add("show");
+  // 確保清單最新
+  loadDriverList();
+}
+
+function renderDriverList(keyword){
+  var list = document.getElementById("assign-driver-list");
+  list.innerHTML = "";
+  var kw = (keyword||"").trim();
+  var drivers = allDrivers.filter(function(d){
+    return !kw || d.name.indexOf(kw)>-1;
+  });
+  if(!drivers.length){
+    list.innerHTML = '<div style="padding:12px;font-size:13px;color:var(--sub);text-align:center;">'+(kw?"找不到符合人員":"人員清單讀取中…")+'</div>';
+    return;
+  }
+  drivers.forEach(function(d){
+    var item = document.createElement("div");
+    item.style.cssText = "padding:11px 14px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:space-between;";
+    item.innerHTML = '<div><div style="font-size:13px;font-weight:600;">'+d.name+'</div>'
+      + '<div style="font-size:11px;color:var(--sub);">'+(d.role==="admin"?"管理者":d.role==="senior"?"資深":"作業員")+'　'+(d.location||"")+'</div></div>'
+      + '<i class="ti ti-chevron-right" style="font-size:14px;color:var(--sub);"></i>';
+    item.onclick = (function(name, loc){ return function(){
+      document.getElementById("assign-driver-name").value = name;
+      if(loc) document.getElementById("assign-driver-loc").value = loc;
+      filterDriverList(name);
+    }; })(d.name, d.location);
+    list.appendChild(item);
+  });
+}
+
+function filterDriverList(kw){
+  renderDriverList(kw);
+}
+
+function confirmAssignDriver(){
+  var name = document.getElementById("assign-driver-name").value.trim();
+  var loc  = document.getElementById("assign-driver-loc").value;
+  if(!name){ alert("請輸入或選擇駕駛人員"); return; }
+  var t = nowStr();
+  vehAssignments[curVehPlate] = { driver: name, loc: loc, since: t };
+  saveVehicleData();
+  closeAssignOverlay();
+  // 更新詳細頁
+  openVehDetail(curVehPlate);
+  sendToSheets({type:"指派車輛",box:curVehPlate,part:name,qty:0,
+    name:curUser?curUser.name:"",email:curUser?curUser.email:"",
+    note:"指派 "+name+" 至 "+curVehPlate+"（"+loc+"）",time:t,loc:loc,serial:""});
+  showToast("✅ 已指派 " + name + " → " + curVehPlate);
+}
+
+function unassignDriver(){
+  var assign = vehAssignments[curVehPlate] || {};
+  if(!confirm("確定解除「" + (assign.driver||"") + "」對 " + curVehPlate + " 的指派？\n車輛將變為空車。")) return;
+  var t = nowStr();
+  var oldDriver = assign.driver;
+  delete vehAssignments[curVehPlate];
+  saveVehicleData();
+  openVehDetail(curVehPlate);
+  renderVehiclePage();
+  sendToSheets({type:"解除指派",box:curVehPlate,part:oldDriver,qty:0,
+    name:curUser?curUser.name:"",email:curUser?curUser.email:"",
+    note:"解除 "+oldDriver+" 對 "+curVehPlate+" 的指派，車輛設為空車",time:t,loc:"",serial:""});
+  showToast("已解除指派，" + curVehPlate + " 設為空車");
+}
+
+function closeAssignOverlay(){
+  document.getElementById("assign-driver-overlay").classList.remove("show");
 }
 
 function openVehEdit(){
