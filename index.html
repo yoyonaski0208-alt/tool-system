@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260629-01">
+<meta name="app-version" content="20260630-01>
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -843,6 +843,8 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       </button>
     </div>
   </div>
+
+  <div id="pg-admin" class="page">
     <div class="admin-stat-grid">
       <div class="admin-stat"><div class="admin-stat-num" id="adm-n-total" style="color:var(--blue);">0</div><div class="admin-stat-lbl">總項目數</div></div>
       <div class="admin-stat"><div class="admin-stat-num" id="adm-n-low" style="color:var(--red);">0</div><div class="admin-stat-lbl">需補貨</div></div>
@@ -859,7 +861,7 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     <div id="adm-alerts" class="restock-body"></div>
     <div class="section-hd" style="margin-top:16px;">所有工具箱</div>
     <div id="adm-boxes"></div>
-  </div>
+  </div><!-- end pg-admin -->
 
   <div class="bottom-nav">
     <button class="nav-btn active" id="nav-take" onclick="navTo('take',this)"><i class="ti ti-package"></i>領取</button>
@@ -2431,6 +2433,35 @@ function navTo(pg,el){
   document.querySelectorAll(".nav-btn").forEach(function(x){x.classList.remove("active");}); el.classList.add("active");
   document.querySelectorAll(".page").forEach(function(p){p.classList.remove("active");});
   document.getElementById("pg-"+pg).classList.add("active");
+
+  // 管理 location-bar：只在工具箱相關頁面顯示
+  var locBar = document.getElementById("location-bar");
+  var isAdminFullAccess = curUser && curUser.role==="admin" && curUser.location==="全部";
+  var isToolPage = (pg==="take" || pg==="log" || pg==="serial");
+
+  if(pg==="vehicle"){
+    // 車輛頁：管理員顯示指派狀態 bar
+    if(isAdminFullAccess){
+      locBar.style.display = "flex";
+      document.getElementById("loc-bar-stock").style.display = "none";
+      document.getElementById("loc-bar-vehicle").style.display = "flex";
+    }
+    renderVehiclePage();
+  } else {
+    // 非車輛頁：恢復庫存地點模式
+    document.getElementById("loc-bar-stock").style.display = "flex";
+    document.getElementById("loc-bar-vehicle").style.display = "none";
+    // location-bar 只在工具箱相關頁顯示（管理員全區才需要切換台南/屏東）
+    if(isAdminFullAccess && isToolPage){
+      locBar.style.display = "flex";
+    } else if(!isAdminFullAccess){
+      locBar.style.display = "none";
+    } else {
+      // 管理員在 admin/equip/repair 等頁面：隱藏 bar
+      locBar.style.display = "none";
+    }
+  }
+
   if(pg==="log")renderLogs();
   if(pg==="serial")renderSerial();
   if(pg==="admin")renderAdmin();
@@ -2438,18 +2469,6 @@ function navTo(pg,el){
   if(pg==="equip"){
     renderEquip();
     syncEquipFromSheets();
-  }
-  if(pg==="vehicle"){
-    // 管理員：把上方 bar 換成指派狀態模式
-    if(curUser && curUser.role==="admin" && curUser.location==="全部"){
-      document.getElementById("loc-bar-stock").style.display="none";
-      document.getElementById("loc-bar-vehicle").style.display="flex";
-    }
-    renderVehiclePage();
-  } else {
-    // 離開車輛頁：恢復庫存地點模式
-    document.getElementById("loc-bar-stock").style.display="flex";
-    document.getElementById("loc-bar-vehicle").style.display="none";
   }
 }
 function showMain(pg){pshow("s-main");navTo(pg,document.getElementById("nav-"+pg));}
