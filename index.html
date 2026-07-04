@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260704-01">
+<meta name="app-version" content="20260704-1">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -5904,7 +5904,10 @@ function renderVStatusDisplay(vstatus){
   el.innerHTML = "";
   var vs = vstatus || {};
   if(!Object.keys(vs).length && !VSTATUS_ITEMS.length){
-    el.innerHTML = '<div style="font-size:12px;color:var(--sub);">尚未設定車況</div>'; return;
+    var emDiv = document.createElement("div");
+    emDiv.style.cssText = "font-size:12px;color:var(--sub);";
+    emDiv.textContent = "尚未設定車況";
+    el.appendChild(emDiv); return;
   }
   var grid = document.createElement("div");
   grid.className = "vstatus-grid";
@@ -5942,26 +5945,38 @@ function renderVStatusEdit(vstatus){
   VSTATUS_ITEMS.forEach(function(item){
     var checked = vs[item.id] === true;
     var row = document.createElement("div");
-    row.style.cssText = "display:flex;align-items:center;gap:10px;padding:9px 13px;border:1.5px solid var(--border);border-radius:10px;margin-bottom:6px;cursor:pointer;transition:all .15s;" + (checked?"border-color:var(--green);background:var(--green-light);":"");
-    row.id = "vsedit-row-"+item.id;
+    row.className = "maint-check-row" + (checked ? " checked" : "");
+    row.id = "vsedit-row-" + item.id;
     row.onclick = (function(id){ return function(){ toggleVStatusEdit(id); }; })(item.id);
-    row.innerHTML = '<div id="vsedit-chk-'+item.id+'" style="width:22px;height:22px;border-radius:6px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;'+(checked?'background:var(--green);border-color:var(--green);":"")+"\">"+(checked?'<i class="ti ti-check" style="font-size:12px;color:#fff;"></i>':'')+' </div>'
-      + '<div style="font-size:13px;font-weight:500;">'+item.icon+' '+item.name+'</div>';
+    var chkBox = document.createElement("div");
+    chkBox.className = "maint-check-box";
+    chkBox.id = "vsedit-chk-" + item.id;
+    if(checked){
+      chkBox.style.background = "var(--blue)";
+      chkBox.style.borderColor = "var(--blue)";
+      chkBox.innerHTML = '<i class="ti ti-check" style="font-size:12px;color:#fff;"></i>';
+    }
+    var label = document.createElement("div");
+    label.className = "maint-check-label";
+    label.textContent = item.icon + " " + item.name;
+    row.appendChild(chkBox);
+    row.appendChild(label);
     list.appendChild(row);
   });
 }
-
 function toggleVStatusEdit(id){
   var row = document.getElementById("vsedit-row-"+id);
   var chk = document.getElementById("vsedit-chk-"+id);
-  var isDone = row.style.borderColor.indexOf("green") > -1 || chk.innerHTML.trim() !== "";
+  var isDone = row.classList.contains("checked");
   if(!isDone){
-    row.style.borderColor = "var(--green)"; row.style.background = "var(--green-light)";
-    chk.style.background = "var(--green)"; chk.style.borderColor = "var(--green)";
+    row.classList.add("checked");
+    chk.style.background = "var(--blue)";
+    chk.style.borderColor = "var(--blue)";
     chk.innerHTML = '<i class="ti ti-check" style="font-size:12px;color:#fff;"></i>';
   } else {
-    row.style.borderColor = "var(--border)"; row.style.background = "";
-    chk.style.background = ""; chk.style.borderColor = "";
+    row.classList.remove("checked");
+    chk.style.background = "";
+    chk.style.borderColor = "";
     chk.innerHTML = "";
   }
 }
@@ -5969,8 +5984,8 @@ function toggleVStatusEdit(id){
 function readVStatusEdit(){
   var vs = {};
   VSTATUS_ITEMS.forEach(function(item){
-    var chk = document.getElementById("vsedit-chk-"+item.id);
-    vs[item.id] = chk ? chk.innerHTML.trim() !== "" : false;
+    var row = document.getElementById("vsedit-row-"+item.id);
+    vs[item.id] = row ? row.classList.contains("checked") : false;
   });
   return vs;
 }
