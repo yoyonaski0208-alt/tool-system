@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260630-01>
+<meta name="app-version" content="20260625-02">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -419,6 +419,21 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
 .overhaul-item{background:var(--card);border:1.5px solid var(--amber);border-radius:13px;padding:12px;margin-bottom:8px;}
 .overhaul-hd{font-size:14px;font-weight:700;margin-bottom:5px;}
 .overhaul-meta{font-size:11px;color:var(--sub);}
+/* 車況貼紙 */
+.vstatus-grid{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px;}
+.vstatus-tag{display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid transparent;cursor:default;}
+.vstatus-tag.done{background:var(--green-light);border-color:var(--green);color:var(--green);}
+.vstatus-tag.undone{background:var(--red-light);border-color:var(--red);color:var(--red);}
+.vstatus-tag.na{background:var(--bg);border-color:var(--border);color:var(--sub);}
+.vstatus-tag.warn{background:var(--amber-light);border-color:var(--amber);color:var(--amber);}
+/* 後台報表 */
+.report-section{background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px;}
+.report-section-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;}
+.report-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.report-row:last-child{border-bottom:none;}
+.report-plate{font-size:13px;font-weight:600;}
+.report-amount{font-size:14px;font-weight:700;color:var(--amber);}
+.report-overhaul-tag{font-size:10px;padding:2px 8px;border-radius:20px;background:var(--amber-light);color:var(--amber);font-weight:600;margin-left:6px;}
 .veh-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
 .veh-stat{background:var(--bg);border-radius:12px;padding:11px 12px;}
 .veh-stat-lbl{font-size:10px;color:var(--sub);margin-bottom:3px;}
@@ -806,6 +821,9 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     <div class="veh-section">
       <div class="veh-section-title">工具箱配備</div>
       <div id="vd-boxes"></div>
+      <!-- 車況現況貼紙 -->
+      <div class="veh-section-title" style="margin-top:14px;">車況現況</div>
+      <div id="vd-vstatus"></div>
     </div>
     <!-- 操作按鈕（管理員） -->
     <div id="vd-admin-actions" style="display:none;">
@@ -861,6 +879,25 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     <div id="adm-alerts" class="restock-body"></div>
     <div class="section-hd" style="margin-top:16px;">所有工具箱</div>
     <div id="adm-boxes"></div>
+
+    <!-- 後台報表區塊 -->
+    <div class="section-hd" style="margin-top:20px;">車輛報表</div>
+    <!-- 加油記錄報表 -->
+    <div class="report-section">
+      <div class="report-section-title">
+        <span><i class="ti ti-droplet" style="color:var(--amber);margin-right:5px;"></i>加油記錄（本月）</span>
+        <button style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:8px;background:none;cursor:pointer;font-family:inherit;" onclick="loadAdminFuelReport()">重新整理</button>
+      </div>
+      <div id="adm-fuel-report-list"><div style="font-size:12px;color:var(--sub);">點重新整理從 Google Sheets 載入</div></div>
+    </div>
+    <!-- 大修記錄 -->
+    <div class="report-section">
+      <div class="report-section-title">
+        <span><i class="ti ti-tool" style="color:var(--amber);margin-right:5px;"></i>大修記錄</span>
+        <button style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:8px;background:none;cursor:pointer;font-family:inherit;" onclick="loadAdminOverhaulReport()">重新整理</button>
+      </div>
+      <div id="adm-overhaul-report-list"><div style="font-size:12px;color:var(--sub);">點重新整理從 Google Sheets 載入</div></div>
+    </div>
   </div><!-- end pg-admin -->
 
   <div class="bottom-nav">
@@ -1581,6 +1618,11 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
         <option value="forsale">待售出</option>
         <option value="retired">已退役</option>
       </select>
+    </div>
+    <!-- 車況現況（小貼紙） -->
+    <div style="margin-bottom:4px;">
+      <div class="fuel-input-lbl" style="margin-bottom:8px;">車況現況（勾選＝已完成）</div>
+      <div id="veh-edit-vstatus-list"></div>
     </div>
     <button class="equip-submit-btn" style="margin-top:4px;" onclick="confirmVehEdit()"><i class="ti ti-check"></i> 確認儲存</button>
     <button class="equip-cancel-btn" onclick="closeVehEditOverlay()">取消</button>
@@ -4079,6 +4121,8 @@ function openVehDetail(plate){
 
   // 工具箱配備
   renderVehBoxes(plate, isAdmin);
+  // 車況現況貼紙
+  renderVStatusDisplay(v ? v.vstatus : {});
 
   // Show admin actions
   document.getElementById("vd-admin-actions").style.display = isAdmin ? "block" : "none";
@@ -4992,13 +5036,14 @@ function openVehEdit(){
   if(!v) return;
   document.getElementById("veh-edit-title").textContent = "編輯車輛：" + curVehPlate;
   document.getElementById("veh-edit-plate").value = v.plate;
-  document.getElementById("veh-edit-plate").disabled = true; // 編輯時不能改車牌
+  document.getElementById("veh-edit-plate").disabled = true;
   document.getElementById("veh-edit-company").value = v.company;
   document.getElementById("veh-edit-type").value = v.type;
   document.getElementById("veh-edit-loc").value = v.loc;
   document.getElementById("veh-edit-year").value = v.yearMonth || "";
   document.getElementById("veh-edit-freight").value = v.isFreight ? "yes" : "no";
   document.getElementById("veh-edit-status").value = v.status || "active";
+  renderVStatusEdit(v.vstatus || {});
   document.getElementById("veh-edit-overlay").classList.add("show");
 }
 
@@ -5012,6 +5057,7 @@ function openAddVehicle(){
   document.getElementById("veh-edit-year").value = "";
   document.getElementById("veh-edit-freight").value = "no";
   document.getElementById("veh-edit-status").value = "active";
+  renderVStatusEdit({});
   curVehPlate = null;
   document.getElementById("veh-edit-overlay").classList.add("show");
 }
@@ -5025,20 +5071,20 @@ function confirmVehEdit(){
   var yearMonth = document.getElementById("veh-edit-year").value.trim();
   var isFreight = document.getElementById("veh-edit-freight").value === "yes";
   var status = document.getElementById("veh-edit-status").value;
+  var vstatus = readVStatusEdit(); // 讀取車況勾選
   var seats = type === "2人貨車" ? 2 : type === "轎車" ? 5 : 5;
   var year = yearMonth ? parseInt(yearMonth.split("/")[0]) : 0;
 
   var existing = VEHICLES.findIndex(function(v){ return v.plate === plate; });
   var vObj = {
     plate:plate, company:company, type:type, seats:seats, year:year, yearMonth:yearMonth,
-    loc:loc, isFreight:isFreight, hasSticker:false, status:status,
+    loc:loc, isFreight:isFreight, hasSticker:false, status:status, vstatus:vstatus,
     inspect:"", inspectFreq:"一年", insurance:"", insuranceExp:"", insuranceFee:0,
     plateTax:{month:4,amount:0}, fuelTax:{month:7,amount:0},
     lastMaintKm:0, nextMaintKm:0, boxes:[]
   };
 
   if(existing >= 0){
-    // 保留原有的提醒資料
     var orig = VEHICLES[existing];
     vObj.inspect = orig.inspect; vObj.inspectFreq = orig.inspectFreq;
     vObj.insurance = orig.insurance; vObj.insuranceExp = orig.insuranceExp;
@@ -5293,7 +5339,7 @@ function renderVehBoxes(plate, isAdmin){
 
   // 貼紙資訊
   var v = VEHICLES.find(function(x){ return x.plate===plate; });
-  if(v) vdBoxes.innerHTML += '<div style="font-size:11px;color:var(--sub);margin-top:8px;"><b>貨車大車牌貼紙：</b>'+(v.isFreight?"需確認是否已貼":"不需要")+'</div>';
+  if(v) vdBoxes.innerHTML += '';
 }
 
 // ── 工具箱總覽（管理員）──
@@ -5834,6 +5880,163 @@ function closeLicenseOverlay(){
   document.getElementById("license-overlay").classList.remove("show");
 }
 
+// ─────────────────────────────────────────────
+
+// ─────────────────────────────────────────────
+// 車況現況（小貼紙）
+// ─────────────────────────────────────────────
+var VSTATUS_ITEMS = [
+  {id:"vs_sticker",  name:"貨車貼紙",     icon:"🏷️"},
+  {id:"vs_tint",     name:"老舊隔熱貼",   icon:"🪟"},
+  {id:"vs_bar",      name:"拆除驗車橫桿", icon:"🔩"},
+  {id:"vs_seat",     name:"水洗座椅",     icon:"🪑"},
+  {id:"vs_trunk",    name:"後車廂鎖頭",   icon:"🔒"},
+  {id:"vs_curtain",  name:"冷氣布簾",     icon:"🌬️"},
+  {id:"vs_wiper",    name:"更換雨刷條",   icon:"🌧️"},
+  {id:"vs_ac",       name:"冷氣冷度",     icon:"❄️"},
+  {id:"vs_glass",    name:"玻璃鍍膜",     icon:"✨"}
+];
+
+// 在 vd-vstatus 顯示車況貼紙
+function renderVStatusDisplay(vstatus){
+  var el = document.getElementById("vd-vstatus");
+  if(!el) return;
+  el.innerHTML = "";
+  var vs = vstatus || {};
+  if(!Object.keys(vs).length && !VSTATUS_ITEMS.length){
+    el.innerHTML = '<div style="font-size:12px;color:var(--sub);">尚未設定車況</div>'; return;
+  }
+  var grid = document.createElement("div");
+  grid.className = "vstatus-grid";
+  VSTATUS_ITEMS.forEach(function(item){
+    var tag = document.createElement("div");
+    var done = vs[item.id] === true;
+    tag.className = "vstatus-tag " + (done ? "done" : "undone");
+    tag.innerHTML = item.icon + " " + item.name;
+    grid.appendChild(tag);
+  });
+  el.appendChild(grid);
+  // 冷氣異常立即回報按鈕（只有在使用中顯示）
+  var acDone = vs["vs_ac"] === true;
+  if(!acDone){
+    var btn = document.createElement("button");
+    btn.style.cssText = "font-size:11px;padding:6px 12px;background:var(--red-light);color:var(--red);border:1.5px solid var(--red);border-radius:9px;cursor:pointer;font-family:inherit;font-weight:600;margin-top:2px;";
+    btn.innerHTML = '<i class="ti ti-alert-triangle"></i> 冷氣異常，立即回報';
+    btn.onclick = function(){
+      var t = nowStr();
+      sendToSheets({type:"冷氣異常回報",box:curVehPlate,part:curUser?curUser.name:"",qty:0,
+        name:curUser?curUser.name:"",email:curUser?curUser.email:"",
+        note:"冷氣冷度異常，需立即處理",time:t,loc:curUser?curUser.location:"",serial:""});
+      showToast("✅ 已回報冷氣異常，管理員將收到通知");
+    };
+    el.appendChild(btn);
+  }
+}
+
+// 在編輯 overlay 顯示車況勾選清單
+function renderVStatusEdit(vstatus){
+  var list = document.getElementById("veh-edit-vstatus-list");
+  if(!list) return;
+  list.innerHTML = "";
+  var vs = vstatus || {};
+  VSTATUS_ITEMS.forEach(function(item){
+    var checked = vs[item.id] === true;
+    var row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:center;gap:10px;padding:9px 13px;border:1.5px solid var(--border);border-radius:10px;margin-bottom:6px;cursor:pointer;transition:all .15s;" + (checked?"border-color:var(--green);background:var(--green-light);":"");
+    row.id = "vsedit-row-"+item.id;
+    row.onclick = (function(id){ return function(){ toggleVStatusEdit(id); }; })(item.id);
+    row.innerHTML = '<div id="vsedit-chk-'+item.id+'" style="width:22px;height:22px;border-radius:6px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;'+(checked?'background:var(--green);border-color:var(--green);":"")+"\">"+(checked?'<i class="ti ti-check" style="font-size:12px;color:#fff;"></i>':'')+' </div>'
+      + '<div style="font-size:13px;font-weight:500;">'+item.icon+' '+item.name+'</div>';
+    list.appendChild(row);
+  });
+}
+
+function toggleVStatusEdit(id){
+  var row = document.getElementById("vsedit-row-"+id);
+  var chk = document.getElementById("vsedit-chk-"+id);
+  var isDone = row.style.borderColor.indexOf("green") > -1 || chk.innerHTML.trim() !== "";
+  if(!isDone){
+    row.style.borderColor = "var(--green)"; row.style.background = "var(--green-light)";
+    chk.style.background = "var(--green)"; chk.style.borderColor = "var(--green)";
+    chk.innerHTML = '<i class="ti ti-check" style="font-size:12px;color:#fff;"></i>';
+  } else {
+    row.style.borderColor = "var(--border)"; row.style.background = "";
+    chk.style.background = ""; chk.style.borderColor = "";
+    chk.innerHTML = "";
+  }
+}
+
+function readVStatusEdit(){
+  var vs = {};
+  VSTATUS_ITEMS.forEach(function(item){
+    var chk = document.getElementById("vsedit-chk-"+item.id);
+    vs[item.id] = chk ? chk.innerHTML.trim() !== "" : false;
+  });
+  return vs;
+}
+
+// ─────────────────────────────────────────────
+// 後台報表：從 Google Sheets 抓加油 / 大修記錄
+// ─────────────────────────────────────────────
+function loadAdminFuelReport(){
+  var listEl = document.getElementById("adm-fuel-report-list");
+  listEl.innerHTML = '<div style="font-size:12px;color:var(--sub);">載入中…</div>';
+  if(!GAS_URL){ listEl.innerHTML = '<div style="font-size:12px;color:var(--sub);">未設定 Apps Script URL</div>'; return; }
+  fetch(GAS_URL + "?action=readFuelReport&months=1", { mode:"cors", cache:"no-cache" })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if(!data.ok || !data.data || !data.data.length){
+        listEl.innerHTML = '<div style="font-size:12px;color:var(--sub);">本月無加油記錄</div>'; return;
+      }
+      listEl.innerHTML = "";
+      // 按車牌分組
+      var byPlate = {};
+      data.data.forEach(function(r){
+        if(!byPlate[r.plate]) byPlate[r.plate] = { count:0, total:0 };
+        byPlate[r.plate].count++;
+        byPlate[r.plate].total += Number(r.amount)||0;
+      });
+      // 總計
+      var totalAmt = data.data.reduce(function(s,r){ return s+(Number(r.amount)||0); },0);
+      var totalRow = document.createElement("div");
+      totalRow.style.cssText = "background:var(--amber-light);border-radius:10px;padding:9px 12px;margin-bottom:9px;display:flex;justify-content:space-between;";
+      totalRow.innerHTML = '<span style="font-size:12px;font-weight:700;color:var(--amber);">本月總計</span><span style="font-size:15px;font-weight:700;color:var(--amber);">$'+totalAmt.toLocaleString()+'</span>';
+      listEl.appendChild(totalRow);
+      // 各車
+      Object.keys(byPlate).sort().forEach(function(plate){
+        var row = document.createElement("div");
+        row.className = "report-row";
+        row.innerHTML = '<div><div class="report-plate">'+plate+'</div><div style="font-size:11px;color:var(--sub);">'+byPlate[plate].count+' 次</div></div>'
+          + '<div class="report-amount">$'+byPlate[plate].total.toLocaleString()+'</div>';
+        listEl.appendChild(row);
+      });
+    })
+    .catch(function(){ listEl.innerHTML = '<div style="font-size:12px;color:var(--red);">載入失敗，請確認 Apps Script 設定</div>'; });
+}
+
+function loadAdminOverhaulReport(){
+  var listEl = document.getElementById("adm-overhaul-report-list");
+  listEl.innerHTML = '<div style="font-size:12px;color:var(--sub);">載入中…</div>';
+  if(!GAS_URL){ listEl.innerHTML = '<div style="font-size:12px;color:var(--sub);">未設定 Apps Script URL</div>'; return; }
+  fetch(GAS_URL + "?action=readOverhaulReport", { mode:"cors", cache:"no-cache" })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if(!data.ok || !data.data || !data.data.length){
+        listEl.innerHTML = '<div style="font-size:12px;color:var(--sub);">尚無大修記錄</div>'; return;
+      }
+      listEl.innerHTML = "";
+      data.data.slice(0,10).forEach(function(r){
+        var row = document.createElement("div");
+        row.className = "report-row";
+        row.innerHTML = '<div><div class="report-plate">'+r.plate+'<span class="report-overhaul-tag">大修</span></div>'
+          + '<div style="font-size:11px;color:var(--sub);">'+r.date+'　'+r.garage+'</div>'
+          + (r.items?'<div style="font-size:11px;color:var(--sub);">'+r.items+'</div>':'')+'</div>'
+          + '<div class="report-amount">$'+Number(r.fee||0).toLocaleString()+'</div>';
+        listEl.appendChild(row);
+      });
+    })
+    .catch(function(){ listEl.innerHTML = '<div style="font-size:12px;color:var(--red);">載入失敗</div>'; });
+}
 // ─────────────────────────────────────────────
 
 // ─────────────────────────────────────────────
