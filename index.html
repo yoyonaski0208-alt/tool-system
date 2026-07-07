@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260707-02">
+<meta name="app-version" content="20260707-03">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -3680,7 +3680,7 @@ function saveRepairsToStorage(){
 }
 
 function switchRepairTab(tab, el){
-  document.querySelectorAll(".repair-tab").forEach(function(b){ b.classList.remove("active"); });
+  document.querySelectorAll("#pg-repair .repair-tab").forEach(function(b){ b.classList.remove("active"); });
   el.classList.add("active");
   document.getElementById("repair-panel-form").style.display = tab === "form" ? "block" : "none";
   document.getElementById("repair-panel-list").style.display = tab === "list" ? "block" : "none";
@@ -4313,18 +4313,18 @@ function openVehBigCheck(){ openWorkerBigCheck(curVehPlate); }
 // ─────────────────────────────────────────────
 // 大整理系統
 // ─────────────────────────────────────────────
-// 固定項目清單
-var BIG_CHECK_TOOL = [
-  {id:"bc_seat",    name:"水洗座椅",       note:"每半年"},
-  {id:"bc_wiper",   name:"更換雨刷條",     note:"每半年"},
-  {id:"bc_ac",      name:"冷氣冷度",       note:"是否正常"},
-  {id:"bc_insulate",name:"老舊隔熱貼",     note:"是否需更換"},
-  {id:"bc_lock",    name:"修理後車廂鎖頭", note:""},
-  {id:"bc_curtain", name:"冷氣布簾",       note:"是否需更換"},
-  {id:"bc_glass",   name:"玻璃鍍膜",       note:"是否已鍍膜"},
-  {id:"bc_sticker", name:"貨車貼紙",       note:"是否已貼/狀態"},
-  {id:"bc_bar",     name:"拆除驗車橫桿",   note:"驗車後拆除"}
+// 固定項目清單 — 工具箱整理用實體工具箱編號
+var BIG_CHECK_TOOL_GROUPS = [
+  {id:"bcg_1", name:"1組 高壓清洗機",   note:""},
+  {id:"bcg_2", name:"2組 水塔水龜",     note:""},
+  {id:"bcg_3", name:"3組 衝擊起子機",   note:""},
+  {id:"bcg_4", name:"4組 水管空壓機",   note:""},
+  {id:"bcg_5", name:"5組 水管抽液機",   note:""},
+  {id:"bcg_6", name:"6組 水管週波機",   note:""},
+  {id:"bcg_7", name:"7組 床墊水洗機",   note:""},
+  {id:"bcg_8", name:"8組 床墊塵蟎機",   note:""}
 ];
+// 車內整理維持保養項目
 var BIG_CHECK_CAR = [
   {id:"bc_seat",    name:"水洗座椅",       note:""},
   {id:"bc_wiper",   name:"更換雨刷條",     note:"每半年"},
@@ -4384,27 +4384,69 @@ function setBCType(type, el){
 }
 
 function renderBCItems(){
-  var baseItems = bcType==="tool" ? BIG_CHECK_TOOL : BIG_CHECK_CAR;
-  var allItems = baseItems.concat(bcExtraItems);
-  bcItemStatus = {};
   var list = document.getElementById("bc-items-list");
   list.innerHTML = "";
-  allItems.forEach(function(item){
-    bcItemStatus[item.id] = null;
-    var row = document.createElement("div");
-    row.className = "check-item";
-    row.id = "bci-row-"+item.id;
-    row.innerHTML =
-      '<div class="check-item-info">'
-      + '<div class="check-item-name">'+item.name+'</div>'
-      + (item.note?'<div class="check-item-note">'+item.note+'</div>':'')
-      + '</div>'
-      + '<div class="check-item-btns">'
-      + '<button class="check-btn" id="bci-done-'+item.id+'" title="已完成" onclick="setBCStatus(\''+item.id+'\',\'done\')">✅</button>'
-      + '<button class="check-btn" id="bci-skip-'+item.id+'" title="不需要/略過" onclick="setBCStatus(\''+item.id+'\',\'skip\')">—</button>'
-      + '</div>';
-    list.appendChild(row);
-  });
+  bcItemStatus = {};
+
+  if(bcType === "tool"){
+    // 工具箱整理：1-8組，每組一個卡片，整理完/未整理
+    BIG_CHECK_TOOL_GROUPS.forEach(function(grp){
+      bcItemStatus[grp.id] = null;
+      var row = document.createElement("div");
+      row.className = "check-item";
+      row.id = "bci-row-"+grp.id;
+      // 顯示這組包含的工具箱數量
+      var count = TOOLBOX_COUNTS[grp.id.replace("bcg_","") - 1] || 10;
+      var myBoxes = [];
+      for(var n=1;n<=count;n++){
+        var bid = (grp.id.replace("bcg_","")) + "-" + n;
+        if(toolboxStatus[bid] && toolboxStatus[bid].plate === curBCPlate) myBoxes.push(bid);
+      }
+      row.innerHTML =
+        '<div class="check-item-info">'
+        + '<div class="check-item-name">'+grp.name+'</div>'
+        + '<div class="check-item-note">'+(myBoxes.length ? "我的工具箱："+myBoxes.join("、") : "此組未分配工具箱")+'</div>'
+        + '</div>'
+        + '<div class="check-item-btns">'
+        + '<button class="check-btn" id="bci-done-'+grp.id+'" title="整理完成" onclick="setBCStatus(\''+grp.id+'\',\'done\')">✅</button>'
+        + '<button class="check-btn" id="bci-skip-'+grp.id+'" title="未整理/略過" onclick="setBCStatus(\''+grp.id+'\',\'skip\')">—</button>'
+        + '</div>';
+      list.appendChild(row);
+    });
+    // 管理員備用項目
+    bcExtraItems.forEach(function(item){
+      bcItemStatus[item.id] = null;
+      var row = document.createElement("div");
+      row.className = "check-item";
+      row.id = "bci-row-"+item.id;
+      row.innerHTML =
+        '<div class="check-item-info"><div class="check-item-name">'+item.name+'</div></div>'
+        + '<div class="check-item-btns">'
+        + '<button class="check-btn" id="bci-done-'+item.id+'" onclick="setBCStatus(\''+item.id+'\',\'done\')">✅</button>'
+        + '<button class="check-btn" id="bci-skip-'+item.id+'" onclick="setBCStatus(\''+item.id+'\',\'skip\')">—</button>'
+        + '</div>';
+      list.appendChild(row);
+    });
+  } else {
+    // 車內整理：保養項目清單
+    var carItems = BIG_CHECK_CAR.concat(bcExtraItems);
+    carItems.forEach(function(item){
+      bcItemStatus[item.id] = null;
+      var row = document.createElement("div");
+      row.className = "check-item";
+      row.id = "bci-row-"+item.id;
+      row.innerHTML =
+        '<div class="check-item-info">'
+        + '<div class="check-item-name">'+item.name+'</div>'
+        + (item.note?'<div class="check-item-note">'+item.note+'</div>':'')
+        + '</div>'
+        + '<div class="check-item-btns">'
+        + '<button class="check-btn" id="bci-done-'+item.id+'" onclick="setBCStatus(\''+item.id+'\',\'done\')">✅</button>'
+        + '<button class="check-btn" id="bci-skip-'+item.id+'" onclick="setBCStatus(\''+item.id+'\',\'skip\')">—</button>'
+        + '</div>';
+      list.appendChild(row);
+    });
+  }
 }
 
 function setBCStatus(id, status){
@@ -6103,10 +6145,10 @@ function switchRptTab(tab, el){
   if(panel) panel.style.display = "block";
 }
 
-// 加油報表（含油耗計算）
+// 加油報表（Excel 樣式 + 油耗分析）
 function renderFuelReport2(data, plateFilter){
-  var totalEl   = document.getElementById("rpt-fuel-total");
   var summaryEl = document.getElementById("rpt-fuel-summary");
+  var totalEl   = document.getElementById("rpt-fuel-total");
   var listEl    = document.getElementById("rpt-fuel-list");
   summaryEl.innerHTML = "";
   listEl.innerHTML = "";
@@ -6117,88 +6159,115 @@ function renderFuelReport2(data, plateFilter){
     return;
   }
 
-  // 按車牌分組
+  // 按車牌分組，計算油耗
   var byPlate = {};
   data.forEach(function(r){
-    var p = r.plate;
-    if(!byPlate[p]) byPlate[p] = { records:[], totalAmt:0 };
+    var p = r.plate; if(!p) return;
+    if(!byPlate[p]) byPlate[p] = { records:[], totalAmt:0, name:"" };
     byPlate[p].records.push(r);
     byPlate[p].totalAmt += Number(r.amount)||0;
+    if(r.name) byPlate[p].name = r.name;
   });
 
   var grandTotal = data.reduce(function(s,r){ return s+(Number(r.amount)||0); },0);
-  totalEl.textContent = "總計 $" + grandTotal.toLocaleString();
+  totalEl.textContent = "";
 
-  // 總覽格子
-  var totalKmAll = 0, totalAmtAll = grandTotal;
-  Object.keys(byPlate).forEach(function(p){
-    var recs = byPlate[p].records.filter(function(r){ return r.km; });
-    if(recs.length >= 2){
-      var kms = recs.map(function(r){ return Number(r.km); }).filter(Boolean);
-      totalKmAll += Math.max.apply(null,kms) - Math.min.apply(null,kms);
-    }
-  });
-  var avgRate = totalKmAll > 0 ? (totalAmtAll/totalKmAll).toFixed(2) : "—";
-  var avgKmL  = totalKmAll > 0 ? (totalKmAll/(totalAmtAll/OIL_PRICE)).toFixed(2) : "—";
+  // ── 油耗分析總覽（仿 Excel 格式）──
+  var tableWrap = document.createElement("div");
+  tableWrap.style.cssText = "overflow-x:auto;margin-bottom:14px;";
 
-  function makeStat(val, lbl, color){
-    var d = document.createElement("div");
-    d.className = "fuel-stat-box";
-    d.innerHTML = '<div class="fuel-stat-val" style="color:'+(color||"var(--text)")+'">'+val+'</div><div class="fuel-stat-lbl">'+lbl+'</div>';
-    summaryEl.appendChild(d);
-  }
-  makeStat("$"+grandTotal.toLocaleString(), "總金額", "var(--amber)");
-  makeStat(data.length+" 次", "加油次數", "var(--blue)");
-  makeStat(avgRate+" 元/km", "平均油耗", "");
-  makeStat(totalKmAll ? totalKmAll.toLocaleString()+" km":"—", "行駛里程", "var(--green)");
-  makeStat(avgKmL+" km/L", "公里/公升", "");
-  makeStat(OIL_PRICE+" 元/L", "參考油價", "var(--sub)");
+  var table = document.createElement("table");
+  table.style.cssText = "width:100%;border-collapse:collapse;font-size:12px;min-width:480px;";
 
-  // 各車明細
-  Object.keys(byPlate).sort().forEach(function(p){
+  // Header
+  var thead = document.createElement("thead");
+  thead.innerHTML =
+    '<tr style="background:var(--blue);color:#fff;">'
+    + '<th style="padding:8px 10px;text-align:left;border-radius:0;white-space:nowrap;">車牌</th>'
+    + '<th style="padding:8px 10px;text-align:left;">駕駛</th>'
+    + '<th style="padding:8px 10px;text-align:right;">月公里數</th>'
+    + '<th style="padding:8px 10px;text-align:right;">加油金額</th>'
+    + '<th style="padding:8px 10px;text-align:right;">元/km</th>'
+    + '<th style="padding:8px 10px;text-align:right;">km/L</th>'
+    + '<th style="padding:8px 10px;text-align:right;">加油次數</th>'
+    + '</tr>';
+  table.appendChild(thead);
+
+  var tbody = document.createElement("tbody");
+  var grandKm = 0;
+  var rows = [];
+
+  Object.keys(byPlate).sort().forEach(function(p, idx){
     var d = byPlate[p];
     var recs = d.records;
+    // 計算公里數（最大里程 - 最小里程）
     var kms = recs.map(function(r){ return Number(r.km); }).filter(Boolean);
-    var km = kms.length >= 2 ? Math.max.apply(null,kms)-Math.min.apply(null,kms) : 0;
-    var rate = km > 0 ? (d.totalAmt/km).toFixed(2) : "—";
-    var kmL  = km > 0 ? (km/(d.totalAmt/OIL_PRICE)).toFixed(2) : "—";
+    var km = kms.length >= 2 ? Math.max.apply(null,kms) - Math.min.apply(null,kms) : 0;
+    var rate = (km > 0) ? (d.totalAmt/km).toFixed(2) : "—";
+    var kmL  = (km > 0) ? (km/(d.totalAmt/OIL_PRICE)).toFixed(2) : "—";
+    grandKm += km;
+
     var v = VEHICLES.find(function(x){ return x.plate===p; });
     var assign = vehAssignments[p] || {};
+    var driverName = assign.driver || d.name || "—";
 
-    var card = document.createElement("div");
-    card.className = "fuel-report-card";
-    card.style.cursor = "pointer";
-    card.innerHTML =
-      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">'
-      + '<div><div class="fuel-report-plate">'+p+'</div>'
-      + '<div class="fuel-report-sub">'+(v?v.company+" ‧ "+v.type:"")+(assign.driver?" ‧ "+assign.driver:"")+'</div></div>'
-      + '<div style="text-align:right;font-size:15px;font-weight:700;color:var(--amber);">$'+d.totalAmt.toLocaleString()+'</div></div>'
-      + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">'
-      + '<div class="fuel-stat-box"><div class="fuel-stat-val" style="font-size:13px;">'+recs.length+'</div><div class="fuel-stat-lbl">次</div></div>'
-      + '<div class="fuel-stat-box"><div class="fuel-stat-val" style="font-size:13px;">'+(km?km.toLocaleString():"—")+'</div><div class="fuel-stat-lbl">km</div></div>'
-      + '<div class="fuel-stat-box"><div class="fuel-stat-val" style="font-size:13px;">'+rate+'</div><div class="fuel-stat-lbl">元/km</div></div>'
-      + '</div>'
-      + '<div id="rpt-detail-'+p.replace(/-/g,"_")+'" style="display:none;margin-top:8px;border-top:1px solid var(--border);padding-top:8px;"></div>';
+    rows.push({p:p, km:km, amt:d.totalAmt, rate:rate, kmL:kmL, cnt:recs.length, driver:driverName, recs:recs});
 
-    // 點擊展開每筆記錄
-    card.onclick = function(){
-      var detailEl = card.querySelector('[id^="rpt-detail-"]');
-      if(detailEl.style.display==="none"){
-        detailEl.style.display = "block";
-        detailEl.innerHTML = recs.map(function(r){
-          return '<div class="report-row"><div>'
-            + '<div style="font-size:12px;font-weight:500;">'+(r.time||"").slice(0,10)+(r.name?" ‧ "+r.name:"")+'</div>'
-            + (r.km?'<div style="font-size:11px;color:var(--sub);">里程：'+Number(r.km).toLocaleString()+' km</div>':"")
-            + (r.note?'<div style="font-size:11px;color:var(--sub);">'+r.note+'</div>':"")
-            + '</div><div style="font-size:14px;font-weight:700;color:var(--amber);">$'+Number(r.amount||0).toLocaleString()+'</div></div>';
-        }).join("");
-      } else {
-        detailEl.style.display = "none";
-      }
-    };
-    listEl.appendChild(card);
+    var tr = document.createElement("tr");
+    tr.style.cssText = "border-bottom:1px solid var(--border);cursor:pointer;" + (idx%2===0?"background:var(--card);":"background:var(--bg);");
+    tr.innerHTML =
+      '<td style="padding:9px 10px;font-weight:700;color:var(--blue);">'+p+'</td>'
+      + '<td style="padding:9px 10px;color:var(--sub);">'+driverName+'</td>'
+      + '<td style="padding:9px 10px;text-align:right;">'+(km?km.toLocaleString()+' km':'—')+'</td>'
+      + '<td style="padding:9px 10px;text-align:right;font-weight:600;color:var(--amber);">$'+d.totalAmt.toLocaleString()+'</td>'
+      + '<td style="padding:9px 10px;text-align:right;color:'+(rate!=="—"&&Number(rate)>3.5?"var(--red)":"var(--green)")+';">'+rate+'</td>'
+      + '<td style="padding:9px 10px;text-align:right;color:'+(kmL!=="—"&&Number(kmL)<10?"var(--red)":"var(--green)")+';">'+kmL+'</td>'
+      + '<td style="padding:9px 10px;text-align:right;color:var(--sub);">'+recs.length+'</td>';
+
+    // 點擊展開明細
+    var detailTr = document.createElement("tr");
+    detailTr.style.display = "none";
+    detailTr.innerHTML = '<td colspan="7" style="padding:0 10px 8px;"></td>';
+    tr.onclick = (function(dtr, recs_){
+      return function(){
+        if(dtr.style.display==="none"){
+          dtr.style.display = "table-row";
+          dtr.querySelector("td").innerHTML = recs_.map(function(r){
+            return '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px;">'
+              + '<span style="color:var(--sub);">'+(r.time||"").slice(0,10)+(r.name?' ‧ '+r.name:'')+(r.km?' ‧ '+Number(r.km).toLocaleString()+' km':'')+'</span>'
+              + '<span style="font-weight:600;color:var(--amber);">$'+Number(r.amount||0).toLocaleString()+'</span></div>';
+          }).join('');
+        } else {
+          dtr.style.display = "none";
+        }
+      };
+    })(detailTr, recs);
+    tbody.appendChild(tr);
+    tbody.appendChild(detailTr);
   });
+
+  // 合計列
+  var avgRate = grandKm > 0 ? (grandTotal/grandKm).toFixed(2) : "—";
+  var avgKmL  = grandKm > 0 ? (grandKm/(grandTotal/OIL_PRICE)).toFixed(2) : "—";
+  var tfoot = document.createElement("tfoot");
+  tfoot.innerHTML =
+    '<tr style="background:var(--amber-light);font-weight:700;border-top:2px solid var(--amber);">'
+    + '<td style="padding:9px 10px;color:var(--amber);" colspan="2">合計 / 平均</td>'
+    + '<td style="padding:9px 10px;text-align:right;">'+(grandKm?grandKm.toLocaleString()+' km':'—')+'</td>'
+    + '<td style="padding:9px 10px;text-align:right;color:var(--amber);">$'+grandTotal.toLocaleString()+'</td>'
+    + '<td style="padding:9px 10px;text-align:right;">'+avgRate+'</td>'
+    + '<td style="padding:9px 10px;text-align:right;">'+avgKmL+'</td>'
+    + '<td style="padding:9px 10px;text-align:right;">'+data.length+'</td>'
+    + '</tr>'
+    + '<tr style="background:var(--bg);font-size:11px;color:var(--sub);">'
+    + '<td colspan="7" style="padding:5px 10px;">參考油價：'+OIL_PRICE+' 元/L　元/km 越低越好　km/L 越高越好</td></tr>';
+
+  table.appendChild(tbody);
+  table.appendChild(tfoot);
+  tableWrap.appendChild(table);
+  listEl.appendChild(tableWrap);
 }
+
 
 // 大修報表
 function renderOverhaulReport2(data){
