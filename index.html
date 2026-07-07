@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260707-05">
+<meta name="app-version" content="20260707-06">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -895,8 +895,7 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     <!-- 報表 Tab -->
     <div style="display:flex;gap:6px;margin-bottom:10px;">
       <button class="repair-tab active" id="rpt-tab-fuel" onclick="switchRptTab('fuel',this)"><i class="ti ti-droplet"></i> 加油</button>
-      <button class="repair-tab" id="rpt-tab-overhaul" onclick="switchRptTab('overhaul',this)"><i class="ti ti-tool"></i> 大修</button>
-      <button class="repair-tab" id="rpt-tab-maint" onclick="switchRptTab('maint',this)"><i class="ti ti-settings"></i> 保養</button>
+      <button class="repair-tab" id="rpt-tab-overhaul" onclick="switchRptTab('overhaul',this)"><i class="ti ti-tool"></i> 維修</button>
     </div>
     <!-- 加油 Panel -->
     <div id="rpt-panel-fuel">
@@ -904,11 +903,11 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       <div id="rpt-fuel-total" style="font-size:13px;font-weight:700;color:var(--amber);margin-bottom:8px;"></div>
       <div id="rpt-fuel-list"></div>
     </div>
-    <!-- 大修 Panel -->
+    <!-- 維修 Panel（一般維修＋大修合併顯示） -->
     <div id="rpt-panel-overhaul" style="display:none;">
       <div id="rpt-overhaul-list"></div>
     </div>
-    <!-- 保養 Panel -->
+    <!-- 保養 Panel（已合併到維修，保留 div 避免 JS 報錯） -->
     <div id="rpt-panel-maint" style="display:none;">
       <div id="rpt-maint-list"></div>
     </div>
@@ -6138,18 +6137,19 @@ function refreshAllReports(){
 
   var promises = [
     fetchReportData("readFuelReport&months="+months, plate),
-    fetchReportData("readOverhaulReport", plate),
-    fetchReportData("readMaintReport&months="+months, plate)
+    fetchReportData("readMaintReport&months="+months, plate),  // 所有維修記錄（含大修）
+    fetchReportData("readOverhaulReport", plate)               // 純大修記錄（用來標記）
   ];
 
   Promise.all(promises).then(function(results){
     document.getElementById("rpt-loading").style.display = "none";
     rptFuelData     = results[0] || [];
-    rptOverhaulData = results[1] || [];
-    rptMaintData    = results[2] || [];
+    rptMaintData    = results[1] || [];  // 保養記錄
+    rptOverhaulData = results[2] || [];  // 大修記錄（標記用）
     renderFuelReport2(rptFuelData, plate);
-    renderOverhaulReport2(rptOverhaulData);
-    renderMaintReport2(rptMaintData);
+    renderMaintAndOverhaul(rptMaintData, rptOverhaulData);
+    // 保養 tab 移到維修內，不再單獨顯示
+    document.getElementById("rpt-panel-maint").style.display = "none";
   }).catch(function(){
     document.getElementById("rpt-loading").style.display = "none";
     document.getElementById("rpt-fuel-list").innerHTML = '<div style="font-size:12px;color:var(--red);">載入失敗，請確認 Apps Script 設定</div>';
@@ -6303,19 +6303,39 @@ function renderFuelReport2(data, plateFilter){
 }
 
 
-// 大修報表
-function renderOverhaulReport2(data){
+// 維修報表（一般維修 + 大修合併顯示）
+function renderMaintAndOverhaul(maintData, overhaulData){
   var el = document.getElementById("rpt-overhaul-list");
-  if(!data.length){ el.innerHTML = '<div style="font-size:12px;color:var(--sub);">尚無大修記錄</div>'; return; }
+  // 合併：大修記錄標記 isOverhaul=true
+  var allRecords = [];
+  (maintData||[]).forEach(function(r){ allRecords.push(Object.assign({}, r, {isOverhaul: false})); });
+  (overhaulData||[]).forEach(function(r){ allRecords.push(Object.assign({}, r, {isOverhaul: true})); });
+  // 按時間倒序排列
+  allRecords.sort(function(a,b){
+    var ta = new Date((a.time||a.date||"").replace(/\//g,"-")); 
+    var tb = new Date((b.time||b.date||"").replace(/\//g,"-"));
+    return tb - ta;
+  });
+  if(!allRecords.length){
+    el.innerHTML = '<div style="font-size:12px;color:var(--sub);">此期間無維修記錄</div>'; return;
+  }
   el.innerHTML = "";
-  data.forEach(function(r){
+  allRecords.forEach(function(r){
     var row = document.createElement("div");
     row.className = "report-row";
-    row.innerHTML = '<div><div class="report-plate">'+r.plate+'<span class="report-overhaul-tag">大修</span></div>'
-      + '<div style="font-size:11px;color:var(--sub);">'+(r.date||r.time||"").slice(0,10)+'　'+(r.garage||"")+(r.name?" ‧ "+r.name:"")+'</div>'
-      + (r.items?'<div style="font-size:11px;color:var(--sub);">'+r.items+'</div>':"")
-      + (r.note?'<div style="font-size:11px;color:var(--sub);">'+r.note+'</div>':"")
-      + '</div><div style="font-size:14px;font-weight:700;color:var(--amber);">$'+Number(r.fee||0).toLocaleString()+'</div>';
+    var dateStr = (r.date||r.time||"").slice(0,10);
+    row.innerHTML =
+      '<div style="flex:1;">'
+      + '<div style="display:flex;align-items:center;gap:6px;">'
+      + '<div class="report-plate">'+( r.plate||"")+'</div>'
+      + (r.isOverhaul ? '<span class="report-overhaul-tag">大修</span>' : '<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:var(--blue-light);color:var(--blue);font-weight:600;">維修</span>')
+      + '</div>'
+      + '<div style="font-size:11px;color:var(--sub);margin-top:2px;">'+dateStr+'　'+(r.garage||"")+(r.name?" ‧ "+r.name:"")+'</div>'
+      + (r.km ? '<div style="font-size:11px;color:var(--sub);">里程：'+Number(r.km).toLocaleString()+' km</div>' : "")
+      + (r.items ? '<div style="font-size:11px;color:var(--sub);">'+r.items+'</div>' : "")
+      + (r.note ? '<div style="font-size:11px;color:var(--sub);">'+r.note+'</div>' : "")
+      + '</div>'
+      + '<div style="font-size:14px;font-weight:700;color:'+(r.isOverhaul?"var(--amber)":"var(--blue)")+';">$'+Number(r.fee||0).toLocaleString()+'</div>';
     el.appendChild(row);
   });
 }
