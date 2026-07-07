@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260707-03">
+<meta name="app-version" content="20260707-05">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -73,9 +73,9 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
 .loc-btn.active{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:600;}
 
 /* BOTTOM NAV */
-.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:100;}
-.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 2px 14px;border:none;background:none;cursor:pointer;gap:2px;color:var(--sub);font-size:10px;font-family:inherit;}
-.nav-btn i{font-size:21px;}
+.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom);}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 2px 12px;border:none;background:none;cursor:pointer;gap:3px;color:var(--sub);font-size:11px;font-family:inherit;min-height:56px;}
+.nav-btn i{font-size:24px;}
 .nav-btn.active{color:var(--blue);}
 
 /* PAGE */
@@ -1646,12 +1646,13 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
 <div class="equip-overlay" id="veh-change-overlay">
   <div class="equip-sheet" style="max-height:90vh;overflow-y:auto;">
     <div class="equip-sheet-title">換車 / 工具箱調整</div>
-    <div class="equip-sheet-sub">選擇要移到新車的工具箱，未勾選的請選擇去向</div>
+    <div class="equip-sheet-sub">請輸入新車牌號碼，選擇工具箱去向</div>
     <div class="equip-field">
-      <label>新車牌</label>
-      <select class="equip-select" id="veh-new-plate">
-        <option value="">── 選擇新車牌 ──</option>
-      </select>
+      <label>新車牌號碼</label>
+      <input class="fuel-input" id="veh-new-plate" placeholder="例：BKF-6072" maxlength="10"
+        style="text-transform:uppercase;font-size:16px;font-weight:700;letter-spacing:1px;"
+        oninput="this.value=this.value.toUpperCase(); validateAdminPlateInput()">
+      <div id="veh-admin-plate-validate" style="font-size:12px;margin-top:6px;display:none;padding:7px 11px;border-radius:9px;"></div>
     </div>
     <div class="equip-field">
       <label style="margin-bottom:8px;display:block;">我的工具箱（勾選 = 移到新車）</label>
@@ -4170,22 +4171,18 @@ function closeVehDetail(){
 // 換車流程
 function openChangeCarFlow(){
   var myPlate = curVehPlate || (curUser ? localStorage.getItem("carPlate_"+curUser.email) : null);
-  var sel = document.getElementById("veh-new-plate");
-  sel.innerHTML = '<option value="">── 選擇新車牌 ──</option>';
-  VEHICLES.filter(function(v){ return v.plate!==myPlate && v.status!=="forsale"; }).forEach(function(v){
-    var assign = vehAssignments[v.plate];
-    var opt = document.createElement("option");
-    opt.value = v.plate;
-    opt.textContent = v.plate + " (" + v.company + (assign&&assign.driver?" ‧ "+assign.driver:" ‧ 空車") + ")";
-    sel.appendChild(opt);
-  });
+  // 清空輸入框
+  var inp = document.getElementById("veh-new-plate");
+  inp.value = "";
+  var vld = document.getElementById("veh-admin-plate-validate");
+  if(vld) vld.style.display = "none";
   // 我的工具箱
   var myBoxes = Object.keys(toolboxStatus).filter(function(k){ return toolboxStatus[k] && toolboxStatus[k].plate === myPlate; });
   var cl = document.getElementById("veh-box-checklist");
   cl.innerHTML = "";
   selectedBoxesToMove = {};
   myBoxes.forEach(function(bid){
-    selectedBoxesToMove[bid] = true; // 預設全選
+    selectedBoxesToMove[bid] = true;
     var gNum = parseInt(bid.split("-")[0]);
     var typeName = TOOLBOX_TYPES.find(function(t){ return t.group===gNum; });
     var item = document.createElement("div");
@@ -4202,6 +4199,26 @@ function openChangeCarFlow(){
   document.getElementById("veh-unsel-dest").classList.remove("show");
   document.getElementById("veh-change-overlay").classList.add("show");
   document.getElementById("veh-detail-screen").style.display = "none";
+}
+
+function validateAdminPlateInput(){
+  var val = document.getElementById("veh-new-plate").value.trim().toUpperCase();
+  var vld = document.getElementById("veh-admin-plate-validate");
+  if(!val || !vld){ if(vld) vld.style.display="none"; return; }
+  var myPlate = curVehPlate || (curUser ? localStorage.getItem("carPlate_"+curUser.email) : null);
+  var valid = VEHICLES.find(function(v){ return v.plate===val && v.status!=="retired"; });
+  if(val === myPlate){
+    vld.style.cssText = "display:block;background:var(--amber-light);color:var(--amber);font-size:12px;padding:7px 11px;border-radius:9px;";
+    vld.textContent = "⚠ 這是目前的車牌，請輸入不同車牌";
+  } else if(valid){
+    vld.style.cssText = "display:block;background:var(--green-light);color:var(--green);font-size:12px;padding:7px 11px;border-radius:9px;";
+    vld.textContent = "✅ 車牌確認正確";
+  } else if(val.length >= 6){
+    vld.style.cssText = "display:block;background:var(--red-light);color:var(--red);font-size:12px;padding:7px 11px;border-radius:9px;";
+    vld.textContent = "❌ 此車牌不在設定清單中";
+  } else {
+    vld.style.display = "none";
+  }
 }
 
 function vehToggleBox(bid){
@@ -4235,9 +4252,13 @@ function setBoxDest(dest){
 }
 
 function confirmChangeCarFlow(){
-  var newPlate = document.getElementById("veh-new-plate").value;
-  if(!newPlate){ alert("請選擇新車牌"); return; }
-  var oldPlate = curVehPlate || (curUser ? localStorage.getItem("carPlate_"+curUser.email) : null);
+  var newPlate = document.getElementById("veh-new-plate").value.trim().toUpperCase();
+  if(!newPlate){ alert("請輸入新車牌"); return; }
+  var valid = VEHICLES.find(function(v){ return v.plate===newPlate && v.status!=="retired"; });
+  if(!valid){ alert("此車牌不在設定清單中，請重新確認"); return; }
+  var myPlate = curVehPlate || (curUser ? localStorage.getItem("carPlate_"+curUser.email) : null);
+  if(newPlate === myPlate){ alert("這是目前的車牌，請輸入不同車牌"); return; }
+  var oldPlate = myPlate;
   var t = nowStr();
   var moved = [], stayed = [];
 
@@ -5408,11 +5429,24 @@ function renderVehBoxes(plate, isAdmin){
       item.className = "tbox-item " + statusClass + (isAdmin ? " tbox-clickable" : "");
       if(isAdmin) item.onclick = (function(bid){ return function(){ openTboxEdit(bid); }; })(b.id);
 
+      // 找最近一次整理日期（從 bigCheckData）
+      var lastCheckDate = "";
+      var gNum = b.group;
+      var grpId = "bcg_" + gNum;
+      if(bigCheckData[plate]){
+        var bcRecs = bigCheckData[plate].filter(function(r){ return r.type==="tool" && r.items && r.items[grpId]==="done"; });
+        if(bcRecs.length) lastCheckDate = bcRecs[0].date;
+      }
+
       item.innerHTML =
         '<div class="tbox-num">' + b.id + '</div>' +
         '<div class="tbox-info">' +
           '<div class="tbox-name">' + b.name + '</div>' +
-          '<div class="tbox-loc">' + (ts.since ? "換箱："+ts.since.slice(0,10) : "未記錄換箱日期") + (ts.note ? "　"+ts.note : "") + '</div>' +
+          '<div class="tbox-loc">'
+          + (ts.since ? "換箱："+ts.since.slice(0,10) : "")
+          + (lastCheckDate ? (ts.since?"　":"") + "整理：" + lastCheckDate : (ts.since?"":"未記錄"))
+          + (ts.note ? "　"+ts.note : "")
+          + '</div>' +
         '</div>' +
         '<span class="tbox-status ' + statusBadge + '">' + statusText + '</span>' +
         (isAdmin ? '<i class="ti ti-chevron-right" style="font-size:14px;color:var(--sub);margin-left:4px;"></i>' : '');
