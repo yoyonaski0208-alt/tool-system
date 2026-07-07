@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260707-01">
+<meta name="app-version" content="20260707-02">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -752,9 +752,7 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
         <button style="width:100%;padding:12px;background:var(--amber-light);color:var(--amber);border:1.5px solid var(--amber);border-radius:13px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px;" onclick="openLicenseOverlay(null)">
           <i class="ti ti-id-badge"></i> 行照借還
         </button>
-        <button style="width:100%;padding:12px;background:var(--bg);color:var(--text);border:1.5px solid var(--border);border-radius:13px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px;" onclick="openWorkerFuelReport()">
-          <i class="ti ti-chart-bar"></i> 我的加油記錄
-        </button>
+        <!-- 加油報表移至後台，技師不顯示 -->
       </div>
       <!-- 加油按鈕（有車才顯示） -->
       <div id="veh-fuel-btn-worker" style="display:none;">
@@ -835,11 +833,8 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       </div>
       <div class="veh-action-row">
         <button class="veh-action-btn" onclick="openVehInsurance()"><i class="ti ti-shield"></i>車險/稅費</button>
-        <button class="veh-action-btn" onclick="openVehEdit()"><i class="ti ti-edit"></i>編輯車輛</button>
-      </div>
-      <div class="veh-action-row">
-        <button class="veh-action-btn" onclick="openVehFuelReport()"><i class="ti ti-chart-bar"></i>加油報表</button>
         <button class="veh-action-btn" onclick="openLicenseOverlay(curVehPlate)"><i class="ti ti-id-badge"></i>行照管理</button>
+        <button class="veh-action-btn" onclick="openVehEdit()"><i class="ti ti-edit"></i>編輯車輛</button>
       </div>
       <!-- 工具箱管理快捷入口 -->
       <button onclick="openTboxOverview()" style="width:100%;padding:11px;background:var(--blue-light);color:var(--blue);border:1.5px solid var(--blue);border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:7px;">
@@ -881,47 +876,40 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
 
     <!-- 後台報表區塊 -->
     <div class="section-hd" style="margin-top:20px;">車輛報表</div>
-    <!-- 報表篩選控制 -->
-    <div style="background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:13px;margin-bottom:10px;">
-      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px;">
-        <select id="rpt-period" class="equip-select" style="flex:1;min-width:100px;" onchange="refreshAllReports()">
-          <option value="1">本月</option>
-          <option value="3">3個月</option>
-          <option value="6">6個月</option>
-          <option value="12">12個月</option>
-        </select>
-        <select id="rpt-plate" class="equip-select" style="flex:1;min-width:100px;" onchange="refreshAllReports()">
-          <option value="">全部車輛</option>
-        </select>
-        <button style="padding:8px 14px;background:var(--blue);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;" onclick="refreshAllReports()">
-          <i class="ti ti-refresh"></i> 載入
-        </button>
-      </div>
-      <div id="rpt-loading" style="font-size:12px;color:var(--sub);display:none;">從 Google Sheets 載入中…</div>
+    <!-- 篩選控制列 -->
+    <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px;align-items:center;">
+      <select id="rpt-period" class="equip-select" style="flex:1;min-width:90px;font-size:13px;" onchange="refreshAllReports()">
+        <option value="1">本月</option>
+        <option value="3">3個月</option>
+        <option value="6">6個月</option>
+        <option value="12">12個月</option>
+      </select>
+      <select id="rpt-plate" class="equip-select" style="flex:1;min-width:90px;font-size:13px;" onchange="refreshAllReports()">
+        <option value="">全部車輛</option>
+      </select>
+      <button style="padding:9px 16px;background:var(--blue);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;" onclick="refreshAllReports()">
+        <i class="ti ti-refresh"></i> 載入
+      </button>
     </div>
-    <!-- 加油報表 -->
-    <div class="report-section">
-      <div class="report-section-title">
-        <span><i class="ti ti-droplet" style="color:var(--amber);margin-right:5px;"></i>加油記錄</span>
-        <span id="rpt-fuel-total" style="font-size:13px;font-weight:700;color:var(--amber);"></span>
-      </div>
-      <!-- 油耗總覽格子 -->
+    <div id="rpt-loading" style="font-size:12px;color:var(--sub);margin-bottom:8px;display:none;">載入中…</div>
+    <!-- 報表 Tab -->
+    <div style="display:flex;gap:6px;margin-bottom:10px;">
+      <button class="repair-tab active" id="rpt-tab-fuel" onclick="switchRptTab('fuel',this)"><i class="ti ti-droplet"></i> 加油</button>
+      <button class="repair-tab" id="rpt-tab-overhaul" onclick="switchRptTab('overhaul',this)"><i class="ti ti-tool"></i> 大修</button>
+      <button class="repair-tab" id="rpt-tab-maint" onclick="switchRptTab('maint',this)"><i class="ti ti-settings"></i> 保養</button>
+    </div>
+    <!-- 加油 Panel -->
+    <div id="rpt-panel-fuel">
       <div id="rpt-fuel-summary" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:10px;"></div>
-      <!-- 各車明細 -->
+      <div id="rpt-fuel-total" style="font-size:13px;font-weight:700;color:var(--amber);margin-bottom:8px;"></div>
       <div id="rpt-fuel-list"></div>
     </div>
-    <!-- 大修記錄 -->
-    <div class="report-section">
-      <div class="report-section-title">
-        <span><i class="ti ti-tool" style="color:var(--amber);margin-right:5px;"></i>大修記錄</span>
-      </div>
+    <!-- 大修 Panel -->
+    <div id="rpt-panel-overhaul" style="display:none;">
       <div id="rpt-overhaul-list"></div>
     </div>
-    <!-- 保養記錄 -->
-    <div class="report-section">
-      <div class="report-section-title">
-        <span><i class="ti ti-settings" style="color:var(--blue);margin-right:5px;"></i>保養記錄</span>
-      </div>
+    <!-- 保養 Panel -->
+    <div id="rpt-panel-maint" style="display:none;">
       <div id="rpt-maint-list"></div>
     </div>
   </div><!-- end pg-admin -->
@@ -2666,8 +2654,6 @@ function admOpenBox(el){
   curBox=BOXES.find(function(b){return b.id===id;});
   document.getElementById("adm-parts-h2").textContent=curBox.name;
   renderAdmPartList();
-  document.getElementById("add-form").classList.remove("open");
-  document.getElementById("add-input").value="";
   pshow("s-adm-parts");
 }
 
@@ -6101,6 +6087,20 @@ function fetchReportData(action, plateFilter){
     .then(function(r){ return r.json(); })
     .then(function(d){ return d.ok ? (d.data || []) : []; })
     .catch(function(){ return []; });
+}
+
+var curRptTab = "fuel";
+function switchRptTab(tab, el){
+  curRptTab = tab;
+  ["rpt-tab-fuel","rpt-tab-overhaul","rpt-tab-maint"].forEach(function(id){
+    var b = document.getElementById(id); if(b) b.classList.remove("active");
+  });
+  el.classList.add("active");
+  ["rpt-panel-fuel","rpt-panel-overhaul","rpt-panel-maint"].forEach(function(id){
+    var p = document.getElementById(id); if(p) p.style.display = "none";
+  });
+  var panel = document.getElementById("rpt-panel-"+tab);
+  if(panel) panel.style.display = "block";
 }
 
 // 加油報表（含油耗計算）
