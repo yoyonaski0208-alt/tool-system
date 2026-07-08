@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260708-02">
+<meta name="app-version" content="20260708-03">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -911,6 +911,15 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     <div id="rpt-panel-maint" style="display:none;">
       <div id="rpt-maint-list"></div>
     </div>
+    <!-- 正式上線工具（僅管理員可見） -->
+    <div class="section-hd" style="margin-top:20px;">⚠️ 正式上線工具</div>
+    <div style="background:var(--amber-light);border-radius:10px;padding:12px;font-size:12px;color:var(--amber);line-height:1.6;">
+      這裡只會清掉<b>這支手機/這個瀏覽器</b>本機記住的資料（我綁的車牌、指派關係、工具箱綁定），不會動到 Google Sheets 上的紀錄。<br>
+      每支手機／每個人都要各自點一次，才能全部乾淨重新綁定。
+    </div>
+    <button class="equip-cancel-btn" style="margin-top:10px;border-color:var(--red);color:var(--red);" onclick="resetLocalLaunchData()">
+      <i class="ti ti-trash"></i> 清除本機測試資料（車牌綁定/指派關係）
+    </button>
   </div><!-- end pg-admin -->
 
   <div class="bottom-nav">
@@ -2464,6 +2473,24 @@ async function showGreeting(){
 
 function showErr(msg){var el=document.getElementById("login-err");el.textContent=msg;el.classList.add("show");setTimeout(function(){el.classList.remove("show");},5000);}
 function doLogout(){localStorage.removeItem("saved_email");curUser=null;document.getElementById("email-input").value="";pshow("s-login");}
+
+// ─── 正式上線：清除本機測試資料（車牌綁定/指派關係，僅影響「這支手機」）───
+function resetLocalLaunchData(){
+  if(!confirm("確定要清除這支手機的測試資料嗎？\n\n會清掉：\n・我綁定的車牌\n・車輛指派關係\n・工具箱綁定車輛的紀錄\n\n不會動到 Google Sheets 上的任何紀錄，且只影響這支手機，其他人手機要各自清一次。")) return;
+
+  // 清掉車輛指派 / 工具箱綁定 / 車輛資料覆蓋
+  localStorage.removeItem("veh_assignments");
+  localStorage.removeItem("toolbox_status");
+  localStorage.removeItem("vehicles_override");
+
+  // 清掉「我綁定的車牌」（每個使用者各自一把 key，逐一清除）
+  Object.keys(localStorage).forEach(function(k){
+    if(k.indexOf("carPlate_") === 0) localStorage.removeItem(k);
+  });
+
+  showToast("✅ 本機測試資料已清除，請重新整理頁面");
+  setTimeout(function(){ location.reload(); }, 1200);
+}
 
 document.addEventListener("DOMContentLoaded",function(){
   var inp=document.getElementById("email-input");
