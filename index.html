@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260707-06">
+<meta name="app-version" content="20260708-01">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -1217,7 +1217,7 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     </div>
     <!-- 拍照（工具箱整理，暫時隱藏） -->
     <div id="bc-photo-hint" style="display:none;background:var(--amber-light);border-radius:10px;padding:9px 12px;margin-top:8px;font-size:12px;color:var(--amber);">
-      📷 工具箱整理需附上照片，照片功能即將開放
+      📷 標記「整理完成」✅ 的工具箱都要拍一張照片才能送出
     </div>
     <button class="equip-submit-btn" style="margin-top:14px;" onclick="submitBigCheck()">
       <i class="ti ti-check"></i> 送出整理記錄
@@ -1696,8 +1696,16 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       <div class="fuel-instant-row"><span>距上次加油</span><b id="fic-km">— km</b></div>
       <div class="fuel-instant-row"><span>油耗</span><b id="fic-rate">— 元/km</b></div>
     </div>
-    <div class="equip-field" style="display:none;" id="fuel-photo-wrap">
-      <label class="fuel-input-lbl">加油收據照片（功能即將開放）</label>
+    <div class="equip-field" id="fuel-photo-wrap">
+      <label class="fuel-input-lbl">儀表板照片（必拍）</label>
+      <input type="file" accept="image/*" capture="environment" id="fuel-photo-input" style="display:none;" onchange="onFuelPhotoPicked(this)">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button type="button" class="equip-cancel-btn" style="margin:0;width:auto;padding:8px 14px;flex:0 0 auto;" onclick="document.getElementById('fuel-photo-input').click()">
+          <i class="ti ti-camera"></i> 拍照
+        </button>
+        <img id="fuel-photo-thumb" style="display:none;width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--border);">
+        <span id="fuel-photo-status" style="font-size:12px;color:var(--sub);">尚未拍照</span>
+      </div>
     </div>
     <div class="equip-field">
       <label class="fuel-input-lbl">備註（選填）</label>
@@ -4323,7 +4331,50 @@ function openFuelForm(preselect){
   document.getElementById("fuel-amount").value = "";
   document.getElementById("fuel-mileage").value = "";
   document.getElementById("fuel-note").value = "";
+  // 重設照片
+  fuelPhotoData = null;
+  document.getElementById("fuel-photo-input").value = "";
+  document.getElementById("fuel-photo-thumb").style.display = "none";
+  document.getElementById("fuel-photo-status").textContent = "尚未拍照";
   document.getElementById("veh-fuel-overlay").classList.add("show");
+}
+
+// ─── 照片壓縮共用函式（拍照→縮圖→base64，避免上傳太大檔） ───
+function compressImageToBase64(file, maxWidth, quality, cb){
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var img = new Image();
+    img.onload = function(){
+      var scale = Math.min(1, maxWidth / img.width);
+      var canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(img.width * scale));
+      canvas.height = Math.max(1, Math.round(img.height * scale));
+      var ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      cb(canvas.toDataURL("image/jpeg", quality || 0.65));
+    };
+    img.onerror = function(){ cb(null); };
+    img.src = e.target.result;
+  };
+  reader.onerror = function(){ cb(null); };
+  reader.readAsDataURL(file);
+}
+
+// ─── 加油：儀表板照片 ───
+var fuelPhotoData = null; // 壓縮後的 base64 dataURL
+
+function onFuelPhotoPicked(input){
+  var file = input.files && input.files[0];
+  if(!file) return;
+  document.getElementById("fuel-photo-status").textContent = "處理中…";
+  compressImageToBase64(file, 1000, 0.65, function(dataUrl){
+    if(!dataUrl){ document.getElementById("fuel-photo-status").textContent = "❌ 讀取失敗，請再試一次"; return; }
+    fuelPhotoData = dataUrl;
+    var thumb = document.getElementById("fuel-photo-thumb");
+    thumb.src = dataUrl;
+    thumb.style.display = "block";
+    document.getElementById("fuel-photo-status").textContent = "已拍照 ✓";
+  });
 }
 
 function openVehFuelLog(){ openFuelForm(curVehPlate); }
@@ -4362,6 +4413,7 @@ var bcType        = "tool";
 var bcItemStatus  = {};  // id → "done"|"skip"|null
 var bcExtraItems  = [];  // 管理員加的備用項目
 var curBCPlate    = null;
+var bcPhotos      = {};  // groupId → 壓縮後的 base64 dataURL（工具箱整理拍照用）
 
 function loadBigCheckData(){
   try{ var s=localStorage.getItem("bigcheck_data"); if(s) bigCheckData=JSON.parse(s); }catch(e){}
@@ -4407,6 +4459,7 @@ function renderBCItems(){
   var list = document.getElementById("bc-items-list");
   list.innerHTML = "";
   bcItemStatus = {};
+  bcPhotos = {};
 
   if(bcType === "tool"){
     // 工具箱整理：1-8組，每組一個卡片，整理完/未整理
@@ -4426,11 +4479,16 @@ function renderBCItems(){
         '<div class="check-item-info">'
         + '<div class="check-item-name">'+grp.name+'</div>'
         + '<div class="check-item-note">'+(myBoxes.length ? "我的工具箱："+myBoxes.join("、") : "此組未分配工具箱")+'</div>'
+        + '<div id="bci-thumbwrap-'+grp.id+'" style="display:none;margin-top:6px;">'
+        + '<img id="bci-thumb-'+grp.id+'" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">'
+        + '</div>'
         + '</div>'
         + '<div class="check-item-btns">'
         + '<button class="check-btn" id="bci-done-'+grp.id+'" title="整理完成" onclick="setBCStatus(\''+grp.id+'\',\'done\')">✅</button>'
         + '<button class="check-btn" id="bci-skip-'+grp.id+'" title="未整理/略過" onclick="setBCStatus(\''+grp.id+'\',\'skip\')">—</button>'
-        + '</div>';
+        + '<button class="check-btn" id="bci-photo-'+grp.id+'" title="拍照" onclick="pickBCPhoto(\''+grp.id+'\')"><i class="ti ti-camera"></i></button>'
+        + '</div>'
+        + '<input type="file" accept="image/*" capture="environment" id="bci-photoinput-'+grp.id+'" style="display:none;" onchange="onBCPhotoPicked(\''+grp.id+'\', this)">';
       list.appendChild(row);
     });
     // 管理員備用項目
@@ -4479,6 +4537,27 @@ function setBCStatus(id, status){
   skipBtn.className = "check-btn" + (bcItemStatus[id]==="skip"?" active-skip":"");
 }
 
+function pickBCPhoto(id){
+  var input = document.getElementById("bci-photoinput-"+id);
+  if(input) input.click();
+}
+
+function onBCPhotoPicked(id, input){
+  var file = input.files && input.files[0];
+  if(!file) return;
+  var photoBtn = document.getElementById("bci-photo-"+id);
+  if(photoBtn) photoBtn.innerHTML = '<i class="ti ti-hourglass"></i>';
+  compressImageToBase64(file, 1000, 0.6, function(dataUrl){
+    if(!dataUrl){ if(photoBtn) photoBtn.innerHTML = '<i class="ti ti-camera"></i>'; alert("照片讀取失敗，請再試一次"); return; }
+    bcPhotos[id] = dataUrl;
+    var thumb = document.getElementById("bci-thumb-"+id);
+    var wrap  = document.getElementById("bci-thumbwrap-"+id);
+    if(thumb) thumb.src = dataUrl;
+    if(wrap) wrap.style.display = "block";
+    if(photoBtn){ photoBtn.innerHTML = '<i class="ti ti-camera"></i>'; photoBtn.classList.add("active-done"); }
+  });
+}
+
 function addBCExtraItem(){
   var val = document.getElementById("bc-extra-input").value.trim();
   if(!val) return;
@@ -4495,6 +4574,22 @@ function submitBigCheck(){
   if(!date){ alert("請填寫整理日期"); return; }
   var garage = bcType==="car" ? document.getElementById("bc-garage").value : "";
   var note = document.getElementById("bc-note").value.trim();
+
+  // 工具箱整理：標記完成的每一項都要有照片才能送出
+  var missingPhotoNames = [];
+  if(bcType === "tool"){
+    Object.keys(bcItemStatus).forEach(function(id){
+      if(bcItemStatus[id] === "done" && !bcPhotos[id]){
+        var grp = BIG_CHECK_TOOL_GROUPS.concat(bcExtraItems).find(function(g){ return g.id===id; });
+        missingPhotoNames.push(grp ? grp.name : id);
+      }
+    });
+  }
+  if(missingPhotoNames.length){
+    alert("以下工具箱已標記完成，請先拍照再送出：\n"+missingPhotoNames.join("、"));
+    return;
+  }
+
   var t = nowStr();
   var rec = {
     type: bcType,
@@ -4509,6 +4604,20 @@ function submitBigCheck(){
   bigCheckData[curBCPlate].unshift(rec);
   if(bigCheckData[curBCPlate].length > 20) bigCheckData[curBCPlate] = bigCheckData[curBCPlate].slice(0,20);
   saveBigCheckData();
+
+  // 準備照片清單（工具箱整理才有）
+  var photosPayload = [];
+  if(bcType === "tool"){
+    Object.keys(bcPhotos).forEach(function(id){
+      var grp = BIG_CHECK_TOOL_GROUPS.concat(bcExtraItems).find(function(g){ return g.id===id; });
+      photosPayload.push({
+        id: id,
+        name: "整理_"+curBCPlate+"_"+id+"_"+t.replace(/[\/:\s]/g,"")+".jpg",
+        data: bcPhotos[id]
+      });
+    });
+  }
+
   closeBigCheck();
   // 統計有做/未做數量
   var done = Object.values(bcItemStatus).filter(function(v){return v==="done";}).length;
@@ -4516,8 +4625,9 @@ function submitBigCheck(){
   sendToSheets({type:"大整理",box:curBCPlate,part:bcType==="tool"?"工具箱整理":"車內整理",qty:done,
     name:curUser?curUser.name:"",email:curUser?curUser.email:"",
     note:"完成"+done+"/"+total+"項"+(garage?"，"+garage:"")+(note?"，"+note:""),
-    time:t,loc:curUser?curUser.location:"",serial:""});
-  showToast("✅ 大整理記錄已送出（"+done+"/"+total+" 項完成）");
+    time:t,loc:curUser?curUser.location:"",serial:"",
+    photos:photosPayload});
+  showToast("✅ 大整理記錄已送出（"+done+"/"+total+" 項完成"+(photosPayload.length?"，含"+photosPayload.length+"張照片":"")+"）");
 }
 
 function closeBigCheck(){
@@ -4699,6 +4809,7 @@ function submitMaintRecord(){
   sendToSheets({type:isMaintOverhaul?"大修記錄":"保養記錄",box:curMaintPlate,part:garage,qty:fee,
     name:curUser?curUser.name:"",email:curUser?curUser.email:"",
     note:"里程:"+km+"km，項目:"+checkedItems.join("、")+(note?"，"+note:""),
+    date:rec.date,
     time:t,loc:curUser?curUser.location:"",serial:"",isOverhaul:isMaintOverhaul});
   showToast("✅ "+(isMaintOverhaul?"大修":"保養")+"記錄已送出");
 }
@@ -4997,13 +5108,17 @@ function submitFuelRecord(){
   if(!plate){ alert("請選擇車牌"); return; }
   if(!amount){ alert("請填寫加油金額"); return; }
   if(!mileage){ alert("請填寫目前里程數"); return; }
+  if(!fuelPhotoData){ alert("請拍攝儀表板照片"); return; }
   var t = nowStr();
+  var photoName = "加油_"+plate+"_"+t.replace(/[\/:\s]/g,"")+".jpg";
+  var photoData = fuelPhotoData;
   closeVehOverlay();
   sendToSheets({type:"加油",box:plate,part:curUser?curUser.name:"",qty:amount,
     name:curUser?curUser.name:"",email:curUser?curUser.email:"",
     note:"里程:"+mileage+"km，"+note,time:t,loc:curUser?curUser.location:"",
-    serial:"",fuelAmount:amount,mileage:mileage,plate:plate});
-  showToast("✅ 加油記錄已送出");
+    serial:"",fuelAmount:amount,mileage:mileage,plate:plate,
+    photoData:photoData,photoName:photoName});
+  showToast("✅ 加油記錄已送出（含照片）");
 }
 
 // ─── 指派 / 解除指派 ───
