@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260708-03">
+<meta name="app-version" content="20260708-04">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -813,6 +813,7 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     <div id="vd-alerts"></div>
     <!-- 統計格子 -->
     <div class="veh-detail-grid" id="vd-stats"></div>
+    <div id="vd-maintkm-edit-wrap" style="display:none;"></div>
     <!-- 工具箱 -->
     <div class="veh-section">
       <div class="veh-section-title">工具箱配備</div>
@@ -1331,6 +1332,54 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     </div>
   </div>
   <div id="frs-list"></div>
+</div>
+
+<!-- 保養里程修改（管理員專用） -->
+<div class="equip-overlay" id="maintkm-edit-overlay">
+  <div class="equip-sheet">
+    <div class="equip-sheet-title">修改保養公里數</div>
+    <div class="equip-sheet-sub" id="maintkm-edit-plate-sub"></div>
+    <div style="background:var(--amber-light);border-radius:11px;padding:10px 13px;margin:10px 0 14px;font-size:12px;color:var(--amber);line-height:1.5;">
+      這裡是直接校正基準值（例如上線前把測試數字改回正確值），不會產生一筆保養記錄。
+    </div>
+    <div class="equip-field">
+      <label class="fuel-input-lbl">上次保養里程（km）</label>
+      <input class="fuel-input" id="maintkm-edit-last" type="number" inputmode="numeric" placeholder="例：172853">
+    </div>
+    <div class="equip-field">
+      <label class="fuel-input-lbl">下次保養里程（km）</label>
+      <input class="fuel-input" id="maintkm-edit-next" type="number" inputmode="numeric" placeholder="例：182000">
+    </div>
+    <button class="equip-submit-btn" onclick="saveMaintKmEdit()"><i class="ti ti-check"></i> 儲存</button>
+    <button class="equip-cancel-btn" onclick="closeMaintKmEdit()">取消</button>
+  </div>
+</div>
+
+<!-- 行照歸還：驗車日期確認（歸還行照前必填） -->
+<div class="equip-overlay" id="lic-return-overlay">
+  <div class="equip-sheet">
+    <div class="equip-sheet-title">登記歸還行照</div>
+    <div class="equip-sheet-sub" id="lic-return-plate-sub"></div>
+    <div style="background:var(--amber-light);border-radius:11px;padding:10px 13px;margin:10px 0 14px;font-size:12px;color:var(--amber);line-height:1.5;">
+      請填寫今天實際去驗車的日期（若下班後才去、隔天才申請歸還，可手動修改成實際日期）與下次驗車日期，填完才能完成歸還登記。
+    </div>
+    <div class="equip-field">
+      <label class="fuel-input-lbl">今天去驗車的日期</label>
+      <input class="fuel-input" id="lic-return-inspect-date" type="date">
+    </div>
+    <div class="equip-field">
+      <label class="fuel-input-lbl">下次驗車日期</label>
+      <input class="fuel-input" id="lic-return-next-date" type="date">
+    </div>
+    <div class="equip-field">
+      <label class="fuel-input-lbl">備註（選填）</label>
+      <input class="equip-input" id="lic-return-note" placeholder="例：已通過驗車">
+    </div>
+    <button class="equip-submit-btn" style="background:var(--amber);" onclick="confirmReturnLicenseWithInspect()">
+      <i class="ti ti-check"></i> 確認歸還
+    </button>
+    <button class="equip-cancel-btn" onclick="closeLicReturnOverlay()">取消</button>
+  </div>
 </div>
 
 <!-- 行照借還 overlay -->
@@ -4167,6 +4216,15 @@ function openVehDetail(plate){
   addStat("上次保養", v.lastMaintKm ? v.lastMaintKm.toLocaleString()+" km" : "未記錄", "");
   addStat("下次保養", v.nextMaintKm ? v.nextMaintKm.toLocaleString()+" km" : "未設定", v.lastMaintKm&&v.nextMaintKm ? "還差"+(v.nextMaintKm-v.lastMaintKm).toLocaleString()+"km" : "", "ok");
 
+  // 管理員專用：直接修改保養公里數基準值
+  var maintKmEditWrap = document.getElementById("vd-maintkm-edit-wrap");
+  if(maintKmEditWrap){
+    maintKmEditWrap.style.display = isAdmin ? "block" : "none";
+    maintKmEditWrap.innerHTML = isAdmin
+      ? '<button class="equip-cancel-btn" style="margin-top:8px;padding:8px 12px;font-size:12px;" onclick="openMaintKmEdit(\''+plate+'\')"><i class="ti ti-edit"></i> 修改保養公里數（管理員）</button>'
+      : "";
+  }
+
   // 工具箱配備
   renderVehBoxes(plate, isAdmin);
   // 車況現況貼紙（只有管理員看）
@@ -6010,6 +6068,43 @@ function saveLicenseRecords(){
   try{ localStorage.setItem("license_records", JSON.stringify(licenseRecords)); }catch(e){}
 }
 
+// ─── 管理員：直接修改保養公里數基準值 ───
+var maintKmEditPlate = null;
+
+function openMaintKmEdit(plate){
+  var v = VEHICLES.find(function(x){ return x.plate===plate; });
+  if(!v) return;
+  maintKmEditPlate = plate;
+  document.getElementById("maintkm-edit-plate-sub").textContent = plate + (v.company?" ‧ "+v.company:"");
+  document.getElementById("maintkm-edit-last").value = v.lastMaintKm || "";
+  document.getElementById("maintkm-edit-next").value = v.nextMaintKm || "";
+  document.getElementById("maintkm-edit-overlay").classList.add("show");
+}
+
+function closeMaintKmEdit(){
+  document.getElementById("maintkm-edit-overlay").classList.remove("show");
+  maintKmEditPlate = null;
+}
+
+function saveMaintKmEdit(){
+  if(!maintKmEditPlate) return;
+  var v = VEHICLES.find(function(x){ return x.plate===maintKmEditPlate; });
+  if(!v) return;
+  var lastKm = parseInt(document.getElementById("maintkm-edit-last").value) || 0;
+  var nextKm = parseInt(document.getElementById("maintkm-edit-next").value) || 0;
+  v.lastMaintKm = lastKm;
+  v.nextMaintKm = nextKm;
+  try{ localStorage.setItem("vehicles_override", JSON.stringify(VEHICLES)); }catch(e){}
+  // 寫入操作記錄（純留存修改紀錄，不會另外建立保養事件）
+  sendToSheets({type:"保養里程校正",box:maintKmEditPlate,part:curUser?curUser.name:"",qty:lastKm,
+    name:curUser?curUser.name:"",email:curUser?curUser.email:"",
+    note:"上次保養:"+lastKm+"km，下次保養:"+nextKm+"km（管理員手動校正）",
+    time:nowStr(),loc:curUser?curUser.location:"",serial:""});
+  closeMaintKmEdit();
+  openVehDetail(maintKmEditPlate);
+  showToast("✅ 保養公里數已更新（這支手機生效，其他手機需個別確認）");
+}
+
 function openLicenseOverlay(plate){
   var myPlate = plate || (curUser ? localStorage.getItem("carPlate_"+curUser.email) : null);
   // 填車牌選單
@@ -6071,18 +6166,75 @@ function submitLicenseBorrow(){
   showToast("✅ 行照借出已登記："+plate);
 }
 
+var licReturnRecId = null;
+
 function returnLicense(recId){
   var rec = licenseRecords.find(function(r){ return r.id===recId; });
   if(!rec) return;
+  licReturnRecId = recId;
+  document.getElementById("lic-return-plate-sub").textContent = rec.plate;
+  var today = new Date().toISOString().slice(0,10);
+  document.getElementById("lic-return-inspect-date").value = today; // 預設今天，可手動改成實際去驗車的日期
+  document.getElementById("lic-return-next-date").value = "";
+  document.getElementById("lic-return-note").value = "";
+  document.getElementById("lic-return-overlay").classList.add("show");
+}
+
+function closeLicReturnOverlay(){
+  document.getElementById("lic-return-overlay").classList.remove("show");
+  licReturnRecId = null;
+}
+
+function confirmReturnLicenseWithInspect(){
+  var rec = licenseRecords.find(function(r){ return r.id===licReturnRecId; });
+  if(!rec) return;
+  var inspectDateRaw = document.getElementById("lic-return-inspect-date").value;
+  var nextDateRaw    = document.getElementById("lic-return-next-date").value;
+  var note = document.getElementById("lic-return-note").value.trim();
+  if(!inspectDateRaw){ alert("請填寫今天去驗車的日期"); return; }
+  if(!nextDateRaw){ alert("請填寫下次驗車日期"); return; }
+
+  var plate = rec.plate;
+  var inspectDate = inspectDateRaw.replace(/-/g,"/");
+  var nextDate = nextDateRaw.replace(/-/g,"/");
+  var t = nowStr();
+
+  // 更新行照借還狀態
   rec.status = "待確認歸還";
-  rec.returnTime = nowStr();
+  rec.returnTime = t;
   rec.returnBy = curUser?curUser.name:"";
+  rec.actualInspectDate = inspectDate;
+  rec.nextInspectDate = nextDate;
   saveLicenseRecords();
   renderLicenseRecords();
-  sendToSheets({type:"行照歸還申請",box:rec.plate,part:curUser?curUser.name:"",qty:0,
+
+  // 同步寫入驗車紀錄（沿用現有「驗車紀錄」邏輯，會自動更新車輛下次驗車日期）
+  if(!inspectRecords[plate]) inspectRecords[plate] = [];
+  inspectRecords[plate].unshift({
+    date: inspectDate,
+    km: null,
+    nextDate: nextDate,
+    note: "（隨行照歸還登記）"+(note?"，"+note:""),
+    recorder: curUser ? curUser.name : "",
+    time: t
+  });
+  if(inspectRecords[plate].length > 10) inspectRecords[plate] = inspectRecords[plate].slice(0,10);
+  saveInspectRecords();
+  var v = VEHICLES.find(function(x){ return x.plate===plate; });
+  if(v){ v.inspect = nextDate; try{ localStorage.setItem("vehicles_override", JSON.stringify(VEHICLES)); }catch(e){} }
+
+  sendToSheets({type:"驗車紀錄",box:plate,part:inspectDate,qty:0,
     name:curUser?curUser.name:"",email:curUser?curUser.email:"",
-    note:"申請歸還行照，等待管理員確認",time:nowStr(),loc:"",serial:""});
-  showToast("✅ 已通知管理員確認歸還");
+    note:"里程:未記錄，下次:"+nextDate+"（隨行照歸還登記）"+(note?"，"+note:""),
+    time:t,loc:curUser?curUser.location:"",serial:""});
+
+  sendToSheets({type:"行照歸還申請",box:plate,part:curUser?curUser.name:"",qty:0,
+    name:curUser?curUser.name:"",email:curUser?curUser.email:"",
+    note:"申請歸還行照，驗車日期:"+inspectDate+"，下次驗車:"+nextDate+(note?"，"+note:""),
+    time:t,loc:curUser?curUser.location:"",serial:""});
+
+  closeLicReturnOverlay();
+  showToast("✅ 已通知管理員確認歸還，驗車紀錄已同步更新");
 }
 
 function confirmLicenseReturn(recId){
