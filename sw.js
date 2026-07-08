@@ -2,7 +2,7 @@
 // 森清淨工具系統 — Service Worker
 // 每次更新時，只需更改 CACHE_NAME 的版本號
 // =====================================================
-var CACHE_NAME = "senjing-v20260707-06";
+var CACHE_NAME = "senjing-v20260708-01";
 
 // 需要快取的靜態資源
 var PRECACHE = [
