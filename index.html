@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260708-01">
+<meta name="app-version" content="20260708-02">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -4360,6 +4360,16 @@ function compressImageToBase64(file, maxWidth, quality, cb){
   reader.readAsDataURL(file);
 }
 
+// ─── 照片檔名規則：事件_日期_車牌_目前的車輛使用者(_額外標籤).jpg ───
+function buildPhotoFileName(eventLabel, plate, extraLabel){
+  var dateStr = (new Date()).toISOString().slice(0,10).replace(/-/g,"");
+  var driver = ((vehAssignments[plate]||{}).driver) || (curUser?curUser.name:"") || "未知";
+  driver = String(driver).replace(/[\/\\:*?"<>|\s]/g,""); // 過濾檔名不可用字元
+  var parts = [eventLabel, dateStr, plate, driver];
+  if(extraLabel) parts.push(String(extraLabel).replace(/[\/\\:*?"<>|\s]/g,""));
+  return parts.join("_") + ".jpg";
+}
+
 // ─── 加油：儀表板照片 ───
 var fuelPhotoData = null; // 壓縮後的 base64 dataURL
 
@@ -4612,7 +4622,7 @@ function submitBigCheck(){
       var grp = BIG_CHECK_TOOL_GROUPS.concat(bcExtraItems).find(function(g){ return g.id===id; });
       photosPayload.push({
         id: id,
-        name: "整理_"+curBCPlate+"_"+id+"_"+t.replace(/[\/:\s]/g,"")+".jpg",
+        name: buildPhotoFileName("整理", curBCPlate, grp ? grp.name : id),
         data: bcPhotos[id]
       });
     });
@@ -5110,7 +5120,7 @@ function submitFuelRecord(){
   if(!mileage){ alert("請填寫目前里程數"); return; }
   if(!fuelPhotoData){ alert("請拍攝儀表板照片"); return; }
   var t = nowStr();
-  var photoName = "加油_"+plate+"_"+t.replace(/[\/:\s]/g,"")+".jpg";
+  var photoName = buildPhotoFileName("加油", plate);
   var photoData = fuelPhotoData;
   closeVehOverlay();
   sendToSheets({type:"加油",box:plate,part:curUser?curUser.name:"",qty:amount,
