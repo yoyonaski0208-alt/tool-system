@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260710-03">
+<meta name="app-version" content="20260710-04">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -2726,6 +2726,61 @@ function setLoc(el){
   if(document.getElementById("pg-admin").classList.contains("active"))renderAdmin();
 }
 
+// ─────────────────────────────────────────────
+// 自動輪詢：目前正在看的頁面，每隔一段時間自動跟 Sheets 同步一次
+// 降低多人同時操作時「看到舊資料」的風險
+// - 只更新「目前這一頁」，不會同時打全部頁面，節省資源
+// - 螢幕鎖定/切到背景時自動暫停，回到前景立刻補抓一次
+// ─────────────────────────────────────────────
+var AUTO_REFRESH_MS = 18000; // 18秒（庫存本身另外有30秒節流，兩邊互相搭配，不會重複狂打）
+var autoRefreshTimer = null;
+var autoRefreshPage = null;
+
+function startAutoRefresh(pg){
+  stopAutoRefresh();
+  autoRefreshPage = pg;
+  autoRefreshTimer = setInterval(function(){
+    if(document.hidden) return; // App在背景/螢幕鎖定時暫停，省電省流量
+    runAutoRefreshFor(pg);
+  }, AUTO_REFRESH_MS);
+}
+
+function stopAutoRefresh(){
+  if(autoRefreshTimer){ clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
+  autoRefreshPage = null;
+}
+
+function runAutoRefreshFor(pg){
+  if(!curUser || !GAS_URL) return;
+  if(pg === "take"){
+    // 領取頁：庫存數字＋低庫存警示都要新的資料
+    Promise.all([syncStocksFromSheets("台南"), syncStocksFromSheets("屏東")]).then(function(){
+      renderBoxes();
+      if(curBox) renderPartList(getEditLoc());
+    });
+  } else if(pg === "equip"){
+    syncEquipFromSheets();
+  } else if(pg === "vehicle"){
+    syncVehicleDataFromServer().then(function(){
+      renderVehiclePage();
+      if(curVehPlate && document.getElementById("veh-detail-screen").style.display !== "none"){
+        openVehDetail(curVehPlate);
+      }
+    });
+  } else if(pg === "log"){
+    syncLogsFromServer().then(function(){ syncTakePhotosFromServer().then(renderLogs); renderLogs(); });
+  } else if(pg === "repair"){
+    syncRepairsFromServer().then(renderRepairList);
+  }
+}
+
+// App 從背景切回前景時，不用等下一輪，立刻補抓一次
+document.addEventListener("visibilitychange", function(){
+  if(!document.hidden && autoRefreshPage){
+    runAutoRefreshFor(autoRefreshPage);
+  }
+});
+
 function navTo(pg,el){
   document.querySelectorAll(".nav-btn").forEach(function(x){x.classList.remove("active");}); el.classList.add("active");
   document.querySelectorAll(".page").forEach(function(p){p.classList.remove("active");});
@@ -2774,6 +2829,7 @@ function navTo(pg,el){
     renderEquip();
     syncEquipFromSheets();
   }
+  startAutoRefresh(pg); // 開始針對目前頁面自動輪詢更新
 }
 function showMain(pg){pshow("s-main");navTo(pg,document.getElementById("nav-"+pg));}
 
