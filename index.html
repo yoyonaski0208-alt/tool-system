@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260709-02">
+<meta name="app-version" content="20260709-03">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -921,6 +921,16 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     <button class="equip-cancel-btn" style="margin-top:10px;border-color:var(--red);color:var(--red);" onclick="resetLocalLaunchData()">
       <i class="ti ti-trash"></i> 清除本機測試資料（車牌綁定/指派關係）
     </button>
+
+    <!-- 同步診斷工具 -->
+    <div class="section-hd" style="margin-top:20px;">🔍 同步診斷</div>
+    <div style="background:var(--blue-light);border-radius:10px;padding:12px;font-size:12px;color:var(--blue);line-height:1.6;">
+      點下面按鈕，直接檢查後端有沒有真的部署成功、雲端目前存的資料是什麼。如果顯示「找不到 readSync」或一直失敗，代表 Apps Script 還沒用新版重新部署。
+    </div>
+    <button class="equip-cancel-btn" style="margin-top:10px;" onclick="runSyncDiagnostic()">
+      <i class="ti ti-stethoscope"></i> 檢查同步狀態
+    </button>
+    <div id="sync-diag-result" style="margin-top:10px;font-size:12px;font-family:monospace;white-space:pre-wrap;background:#111;color:#0f0;border-radius:8px;padding:10px;display:none;max-height:300px;overflow-y:auto;"></div>
   </div><!-- end pg-admin -->
 
   <div class="bottom-nav">
@@ -2526,6 +2536,58 @@ function showErr(msg){var el=document.getElementById("login-err");el.textContent
 function doLogout(){localStorage.removeItem("saved_email");curUser=null;document.getElementById("email-input").value="";pshow("s-login");}
 
 // ─── 正式上線：清除本機測試資料（車牌綁定/指派關係，僅影響「這支手機」）───
+// ─── 同步診斷：直接打後端確認 Code.gs 是否為新版、雲端資料現況 ───
+async function runSyncDiagnostic(){
+  var out = document.getElementById("sync-diag-result");
+  out.style.display = "block";
+  out.textContent = "檢查中…\n";
+
+  function log(line){ out.textContent += line + "\n"; }
+
+  log("GAS_URL: " + (GAS_URL || "（未設定！）"));
+  log("");
+
+  // 1. 健康檢查：確認基本連線
+  try{
+    var r0 = await fetch(GAS_URL, { mode:"cors", cache:"no-cache" });
+    var d0 = await r0.json();
+    log("① 基本連線：" + (d0.ok ? "✅ 正常" : "❌ 異常"));
+    log("   回應：" + JSON.stringify(d0));
+  }catch(e){
+    log("① 基本連線：❌ 失敗 - " + e.message);
+  }
+  log("");
+
+  // 2. 檢查 readSync 這個 action 存不存在（新版 Code.gs 才有）
+  var keys = ["vehAssignments","toolboxStatus","vehicles","licenseRecords"];
+  for(var i=0;i<keys.length;i++){
+    var k = keys[i];
+    try{
+      var r = await fetch(GAS_URL + "?action=readSync&key=" + encodeURIComponent(k), { mode:"cors", cache:"no-cache" });
+      var d = await r.json();
+      if(d.ok === undefined){
+        log("② ["+k+"]：❌ 後端不認得 readSync，Code.gs 還是舊版，請重新部署！");
+      } else if(!d.data){
+        log("② ["+k+"]：⚠️ 後端有回應，但雲端目前沒有存過這筆資料（data 是空的）");
+      } else {
+        var preview = d.data.length > 150 ? d.data.slice(0,150)+"…" : d.data;
+        log("② ["+k+"]：✅ 讀到資料，最後更新：" + (d.updatedAt||"未知"));
+        log("   內容預覽：" + preview);
+      }
+    }catch(e){
+      log("② ["+k+"]：❌ 讀取失敗 - " + e.message);
+    }
+    log("");
+  }
+
+  log("=== 本機這支裝置目前的版本 ===");
+  log("app-version: " + (document.querySelector('meta[name="app-version"]')?.content || "未知"));
+  log("這支手機目前 vehAssignments["+"APK-1567"+"]: " + JSON.stringify(vehAssignments["APK-1567"]||null));
+  log("這支手機目前 VEHICLES 找到的 APK-1567 lastMaintKm: " + (VEHICLES.find(function(v){return v.plate==="APK-1567";})||{}).lastMaintKm);
+
+  showToast("✅ 診斷完成，請把結果截圖給我");
+}
+
 function resetLocalLaunchData(){
   if(!confirm("確定要清除這支手機的測試資料嗎？\n\n會清掉：\n・我綁定的車牌\n・車輛指派關係\n・工具箱綁定車輛的紀錄\n\n不會動到 Google Sheets 上的任何紀錄，且只影響這支手機，其他人手機要各自清一次。")) return;
 
