@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260709-04">
+<meta name="app-version" content="20260710-01">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -436,9 +436,9 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
 .report-overhaul-tag{font-size:10px;padding:2px 8px;border-radius:20px;background:var(--amber-light);color:var(--amber);font-weight:600;margin-left:6px;}
 .veh-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
 .veh-stat{background:var(--bg);border-radius:12px;padding:11px 12px;}
-.veh-stat-lbl{font-size:10px;color:var(--sub);margin-bottom:3px;}
-.veh-stat-val{font-size:14px;font-weight:700;color:var(--text);}
-.veh-stat-note{font-size:10px;margin-top:2px;}
+.veh-stat-lbl{font-size:12px;color:var(--sub);margin-bottom:4px;}
+.veh-stat-val{font-size:18px;font-weight:700;color:var(--text);}
+.veh-stat-note{font-size:12px;margin-top:3px;font-weight:600;}
 .veh-stat-note.warn{color:var(--amber);}
 .veh-stat-note.ok{color:var(--green);}
 .veh-stat-note.danger{color:var(--red);}
@@ -618,6 +618,9 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       <div style="font-size:13px;opacity:.85;" id="greeting-text">今天也是美好的一天！</div>
     </div>
     <div class="notice"><i class="ti ti-brand-google-drive" style="font-size:14px;"></i>每筆操作自動寫入 Google Sheets</div>
+    <button class="equip-cancel-btn" style="margin-bottom:12px;" onclick="openTakePhotoConfirm()">
+      <i class="ti ti-camera"></i> 拍照確認今日領取
+    </button>
     <div class="box-grid" id="box-grid"></div>
   </div>
 
@@ -1242,6 +1245,12 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     <div id="bc-photo-hint" style="display:none;background:var(--amber-light);border-radius:10px;padding:9px 12px;margin-top:8px;font-size:12px;color:var(--amber);">
       📷 標記「整理完成」✅ 的工具箱都要拍一張照片才能送出
     </div>
+    <!-- 車內整理照片（可多張） -->
+    <div id="bc-car-photo-wrap" style="display:none;margin-top:12px;">
+      <label class="fuel-input-lbl">車內整理照片（必拍，可拍多張）</label>
+      <div id="bc-car-photo-thumbs" style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0;"></div>
+      <button class="equip-cancel-btn" type="button" onclick="openBCCarPhotoCapture()"><i class="ti ti-camera"></i> 拍照新增</button>
+    </div>
     <button class="equip-submit-btn" style="margin-top:14px;" onclick="submitBigCheck()">
       <i class="ti ti-check"></i> 送出整理記錄
     </button>
@@ -1345,6 +1354,24 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     </div>
   </div>
   <div id="frs-list"></div>
+</div>
+
+<!-- 通用：多張照片拍攝 overlay（車內整理／領取確認拍照共用）-->
+<div class="equip-overlay" id="multiphoto-overlay">
+  <div class="equip-sheet">
+    <div class="equip-sheet-title" id="multiphoto-title">拍照</div>
+    <div class="equip-sheet-sub" id="multiphoto-sub"></div>
+    <div id="multiphoto-thumbs" style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;"></div>
+    <input type="file" accept="image/*" capture="environment" id="multiphoto-input" style="display:none;" onchange="onMultiPhotoPicked(this)">
+    <button class="equip-cancel-btn" onclick="document.getElementById('multiphoto-input').click()"><i class="ti ti-camera"></i> 拍照新增</button>
+    <button class="equip-submit-btn" style="margin-top:10px;" onclick="submitMultiPhotoOverlay()"><i class="ti ti-check"></i> 確認</button>
+    <button class="equip-cancel-btn" style="margin-top:8px;" onclick="closeMultiPhotoOverlay()">取消</button>
+  </div>
+</div>
+
+<!-- 通用：照片檢視燈箱 -->
+<div class="equip-overlay" id="photo-viewer-overlay" onclick="closePhotoViewer()" style="background:rgba(0,0,0,0.85);align-items:center;justify-content:center;">
+  <img id="photo-viewer-img" style="max-width:92vw;max-height:85vh;border-radius:10px;">
 </div>
 
 <!-- 保養里程修改（管理員專用） -->
@@ -2477,6 +2504,7 @@ function enterMainApp(){
   loadInsData();
   loadFuelRecords();
   loadLicenseRecords();
+  loadTakePhotos();
   loadDriverList();
   loadBigCheckData();
   loadMaintData();
@@ -3184,6 +3212,21 @@ function renderLogs(){
     qty.style.color=l.type==="領取"?"var(--red)":l.type==="進貨"?"var(--blue)":"var(--amber)";
     qty.textContent=(l.type==="領取"?"-":l.type==="進貨"?"+":"")+Math.abs(l.qty||0);
     item.appendChild(left);item.appendChild(qty);
+
+    // 領取拍照確認縮圖（只有當天且同一位操作人有拍照才會顯示）
+    var takeTypesForPhoto = ["首次領取","耗損","遺失"];
+    if(takeTypesForPhoto.indexOf(l.type) > -1 && l.time){
+      var mapKey = l.time.slice(0,10) + "|" + l.name;
+      var todayPhotos = takePhotosLocal[mapKey];
+      if(todayPhotos && todayPhotos.length){
+        var thumb = document.createElement("img");
+        thumb.src = todayPhotos[0];
+        thumb.title = "領取確認照片（共"+todayPhotos.length+"張）";
+        thumb.style.cssText = "width:34px;height:34px;object-fit:cover;border-radius:7px;margin-left:8px;border:1.5px solid var(--blue);cursor:pointer;flex:0 0 auto;";
+        thumb.onclick = function(photos){ return function(){ viewPhotoFull(photos[0]); }; }(todayPhotos);
+        item.appendChild(thumb);
+      }
+    }
     container.appendChild(item);
   });
 }
@@ -4612,6 +4655,169 @@ function openFuelForm(preselect){
 }
 
 // ─── 照片壓縮共用函式（拍照→縮圖→base64，避免上傳太大檔） ───
+// ─── 浮水印：在照片左下角疊印日期/時間/操作人，跟拍照當下綁在一起 ───
+function addWatermarkToImage(dataUrl, cb){
+  try{
+    var img = new Image();
+    img.onload = function(){
+      var canvas = document.createElement("canvas");
+      canvas.width = img.width; canvas.height = img.height;
+      var ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+
+      var now = new Date();
+      var pad = function(n){ return String(n).padStart(2,"0"); };
+      var dateStr = now.getFullYear()+"/"+pad(now.getMonth()+1)+"/"+pad(now.getDate());
+      var timeStr = pad(now.getHours())+":"+pad(now.getMinutes());
+      var who = curUser ? curUser.name : "";
+      var text = dateStr+" "+timeStr + (who?"　"+who:"");
+
+      var fontSize = Math.max(16, Math.round(canvas.width/26));
+      ctx.font = "bold "+fontSize+"px sans-serif";
+      var padding = Math.round(fontSize*0.55);
+      var textWidth = ctx.measureText(text).width;
+      var boxH = fontSize + padding*1.7;
+      var boxW = Math.min(canvas.width, textWidth + padding*2);
+
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.fillRect(0, canvas.height-boxH, boxW, boxH);
+      ctx.fillStyle = "#fff";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, padding, canvas.height-boxH/2);
+
+      cb(canvas.toDataURL("image/jpeg", 0.72));
+    };
+    img.onerror = function(){ cb(dataUrl); }; // 疊字失敗就退回原圖，不卡流程
+    img.src = dataUrl;
+  }catch(e){ cb(dataUrl); }
+}
+
+// ─── 通用：多張照片拍攝 overlay ───
+var multiPhotoState = { photos: [], onSubmit: null, minRequired: 0 };
+
+function openMultiPhotoOverlay(title, sub, onSubmitCallback, minRequired){
+  multiPhotoState = { photos: [], onSubmit: onSubmitCallback, minRequired: minRequired||0 };
+  document.getElementById("multiphoto-title").textContent = title;
+  document.getElementById("multiphoto-sub").textContent = sub || "";
+  document.getElementById("multiphoto-input").value = "";
+  renderMultiPhotoThumbs();
+  document.getElementById("multiphoto-overlay").classList.add("show");
+}
+
+function closeMultiPhotoOverlay(){
+  document.getElementById("multiphoto-overlay").classList.remove("show");
+}
+
+function onMultiPhotoPicked(input){
+  var file = input.files && input.files[0];
+  if(!file) return;
+  compressImageToBase64(file, 1000, 0.68, function(dataUrl){
+    if(!dataUrl){ alert("照片讀取失敗，請再試一次"); input.value=""; return; }
+    addWatermarkToImage(dataUrl, function(watermarked){
+      multiPhotoState.photos.push(watermarked);
+      renderMultiPhotoThumbs();
+      input.value = ""; // 清空才能連續觸發同一顆鏡頭再拍下一張
+    });
+  });
+}
+
+function removeMultiPhoto(idx){
+  multiPhotoState.photos.splice(idx,1);
+  renderMultiPhotoThumbs();
+}
+
+function renderMultiPhotoThumbs(){
+  var wrap = document.getElementById("multiphoto-thumbs");
+  wrap.innerHTML = "";
+  if(!multiPhotoState.photos.length){
+    wrap.innerHTML = '<div style="font-size:12px;color:var(--sub);">尚未拍照</div>';
+    return;
+  }
+  multiPhotoState.photos.forEach(function(p, idx){
+    var box = document.createElement("div");
+    box.style.cssText = "position:relative;width:72px;height:72px;";
+    box.innerHTML = '<img src="'+p+'" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--border);">'
+      + '<button onclick="removeMultiPhoto('+idx+')" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--red);color:#fff;border:none;font-size:12px;line-height:1;cursor:pointer;">✕</button>';
+    wrap.appendChild(box);
+  });
+}
+
+function submitMultiPhotoOverlay(){
+  if(multiPhotoState.photos.length < multiPhotoState.minRequired){
+    alert("至少要拍 "+multiPhotoState.minRequired+" 張照片才能確認");
+    return;
+  }
+  var photos = multiPhotoState.photos.slice();
+  var cb = multiPhotoState.onSubmit;
+  closeMultiPhotoOverlay();
+  if(typeof cb === "function") cb(photos);
+}
+
+// ─── 通用：照片檢視燈箱 ───
+function viewPhotoFull(dataUrl){
+  document.getElementById("photo-viewer-img").src = dataUrl;
+  document.getElementById("photo-viewer-overlay").classList.add("show");
+}
+function closePhotoViewer(){
+  document.getElementById("photo-viewer-overlay").classList.remove("show");
+}
+
+// ─── 車內整理：拍照新增（可多張） ───
+function openBCCarPhotoCapture(){
+  openMultiPhotoOverlay("車內整理照片", "可以連續拍多張，拍完按確認會加進這筆整理記錄", function(photos){
+    bcCarPhotos = bcCarPhotos.concat(photos);
+    renderBCCarPhotoThumbs();
+  }, 0);
+}
+
+function renderBCCarPhotoThumbs(){
+  var wrap = document.getElementById("bc-car-photo-thumbs");
+  if(!wrap) return;
+  wrap.innerHTML = "";
+  bcCarPhotos.forEach(function(p, idx){
+    var box = document.createElement("div");
+    box.style.cssText = "position:relative;width:60px;height:60px;cursor:pointer;";
+    box.innerHTML = '<img src="'+p+'" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid var(--border);" onclick="viewPhotoFull(\''+p+'\')">'
+      + '<button onclick="event.stopPropagation();bcCarPhotos.splice('+idx+',1);renderBCCarPhotoThumbs();" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--red);color:#fff;border:none;font-size:11px;line-height:1;cursor:pointer;">✕</button>';
+    wrap.appendChild(box);
+  });
+}
+
+// ─── 領取：拍照確認今日領取 ───
+var takePhotosLocal = {}; // key: "yyyy/MM/dd|操作人姓名" → [dataUrl,...]
+
+function loadTakePhotos(){
+  try{ var s = localStorage.getItem("take_photos_local"); if(s) takePhotosLocal = JSON.parse(s); }catch(e){ takePhotosLocal = {}; }
+}
+function saveTakePhotosLocalCache(){
+  try{ localStorage.setItem("take_photos_local", JSON.stringify(takePhotosLocal)); }catch(e){}
+}
+
+function openTakePhotoConfirm(){
+  openMultiPhotoOverlay("拍照確認今日領取", "拍下今天實際領取的工具，會顯示在「紀錄」頁對應的項目旁邊；只能拍當天的，不能補拍之前的", function(photos){
+    submitTakePhotos(photos);
+  }, 1);
+}
+
+function submitTakePhotos(photos){
+  var t = nowStr();
+  var todayKey = t.slice(0,10); // yyyy/MM/dd
+  var mapKey = todayKey + "|" + (curUser?curUser.name:"");
+  if(!takePhotosLocal[mapKey]) takePhotosLocal[mapKey] = [];
+  var startIdx = takePhotosLocal[mapKey].length;
+  photos.forEach(function(dataUrl, idx){
+    takePhotosLocal[mapKey].push(dataUrl);
+    var photoName = "領取確認_"+todayKey.replace(/\//g,"")+"_"+(curUser?curUser.name:"未知")+"_"+(startIdx+idx+1)+".jpg";
+    sendToSheets({type:"領取照片", box:"", part:curUser?curUser.name:"", qty:0,
+      name:curUser?curUser.name:"", email:curUser?curUser.email:"",
+      note:"今日領取拍照確認", time:t, loc:curUser?curUser.location:"", serial:"",
+      photoData:dataUrl, photoName:photoName});
+  });
+  saveTakePhotosLocalCache();
+  if(document.getElementById("pg-log").classList.contains("active")) renderLogs();
+  showToast("✅ 已新增 "+photos.length+" 張領取確認照片");
+}
+
 function compressImageToBase64(file, maxWidth, quality, cb){
   var reader = new FileReader();
   reader.onload = function(e){
@@ -4696,6 +4902,7 @@ var bcItemStatus  = {};  // id → "done"|"skip"|null
 var bcExtraItems  = [];  // 管理員加的備用項目
 var curBCPlate    = null;
 var bcPhotos      = {};  // groupId → 壓縮後的 base64 dataURL（工具箱整理拍照用）
+var bcCarPhotos   = [];  // 車內整理拍照用（可多張，不分組）
 
 function loadBigCheckData(){
   try{ var s=localStorage.getItem("bigcheck_data"); if(s) bigCheckData=JSON.parse(s); }catch(e){}
@@ -4733,6 +4940,10 @@ function setBCType(type, el){
   document.getElementById("bc-garage-row").style.display = type==="car"?"block":"none";
   // 工具箱整理顯示拍照提示
   document.getElementById("bc-photo-hint").style.display = type==="tool"?"block":"none";
+  // 車內整理顯示多張拍照區塊
+  document.getElementById("bc-car-photo-wrap").style.display = type==="car"?"block":"none";
+  bcCarPhotos = [];
+  renderBCCarPhotoThumbs();
   // 渲染項目清單
   renderBCItems();
 }
@@ -4871,6 +5082,11 @@ function submitBigCheck(){
     alert("以下工具箱已標記完成，請先拍照再送出：\n"+missingPhotoNames.join("、"));
     return;
   }
+  // 車內整理：至少要有一張照片才能送出
+  if(bcType === "car" && !bcCarPhotos.length){
+    alert("請先拍至少一張車內整理照片再送出");
+    return;
+  }
 
   var t = nowStr();
   var rec = {
@@ -4887,7 +5103,7 @@ function submitBigCheck(){
   if(bigCheckData[curBCPlate].length > 20) bigCheckData[curBCPlate] = bigCheckData[curBCPlate].slice(0,20);
   saveBigCheckData();
 
-  // 準備照片清單（工具箱整理才有）
+  // 準備照片清單（工具箱整理：每組各一張；車內整理：不分組，多張）
   var photosPayload = [];
   if(bcType === "tool"){
     Object.keys(bcPhotos).forEach(function(id){
@@ -4896,6 +5112,14 @@ function submitBigCheck(){
         id: id,
         name: buildPhotoFileName("整理", curBCPlate, grp ? grp.name : id),
         data: bcPhotos[id]
+      });
+    });
+  } else if(bcType === "car"){
+    bcCarPhotos.forEach(function(dataUrl, idx){
+      photosPayload.push({
+        id: "車內整理-"+(idx+1),
+        name: buildPhotoFileName("車內整理", curBCPlate, String(idx+1)),
+        data: dataUrl
       });
     });
   }
