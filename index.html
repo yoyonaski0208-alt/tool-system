@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260710-01">
+<meta name="app-version" content="20260710-03">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -1241,15 +1241,9 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       <label class="fuel-input-lbl">整體備註（選填）</label>
       <input class="equip-input" id="bc-note" placeholder="例：下次需要注意冷氣">
     </div>
-    <!-- 拍照（工具箱整理，暫時隱藏） -->
+    <!-- 拍照（標記完成的項目才需要，工具箱整理／車內整理共用） -->
     <div id="bc-photo-hint" style="display:none;background:var(--amber-light);border-radius:10px;padding:9px 12px;margin-top:8px;font-size:12px;color:var(--amber);">
       📷 標記「整理完成」✅ 的工具箱都要拍一張照片才能送出
-    </div>
-    <!-- 車內整理照片（可多張） -->
-    <div id="bc-car-photo-wrap" style="display:none;margin-top:12px;">
-      <label class="fuel-input-lbl">車內整理照片（必拍，可拍多張）</label>
-      <div id="bc-car-photo-thumbs" style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0;"></div>
-      <button class="equip-cancel-btn" type="button" onclick="openBCCarPhotoCapture()"><i class="ti ti-camera"></i> 拍照新增</button>
     </div>
     <button class="equip-submit-btn" style="margin-top:14px;" onclick="submitBigCheck()">
       <i class="ti ti-check"></i> 送出整理記錄
@@ -2300,6 +2294,42 @@ function loadLogsFromStorage(){
   }catch(e){console.warn("Load logs error",e);}
 }
 
+// ─── 「紀錄」頁：從 Google Sheets 拉回領取確認照片（跨裝置比對縮圖用）───
+async function syncTakePhotosFromServer(){
+  if(!GAS_URL) return;
+  try{
+    var res = await fetch(GAS_URL + "?action=readTakePhotos&days=14", { mode:"cors", cache:"no-cache" });
+    var d = await res.json();
+    if(d.ok && Array.isArray(d.data)){
+      d.data.forEach(function(r){
+        if(!r.photoUrl) return;
+        var mapKey = String(r.time).slice(0,10) + "|" + r.name;
+        if(!takePhotosLocal[mapKey]) takePhotosLocal[mapKey] = [];
+        // 避免同一張網址重複加入（本機自己拍的已經是 base64，雲端這筆是網址，用網址比對去重）
+        if(takePhotosLocal[mapKey].indexOf(r.photoUrl) === -1) takePhotosLocal[mapKey].push(r.photoUrl);
+      });
+      saveTakePhotosLocalCache();
+    }
+  }catch(e){ console.warn("syncTakePhotosFromServer 失敗", e); }
+}
+
+// ─── 「紀錄」頁：從 Google Sheets 拉回最新操作記錄（跨裝置一致）───
+async function syncLogsFromServer(){
+  if(!GAS_URL) return;
+  try{
+    var res = await fetch(GAS_URL + "?action=readLogs&days=45", { mode:"cors", cache:"no-cache" });
+    var d = await res.json();
+    if(d.ok && Array.isArray(d.data)){
+      logs = d.data.map(function(r){
+        var ts = Date.now();
+        try{ var parsed = new Date(String(r.time).replace(/\//g,"-")).getTime(); if(!isNaN(parsed)) ts = parsed; }catch(e){}
+        return { type:r.type, box:r.box, part:r.part, qty:r.qty, name:r.name, note:r.note, time:r.time, loc:r.loc, serial:r.serial, timestamp: ts };
+      });
+      saveLogsToStorage();
+    }
+  }catch(e){ console.warn("syncLogsFromServer 失敗", e); }
+}
+
 function saveLogsToStorage(){
   try{
     // 只儲存最近7天，最多200筆
@@ -2342,12 +2372,13 @@ function getEditLoc(){
   return curUser?curUser.location:"台南";
 }
 
-// 車牌相關
+// 車牌相關（統一用 carPlate_ 這個 key，之前 car_ 跟 carPlate_ 兩個 key 混用，
+// 導致有些畫面讀到舊值、有些讀到新值，這裡統一收斂）
 function getCarPlate(email){
-  return localStorage.getItem("car_"+email)||"";
+  return localStorage.getItem("carPlate_"+email)||"";
 }
 function setCarPlate(email,plate){
-  localStorage.setItem("car_"+email,plate);
+  localStorage.setItem("carPlate_"+email,plate);
   var el=document.getElementById("hd-car");
   if(el)el.textContent=plate||"未設定";
 }
@@ -2735,10 +2766,10 @@ function navTo(pg,el){
     }
   }
 
-  if(pg==="log")renderLogs();
+  if(pg==="log"){ renderLogs(); syncLogsFromServer().then(function(){ syncTakePhotosFromServer().then(renderLogs); renderLogs(); }); }
   if(pg==="serial")renderSerial();
   if(pg==="admin"){ renderAdmin(); initReportPlateSelect(); }
-  if(pg==="repair"){ renderRepairList(); }
+  if(pg==="repair"){ renderRepairList(); syncRepairsFromServer().then(renderRepairList); }
   if(pg==="equip"){
     renderEquip();
     syncEquipFromSheets();
@@ -3435,6 +3466,23 @@ async function syncEquipFromSheets(){
       }
       equipStatus[id] = st;
     });
+    // 重建「待審核」清單：直接從已同步的 equipStatus 衍生出來，
+    // 這樣不管申請是在哪支手機送出的，管理員在任何裝置都看得到
+    equipPendingRequests = Object.keys(equipStatus)
+      .filter(function(id){ return equipStatus[id].status === "pending"; })
+      .map(function(id){
+        var st = equipStatus[id];
+        return {
+          id: id,
+          equipId: id,
+          requester: st.borrower || "",
+          requesterEmail: st.borrowerEmail || "",
+          loc: st.loc || "",
+          returnDue: st.returnDue || "",
+          note: st.note || "",
+          time: st.borrowTime || ""
+        };
+      });
     // 同時從 Sheets 同步各器具的歷史記錄
     await syncEquipHistoryFromSheets();
     saveEquipToStorage();
@@ -3991,6 +4039,27 @@ function filterRepair(f, el){
   renderRepairList();
 }
 
+// ─── 「報修」頁：從 Google Sheets 拉回最新報修單狀態（跨裝置一致）───
+async function syncRepairsFromServer(){
+  if(!GAS_URL) return;
+  try{
+    var res = await fetch(GAS_URL + "?action=readRepairs", { mode:"cors", cache:"no-cache" });
+    var d = await res.json();
+    if(d.ok && Array.isArray(d.data)){
+      repairRecords = d.data.map(function(r){
+        var ts = Date.now();
+        try{ var parsed = new Date(String(r.time).replace(/\//g,"-")).getTime(); if(!isNaN(parsed)) ts = parsed; }catch(e){}
+        return {
+          id: r.repairId, loc: r.loc, device: r.device, desc: r.desc, urgency: r.urgency,
+          status: r.status, reporter: r.reporter, reporterEmail: r.email, time: r.time, timestamp: ts,
+          resolvedBy: r.resolvedBy || "", resolvedNote: r.resolvedNote || "", resolvedTime: r.resolvedTime || ""
+        };
+      });
+      saveRepairsToStorage();
+    }
+  }catch(e){ console.warn("syncRepairsFromServer 失敗", e); }
+}
+
 function renderRepairList(){
   var container = document.getElementById("repair-list-container");
   container.innerHTML = "";
@@ -4272,6 +4341,26 @@ async function syncVehicleDataFromServer(){
   if(remoteTbox){
     toolboxStatus = remoteTbox;
     try{ localStorage.setItem("toolbox_status", JSON.stringify(toolboxStatus)); }catch(e){}
+  }
+  var remoteBigCheck = await pullSyncState("bigCheckData");
+  if(remoteBigCheck){
+    bigCheckData = remoteBigCheck;
+    try{ localStorage.setItem("bigcheck_data", JSON.stringify(bigCheckData)); }catch(e){}
+  }
+  var remoteMaint = await pullSyncState("maintData");
+  if(remoteMaint){
+    maintData = remoteMaint;
+    try{ localStorage.setItem("maint_data", JSON.stringify(maintData)); }catch(e){}
+  }
+  var remoteIns = await pullSyncState("insData");
+  if(remoteIns){
+    insData = remoteIns;
+    try{ localStorage.setItem("ins_data", JSON.stringify(insData)); }catch(e){}
+  }
+  var remoteInspect = await pullSyncState("inspectRecords");
+  if(remoteInspect){
+    inspectRecords = remoteInspect;
+    try{ localStorage.setItem("inspect_records", JSON.stringify(inspectRecords)); }catch(e){}
   }
 }
 
@@ -4762,27 +4851,6 @@ function closePhotoViewer(){
   document.getElementById("photo-viewer-overlay").classList.remove("show");
 }
 
-// ─── 車內整理：拍照新增（可多張） ───
-function openBCCarPhotoCapture(){
-  openMultiPhotoOverlay("車內整理照片", "可以連續拍多張，拍完按確認會加進這筆整理記錄", function(photos){
-    bcCarPhotos = bcCarPhotos.concat(photos);
-    renderBCCarPhotoThumbs();
-  }, 0);
-}
-
-function renderBCCarPhotoThumbs(){
-  var wrap = document.getElementById("bc-car-photo-thumbs");
-  if(!wrap) return;
-  wrap.innerHTML = "";
-  bcCarPhotos.forEach(function(p, idx){
-    var box = document.createElement("div");
-    box.style.cssText = "position:relative;width:60px;height:60px;cursor:pointer;";
-    box.innerHTML = '<img src="'+p+'" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid var(--border);" onclick="viewPhotoFull(\''+p+'\')">'
-      + '<button onclick="event.stopPropagation();bcCarPhotos.splice('+idx+',1);renderBCCarPhotoThumbs();" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--red);color:#fff;border:none;font-size:11px;line-height:1;cursor:pointer;">✕</button>';
-    wrap.appendChild(box);
-  });
-}
-
 // ─── 領取：拍照確認今日領取 ───
 var takePhotosLocal = {}; // key: "yyyy/MM/dd|操作人姓名" → [dataUrl,...]
 
@@ -4901,14 +4969,14 @@ var bcType        = "tool";
 var bcItemStatus  = {};  // id → "done"|"skip"|null
 var bcExtraItems  = [];  // 管理員加的備用項目
 var curBCPlate    = null;
-var bcPhotos      = {};  // groupId → 壓縮後的 base64 dataURL（工具箱整理拍照用）
-var bcCarPhotos   = [];  // 車內整理拍照用（可多張，不分組）
+var bcPhotos      = {};  // groupId/itemId → 壓縮後的 base64 dataURL 陣列（工具箱整理／車內整理共用，每項可多張）
 
 function loadBigCheckData(){
   try{ var s=localStorage.getItem("bigcheck_data"); if(s) bigCheckData=JSON.parse(s); }catch(e){}
 }
 function saveBigCheckData(){
   try{ localStorage.setItem("bigcheck_data", JSON.stringify(bigCheckData)); }catch(e){}
+  pushSyncState("bigCheckData", bigCheckData);
 }
 
 function openWorkerBigCheck(plate){
@@ -4938,12 +5006,11 @@ function setBCType(type, el){
   el.classList.add("active");
   // 車內整理才顯示保養廠
   document.getElementById("bc-garage-row").style.display = type==="car"?"block":"none";
-  // 工具箱整理顯示拍照提示
-  document.getElementById("bc-photo-hint").style.display = type==="tool"?"block":"none";
-  // 車內整理顯示多張拍照區塊
-  document.getElementById("bc-car-photo-wrap").style.display = type==="car"?"block":"none";
-  bcCarPhotos = [];
-  renderBCCarPhotoThumbs();
+  // 兩種類型都適用：標記完成的項目要拍照才能送出
+  document.getElementById("bc-photo-hint").style.display = "block";
+  document.getElementById("bc-photo-hint").innerHTML = type==="tool"
+    ? "📷 標記「整理完成」✅ 的工具箱都要拍照才能送出（可拍多張）"
+    : "📷 標記「完成」✅ 的項目都要拍照才能送出（可拍多張）";
   // 渲染項目清單
   renderBCItems();
 }
@@ -4972,9 +5039,7 @@ function renderBCItems(){
         '<div class="check-item-info">'
         + '<div class="check-item-name">'+grp.name+'</div>'
         + '<div class="check-item-note">'+(myBoxes.length ? "我的工具箱："+myBoxes.join("、") : "此組未分配工具箱")+'</div>'
-        + '<div id="bci-thumbwrap-'+grp.id+'" style="display:none;margin-top:6px;">'
-        + '<img id="bci-thumb-'+grp.id+'" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">'
-        + '</div>'
+        + '<div id="bci-thumbwrap-'+grp.id+'" style="display:none;margin-top:6px;gap:5px;flex-wrap:wrap;"></div>'
         + '</div>'
         + '<div class="check-item-btns">'
         + '<button class="check-btn" id="bci-done-'+grp.id+'" title="整理完成" onclick="setBCStatus(\''+grp.id+'\',\'done\')">✅</button>'
@@ -4999,7 +5064,7 @@ function renderBCItems(){
       list.appendChild(row);
     });
   } else {
-    // 車內整理：保養項目清單
+    // 車內整理：保養項目清單（跟工具箱整理一樣，每項各自可拍照，標記完成才需要）
     var carItems = BIG_CHECK_CAR.concat(bcExtraItems);
     carItems.forEach(function(item){
       bcItemStatus[item.id] = null;
@@ -5010,11 +5075,14 @@ function renderBCItems(){
         '<div class="check-item-info">'
         + '<div class="check-item-name">'+item.name+'</div>'
         + (item.note?'<div class="check-item-note">'+item.note+'</div>':'')
+        + '<div id="bci-thumbwrap-'+item.id+'" style="display:none;margin-top:6px;gap:5px;flex-wrap:wrap;"></div>'
         + '</div>'
         + '<div class="check-item-btns">'
         + '<button class="check-btn" id="bci-done-'+item.id+'" onclick="setBCStatus(\''+item.id+'\',\'done\')">✅</button>'
         + '<button class="check-btn" id="bci-skip-'+item.id+'" onclick="setBCStatus(\''+item.id+'\',\'skip\')">—</button>'
-        + '</div>';
+        + '<button class="check-btn" id="bci-photo-'+item.id+'" title="拍照" onclick="pickBCPhoto(\''+item.id+'\')"><i class="ti ti-camera"></i></button>'
+        + '</div>'
+        + '<input type="file" accept="image/*" capture="environment" id="bci-photoinput-'+item.id+'" style="display:none;" onchange="onBCPhotoPicked(\''+item.id+'\', this)">';
       list.appendChild(row);
     });
   }
@@ -5041,14 +5109,40 @@ function onBCPhotoPicked(id, input){
   var photoBtn = document.getElementById("bci-photo-"+id);
   if(photoBtn) photoBtn.innerHTML = '<i class="ti ti-hourglass"></i>';
   compressImageToBase64(file, 1000, 0.6, function(dataUrl){
-    if(!dataUrl){ if(photoBtn) photoBtn.innerHTML = '<i class="ti ti-camera"></i>'; alert("照片讀取失敗，請再試一次"); return; }
-    bcPhotos[id] = dataUrl;
-    var thumb = document.getElementById("bci-thumb-"+id);
-    var wrap  = document.getElementById("bci-thumbwrap-"+id);
-    if(thumb) thumb.src = dataUrl;
-    if(wrap) wrap.style.display = "block";
-    if(photoBtn){ photoBtn.innerHTML = '<i class="ti ti-camera"></i>'; photoBtn.classList.add("active-done"); }
+    if(!dataUrl){ if(photoBtn) photoBtn.innerHTML = '<i class="ti ti-camera"></i>'; alert("照片讀取失敗，請再試一次"); input.value=""; return; }
+    addWatermarkToImage(dataUrl, function(watermarked){
+      if(!bcPhotos[id]) bcPhotos[id] = [];
+      bcPhotos[id].push(watermarked);
+      renderBCPhotoThumbs(id);
+      if(photoBtn){ photoBtn.innerHTML = '<i class="ti ti-camera"></i>'; photoBtn.classList.add("active-done"); }
+      input.value = ""; // 清空才能連續再拍下一張，累積成多張照片
+    });
   });
+}
+
+function renderBCPhotoThumbs(id){
+  var wrap = document.getElementById("bci-thumbwrap-"+id);
+  if(!wrap) return;
+  var photos = bcPhotos[id] || [];
+  if(!photos.length){ wrap.style.display = "none"; wrap.innerHTML = ""; return; }
+  wrap.style.display = "flex";
+  wrap.innerHTML = photos.map(function(p, idx){
+    return '<div style="position:relative;width:40px;height:40px;">'
+      + '<img src="'+p+'" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;" onclick="viewPhotoFull(\''+p+'\')">'
+      + '<button onclick="event.stopPropagation();removeBCPhoto(\''+id+'\','+idx+')" style="position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;background:var(--red);color:#fff;border:none;font-size:10px;line-height:1;cursor:pointer;">✕</button>'
+      + '</div>';
+  }).join('');
+}
+
+function removeBCPhoto(id, idx){
+  if(bcPhotos[id]){
+    bcPhotos[id].splice(idx,1);
+    renderBCPhotoThumbs(id);
+    if(!bcPhotos[id].length){
+      var photoBtn = document.getElementById("bci-photo-"+id);
+      if(photoBtn) photoBtn.classList.remove("active-done");
+    }
+  }
 }
 
 function addBCExtraItem(){
@@ -5068,23 +5162,17 @@ function submitBigCheck(){
   var garage = bcType==="car" ? document.getElementById("bc-garage").value : "";
   var note = document.getElementById("bc-note").value.trim();
 
-  // 工具箱整理：標記完成的每一項都要有照片才能送出
+  // 標記完成的每一項都要有照片才能送出（工具箱整理／車內整理共用邏輯）
+  var allItemDefs = (bcType==="tool" ? BIG_CHECK_TOOL_GROUPS : BIG_CHECK_CAR).concat(bcExtraItems);
   var missingPhotoNames = [];
-  if(bcType === "tool"){
-    Object.keys(bcItemStatus).forEach(function(id){
-      if(bcItemStatus[id] === "done" && !bcPhotos[id]){
-        var grp = BIG_CHECK_TOOL_GROUPS.concat(bcExtraItems).find(function(g){ return g.id===id; });
-        missingPhotoNames.push(grp ? grp.name : id);
-      }
-    });
-  }
+  Object.keys(bcItemStatus).forEach(function(id){
+    if(bcItemStatus[id] === "done" && (!bcPhotos[id] || !bcPhotos[id].length)){
+      var def = allItemDefs.find(function(g){ return g.id===id; });
+      missingPhotoNames.push(def ? def.name : id);
+    }
+  });
   if(missingPhotoNames.length){
-    alert("以下工具箱已標記完成，請先拍照再送出：\n"+missingPhotoNames.join("、"));
-    return;
-  }
-  // 車內整理：至少要有一張照片才能送出
-  if(bcType === "car" && !bcCarPhotos.length){
-    alert("請先拍至少一張車內整理照片再送出");
+    alert("以下項目已標記完成，請先拍照再送出：\n"+missingPhotoNames.join("、"));
     return;
   }
 
@@ -5103,26 +5191,21 @@ function submitBigCheck(){
   if(bigCheckData[curBCPlate].length > 20) bigCheckData[curBCPlate] = bigCheckData[curBCPlate].slice(0,20);
   saveBigCheckData();
 
-  // 準備照片清單（工具箱整理：每組各一張；車內整理：不分組，多張）
+  // 準備照片清單：每個項目底下可能有多張照片，逐張攤平成一筆一筆送出
   var photosPayload = [];
-  if(bcType === "tool"){
-    Object.keys(bcPhotos).forEach(function(id){
-      var grp = BIG_CHECK_TOOL_GROUPS.concat(bcExtraItems).find(function(g){ return g.id===id; });
+  Object.keys(bcPhotos).forEach(function(id){
+    var photos = bcPhotos[id] || [];
+    if(!photos.length) return;
+    var def = allItemDefs.find(function(g){ return g.id===id; });
+    var label = def ? def.name : id;
+    photos.forEach(function(dataUrl, idx){
       photosPayload.push({
-        id: id,
-        name: buildPhotoFileName("整理", curBCPlate, grp ? grp.name : id),
-        data: bcPhotos[id]
-      });
-    });
-  } else if(bcType === "car"){
-    bcCarPhotos.forEach(function(dataUrl, idx){
-      photosPayload.push({
-        id: "車內整理-"+(idx+1),
-        name: buildPhotoFileName("車內整理", curBCPlate, String(idx+1)),
+        id: id + (photos.length>1 ? "-"+(idx+1) : ""),
+        name: buildPhotoFileName(bcType==="tool"?"整理":"車內整理", curBCPlate, label + (photos.length>1?"_"+(idx+1):"")),
         data: dataUrl
       });
     });
-  }
+  });
 
   closeBigCheck();
   // 統計有做/未做數量
@@ -5167,6 +5250,7 @@ function loadMaintData(){
 }
 function saveMaintData(){
   try{ localStorage.setItem("maint_data", JSON.stringify(maintData)); }catch(e){}
+  pushSyncState("maintData", maintData);
 }
 
 function openWorkerMaint(plate){
@@ -5195,6 +5279,14 @@ function openWorkerMaint(plate){
   // 大修區塊管理員才顯示
   document.getElementById("maint-overhaul-section").style.display = isAdmin?"block":"none";
   document.getElementById("maint-overlay").classList.add("show");
+  // 背景跟 Sheets 對最新保養/大修紀錄，避免看到別人手機還沒同步過來的舊資料
+  pullSyncState("maintData").then(function(remote){
+    if(remote){
+      maintData = remote;
+      try{ localStorage.setItem("maint_data", JSON.stringify(maintData)); }catch(e){}
+      renderMaintLatest(curMaintPlate, isAdmin);
+    }
+  });
 }
 
 function toggleMaintOverhaul(){
@@ -5347,11 +5439,17 @@ function loadInsData(){
 }
 function saveInsData(){
   try{ localStorage.setItem("ins_data", JSON.stringify(insData)); }catch(e){}
+  pushSyncState("insData", insData);
 }
 
-function openInsOverlay(plate, tab){
+async function openInsOverlay(plate, tab){
   if(!plate) return;
   curVehPlate = plate;
+  // 開啟前先跟 Sheets 對一次最新的車險/稅費資料，避免看到舊值
+  try{
+    var remoteIns = await pullSyncState("insData");
+    if(remoteIns){ insData = remoteIns; try{ localStorage.setItem("ins_data", JSON.stringify(insData)); }catch(e){} }
+  }catch(e){}
   var v = VEHICLES.find(function(x){ return x.plate===plate; });
   document.getElementById("ins-overlay-title").textContent = "車險 / 稅費";
   document.getElementById("ins-overlay-plate").textContent = plate + (v?" ‧ "+v.company:"");
@@ -5527,11 +5625,17 @@ function loadInspectRecords(){
 
 function saveInspectRecords(){
   try{ localStorage.setItem("inspect_records", JSON.stringify(inspectRecords)); }catch(e){}
+  pushSyncState("inspectRecords", inspectRecords);
 }
 
-function openInspectOverlay(plate){
+async function openInspectOverlay(plate){
   if(!plate) return;
   curVehPlate = plate;
+  // 開啟前先跟 Sheets 對一次最新驗車紀錄
+  try{
+    var remoteInspect = await pullSyncState("inspectRecords");
+    if(remoteInspect){ inspectRecords = remoteInspect; try{ localStorage.setItem("inspect_records", JSON.stringify(inspectRecords)); }catch(e){} }
+  }catch(e){}
   var v = VEHICLES.find(function(x){ return x.plate===plate; });
   document.getElementById("inspect-overlay-title").textContent = "驗車紀錄";
   document.getElementById("inspect-overlay-plate").textContent = plate + (v?" ‧ "+v.company:"");
@@ -6303,6 +6407,21 @@ var fuelReportPlate = null;
 var _fuelCutoffDate = 0;
 var _fuelEndDate = 0;
 
+// ─── 加油記錄（工人/單車視角）：從 Google Sheets 拉回最新資料 ───
+async function syncFuelRecordsFromServer(){
+  if(!GAS_URL) return;
+  try{
+    var res = await fetch(GAS_URL + "?action=readFuelReport&months=24", { mode:"cors", cache:"no-cache" });
+    var d = await res.json();
+    if(d.ok && Array.isArray(d.data)){
+      fuelRecords = d.data.map(function(r){
+        return { plate:r.plate, amount:r.amount, mileage:r.km, note:r.note, name:r.name, time:r.time, loc:r.loc, photoUrl:r.photoUrl||"" };
+      });
+      try{ localStorage.setItem("fuel_records_local", JSON.stringify(fuelRecords)); }catch(e){}
+    }
+  }catch(e){ console.warn("syncFuelRecordsFromServer 失敗", e); }
+}
+
 function openVehFuelReport(){
   fuelReportPlate = curVehPlate;
   fuelReportDays = 30;
@@ -6310,6 +6429,7 @@ function openVehFuelReport(){
   document.getElementById("frs-total-wrap").style.display = "none";
   renderFuelReport();
   document.getElementById("fuel-report-screen").style.display = "block";
+  syncFuelRecordsFromServer().then(renderFuelReport);
 }
 
 function openWorkerFuelReport(){
@@ -6326,6 +6446,7 @@ function openWorkerFuelReport(){
     '<button class="fuel-period-btn" onclick="setFuelPeriodLastMonth(this)">上個月</button>';
   renderFuelReport();
   document.getElementById("fuel-report-screen").style.display = "block";
+  syncFuelRecordsFromServer().then(renderFuelReport);
 }
 
 function setFuelPeriodLastMonth(el){
@@ -6357,6 +6478,7 @@ function openAdminFuelReport(){
     '<button class="fuel-period-btn" onclick="setFuelPeriod(365,this)">12個月</button>';
   renderFuelReport();
   document.getElementById("fuel-report-screen").style.display = "block";
+  syncFuelRecordsFromServer().then(renderFuelReport);
 }
 
 function closeFuelReport(){
