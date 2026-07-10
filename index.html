@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260708-04">
+<meta name="app-version" content="20260709-01">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -2501,6 +2501,8 @@ function enterMainApp(){
   showGreeting();
   // 背景同步器具狀態
   syncEquipFromSheets();
+  // 背景同步車輛指派/工具箱指派狀態（跨裝置一致）
+  syncVehicleDataFromServer();
   // 啟動自動更新檢查
   startUpdateChecker();
 }
@@ -2587,7 +2589,8 @@ function navTo(pg,el){
       document.getElementById("loc-bar-stock").style.display = "none";
       document.getElementById("loc-bar-vehicle").style.display = "flex";
     }
-    renderVehiclePage();
+    renderVehiclePage(); // 先用本機快取畫一次，避免空白
+    syncVehicleDataFromServer().then(function(){ renderVehiclePage(); }); // 背景跟 Sheets 對最新狀態，回來後重新畫
   } else {
     // 非車輛頁：恢復庫存地點模式
     document.getElementById("loc-bar-stock").style.display = "flex";
@@ -4043,6 +4046,42 @@ function saveVehicleData(){
     localStorage.setItem("toolbox_status", JSON.stringify(toolboxStatus));
     localStorage.setItem("veh_assignments", JSON.stringify(vehAssignments));
   }catch(e){}
+  pushSyncState("vehAssignments", vehAssignments);
+  pushSyncState("toolboxStatus", toolboxStatus);
+}
+
+// ─── 跨裝置同步：把本機最新狀態推上 Google Sheets ───
+function pushSyncState(key, obj){
+  try{
+    sendToSheets({type:"同步狀態", syncKey:key, syncData: JSON.stringify(obj),
+      name: curUser?curUser.name:"", email: curUser?curUser.email:"",
+      box:"", part:"", qty:0, note:"", time: nowStr(), loc:"", serial:""});
+  }catch(e){}
+}
+
+// ─── 跨裝置同步：從 Google Sheets 拉回最新狀態 ───
+async function pullSyncState(key){
+  try{
+    var res = await fetch(GAS_URL + "?action=readSync&key=" + encodeURIComponent(key), { mode:"cors", cache:"no-cache" });
+    var d = await res.json();
+    if(d.ok && d.data){ return JSON.parse(d.data); }
+  }catch(e){}
+  return null;
+}
+
+// ─── 進車輛/工具箱頁面前先跟 Google Sheets 對一次最新狀態 ───
+async function syncVehicleDataFromServer(){
+  if(!GAS_URL) return;
+  var remoteAssign = await pullSyncState("vehAssignments");
+  if(remoteAssign){
+    vehAssignments = remoteAssign;
+    try{ localStorage.setItem("veh_assignments", JSON.stringify(vehAssignments)); }catch(e){}
+  }
+  var remoteTbox = await pullSyncState("toolboxStatus");
+  if(remoteTbox){
+    toolboxStatus = remoteTbox;
+    try{ localStorage.setItem("toolbox_status", JSON.stringify(toolboxStatus)); }catch(e){}
+  }
 }
 
 // 計算距離到期天數
@@ -6066,6 +6105,16 @@ function loadLicenseRecords(){
 }
 function saveLicenseRecords(){
   try{ localStorage.setItem("license_records", JSON.stringify(licenseRecords)); }catch(e){}
+  pushSyncState("licenseRecords", licenseRecords);
+}
+
+// ─── 進行照 overlay 前先跟 Google Sheets 對一次最新狀態 ───
+async function syncLicenseRecordsFromServer(){
+  var remote = await pullSyncState("licenseRecords");
+  if(remote){
+    licenseRecords = remote;
+    try{ localStorage.setItem("license_records", JSON.stringify(licenseRecords)); }catch(e){}
+  }
 }
 
 // ─── 管理員：直接修改保養公里數基準值 ───
@@ -6127,6 +6176,10 @@ function openLicenseOverlay(plate){
 
   switchLicTab("borrow", document.getElementById("lic-tab-borrow"));
   document.getElementById("license-overlay").classList.add("show");
+  // 背景跟 Sheets 對最新的行照借還狀態（跨裝置一致）
+  syncLicenseRecordsFromServer().then(function(){
+    if(curLicTab === "records") renderLicenseRecords();
+  });
 }
 
 function switchLicTab(tab, el){
@@ -6137,7 +6190,10 @@ function switchLicTab(tab, el){
   });
   el.classList.add("active");
   document.getElementById("lic-panel-"+tab).style.display = "block";
-  if(tab==="records") renderLicenseRecords();
+  if(tab==="records"){
+    renderLicenseRecords(); // 先用現有資料畫一次
+    syncLicenseRecordsFromServer().then(renderLicenseRecords); // 背景對最新狀態
+  }
 }
 
 function submitLicenseBorrow(){
