@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260709-03">
+<meta name="app-version" content="20260709-04">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -929,6 +929,9 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     </div>
     <button class="equip-cancel-btn" style="margin-top:10px;" onclick="runSyncDiagnostic()">
       <i class="ti ti-stethoscope"></i> 檢查同步狀態
+    </button>
+    <button class="equip-cancel-btn" style="margin-top:10px;border-color:var(--green);color:var(--green);" onclick="forcePushAllLocalData()">
+      <i class="ti ti-cloud-upload"></i> 強制推送本機資料到雲端（種子資料用）
     </button>
     <div id="sync-diag-result" style="margin-top:10px;font-size:12px;font-family:monospace;white-space:pre-wrap;background:#111;color:#0f0;border-radius:8px;padding:10px;display:none;max-height:300px;overflow-y:auto;"></div>
   </div><!-- end pg-admin -->
@@ -2586,6 +2589,36 @@ async function runSyncDiagnostic(){
   log("這支手機目前 VEHICLES 找到的 APK-1567 lastMaintKm: " + (VEHICLES.find(function(v){return v.plate==="APK-1567";})||{}).lastMaintKm);
 
   showToast("✅ 診斷完成，請把結果截圖給我");
+}
+
+// ─── 強制推送：把這支裝置目前的資料直接覆蓋雲端（種子資料/首次建立基準用）───
+async function rawPushSyncState(key, obj){
+  try{
+    sendToSheets({type:"同步狀態", syncKey:key, syncData: JSON.stringify(obj),
+      name: curUser?curUser.name:"", email: curUser?curUser.email:"",
+      box:"", part:"", qty:0, note:"", time: nowStr(), loc:"", serial:""});
+    await new Promise(function(r){ setTimeout(r, 400); }); // no-cors讀不到回應，稍等讓請求送達
+  }catch(e){}
+}
+
+async function forcePushAllLocalData(){
+  if(!confirm("確定要把這支裝置目前的車輛指派/工具箱指派/車輛資料/行照記錄，強制覆蓋雲端上的同步資料嗎？\n\n這通常只在「第一次建立雲端基準資料」時用一次，平常操作不需要按這個，按錯可能會蓋掉別人剛更新的東西。")) return;
+  var out = document.getElementById("sync-diag-result");
+  out.style.display = "block";
+  out.textContent = "推送中…\n";
+  function log(line){ out.textContent += line + "\n"; }
+
+  await rawPushSyncState("vehAssignments", vehAssignments);
+  log("✅ vehAssignments（車輛指派）已推送");
+  await rawPushSyncState("toolboxStatus", toolboxStatus);
+  log("✅ toolboxStatus（工具箱指派）已推送");
+  await rawPushSyncState("vehicles", VEHICLES);
+  log("✅ vehicles（車輛基本資料/保養公里數）已推送");
+  await rawPushSyncState("licenseRecords", licenseRecords);
+  log("✅ licenseRecords（行照借還）已推送");
+  log("");
+  log("全部推送完成！其他裝置現在進「車輛」頁或「行照」視窗，應該就能抓到這份資料了。");
+  showToast("✅ 本機資料已強制推送到雲端");
 }
 
 function resetLocalLaunchData(){
