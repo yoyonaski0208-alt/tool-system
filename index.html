@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260716-01">
+<meta name="app-version" content="20260711-04">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -260,6 +260,7 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
 .restock-badge-tainan{background:var(--blue-light);color:var(--blue);}
 .restock-badge-pingtung{background:var(--purple-light);color:var(--purple);}
 .restock-badge-all{background:var(--red-light);color:var(--red);}
+.restock-badge-active{outline:2px solid currentColor;font-weight:800;}
 .restock-toggle{font-size:12px;color:var(--sub);background:none;border:none;cursor:pointer;padding:2px 6px;}
 .restock-body{display:none;margin-top:8px;}
 .restock-body.open{display:block;}
@@ -1412,7 +1413,7 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
 </div>
 
 <!-- 行照歸還：驗車日期確認（歸還行照前必填） -->
-<div class="equip-overlay" id="lic-return-overlay">
+<div class="equip-overlay" id="lic-return-overlay" style="z-index:301;">
   <div class="equip-sheet">
     <div class="equip-sheet-title">登記歸還行照</div>
     <div class="equip-sheet-sub" id="lic-return-plate-sub"></div>
@@ -3440,8 +3441,23 @@ function renderSerial(){
   });
 }
 
+var restockFilterLoc = "全部"; // 補貨清單目前的篩選（點台南/屏東 badge 會改這個）
+
+function setRestockFilter(loc, evt){
+  if(evt) evt.stopPropagation(); // 避免點 badge 時觸發外層的展開/收合
+  restockFilterLoc = loc;
+  renderAdmin();
+  var body=document.getElementById("adm-alerts");
+  var arrow=document.getElementById("restock-arrow");
+  if(body && !body.classList.contains("open")){
+    body.classList.add("open");
+    if(arrow) arrow.textContent="▲收合";
+  }
+}
+
 function renderAdmin(){
   var loc=curUser&&curUser.role==="admin"?curLoc:"台南";
+  if(loc !== "全部") restockFilterLoc = loc; // 已經在單一地點模式時，篩選跟著頁面走
   var allP=[];
   BOXES.forEach(function(b){b.parts.forEach(function(p){allP.push({b:b,p:p});});});
 
@@ -3464,42 +3480,61 @@ function renderAdmin(){
   document.getElementById("adm-n-boxes").textContent=BOXES.length;
   document.getElementById("adm-n-logs").textContent=repairRecords.filter(function(r){return r.status!=="已完成";}).length;
 
-  // 更新補貨 badges
+  // 更新補貨 badges（台南/屏東可以點擊篩選下面的清單）
   var badgesEl=document.getElementById("restock-badges");
   if(badgesEl){
     badgesEl.innerHTML="";
     if(loc==="全部"){
-      var b1=document.createElement("span");b1.className="restock-badge restock-badge-tainan";b1.textContent="台南："+lowTainan+" 項";
-      var b2=document.createElement("span");b2.className="restock-badge restock-badge-pingtung";b2.textContent="屏東："+lowPingtung+" 項";
-      badgesEl.appendChild(b1);badgesEl.appendChild(b2);
+      var bAll=document.createElement("span");
+      bAll.className="restock-badge restock-badge-all"+(restockFilterLoc==="全部"?" restock-badge-active":"");
+      bAll.textContent="全部："+lowAll+" 項";
+      bAll.style.cursor="pointer";
+      bAll.onclick=function(e){ setRestockFilter("全部", e); };
+      var b1=document.createElement("span");
+      b1.className="restock-badge restock-badge-tainan"+(restockFilterLoc==="台南"?" restock-badge-active":"");
+      b1.textContent="台南："+lowTainan+" 項";
+      b1.style.cursor="pointer";
+      b1.onclick=function(e){ setRestockFilter("台南", e); };
+      var b2=document.createElement("span");
+      b2.className="restock-badge restock-badge-pingtung"+(restockFilterLoc==="屏東"?" restock-badge-active":"");
+      b2.textContent="屏東："+lowPingtung+" 項";
+      b2.style.cursor="pointer";
+      b2.onclick=function(e){ setRestockFilter("屏東", e); };
+      badgesEl.appendChild(bAll);badgesEl.appendChild(b1);badgesEl.appendChild(b2);
     } else {
       var bx=document.createElement("span");
-      bx.className="restock-badge "+(loc==="台南"?"restock-badge-tainan":"restock-badge-pingtung");
+      bx.className="restock-badge "+(loc==="台南"?"restock-badge-tainan":"restock-badge-pingtung")+" restock-badge-active";
       bx.textContent=loc+"："+lowAll+" 項";
       badgesEl.appendChild(bx);
     }
   }
 
-  // 補貨清單：直接點就能安排進貨
+  // 補貨清單：依照目前篩選的地點顯示，直接點就能安排進貨
+  var filterLoc = (loc==="全部") ? restockFilterLoc : loc;
   var alerts=document.getElementById("adm-alerts");
   alerts.innerHTML="";
   var lowP=allP.filter(function(x){
-    var min=getMinQty(x.p, loc);
-    var q=(loc==="全部")?((stocks["台南"][gk(x.b.id,x.p.name)]||0)+(stocks["屏東"][gk(x.b.id,x.p.name)]||0)):(stocks[loc]?stocks[loc][gk(x.b.id,x.p.name)]||0:0);
+    var min=getMinQty(x.p, filterLoc);
+    var q=(filterLoc==="全部")?((stocks["台南"][gk(x.b.id,x.p.name)]||0)+(stocks["屏東"][gk(x.b.id,x.p.name)]||0)):(stocks[filterLoc]?stocks[filterLoc][gk(x.b.id,x.p.name)]||0:0);
     return min>0&&q<min;
   });
   if(!lowP.length){
     var noAlert=document.createElement("div");noAlert.className="no-alert";noAlert.textContent="目前無需補貨項目";alerts.appendChild(noAlert);
   } else {
     lowP.forEach(function(x){
-      var min=getMinQty(x.p, loc);
-      var q=(loc==="全部")?((stocks["台南"][gk(x.b.id,x.p.name)]||0)+(stocks["屏東"][gk(x.b.id,x.p.name)]||0)):(stocks[loc]?stocks[loc][gk(x.b.id,x.p.name)]||0:0);
+      var min=getMinQty(x.p, filterLoc);
+      var q=(filterLoc==="全部")?((stocks["台南"][gk(x.b.id,x.p.name)]||0)+(stocks["屏東"][gk(x.b.id,x.p.name)]||0)):(stocks[filterLoc]?stocks[filterLoc][gk(x.b.id,x.p.name)]||0:0);
       var ai=document.createElement("div");ai.className="alert-item";
       ai.style.cursor="pointer";
       ai.title="點一下直接安排進貨";
       ai.onclick=(function(box,partName){ return function(){
         curBox = box;
         openModal("in", partName, true);
+        // 進貨表單預設帶入目前篩選的倉庫
+        if(filterLoc!=="全部"){
+          var sel=document.getElementById("modal-loc-select");
+          if(sel){ sel.value=filterLoc; onModalLocChange(); }
+        }
       }; })(x.b, x.p.name);
       var ic=document.createElement("i");ic.className="ti ti-alert-triangle";
       var info=document.createElement("div");
