@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260711-04">
+<meta name="app-version" content="20260729-01">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -2594,6 +2594,8 @@ function enterMainApp(){
   pshow("s-main");
   // 顯示早安語
   showGreeting();
+  // 背景同步工具箱品項清單（新增/編輯/刪除的工具，避免重整後消失）
+  syncBoxPartsFromServer().then(function(){ renderBoxes(); });
   // 背景同步器具狀態
   syncEquipFromSheets();
   // 背景同步車輛指派/工具箱指派狀態（跨裝置一致）
@@ -2776,8 +2778,8 @@ function stopAutoRefresh(){
 function runAutoRefreshFor(pg){
   if(!curUser || !GAS_URL) return;
   if(pg === "take"){
-    // 領取頁：庫存數字＋低庫存警示都要新的資料
-    Promise.all([syncStocksFromSheets("台南"), syncStocksFromSheets("屏東")]).then(function(){
+    // 領取頁：工具品項清單（新增/編輯/刪除）＋庫存數字＋低庫存警示都要新的資料
+    Promise.all([syncStocksFromSheets("台南"), syncStocksFromSheets("屏東"), syncBoxPartsFromServer()]).then(function(){
       renderBoxes();
       if(curBox) renderPartList(getEditLoc());
     });
@@ -2794,6 +2796,8 @@ function runAutoRefreshFor(pg){
     syncLogsFromServer().then(function(){ syncTakePhotosFromServer().then(renderLogs); renderLogs(); });
   } else if(pg === "repair"){
     syncRepairsFromServer().then(renderRepairList);
+  } else if(pg === "admin"){
+    syncBoxPartsFromServer().then(renderAdmin);
   }
 }
 
@@ -2846,7 +2850,10 @@ function navTo(pg,el){
 
   if(pg==="log"){ renderLogs(); syncLogsFromServer().then(function(){ syncTakePhotosFromServer().then(renderLogs); renderLogs(); }); }
   if(pg==="serial")renderSerial();
-  if(pg==="admin"){ renderAdmin(); initReportPlateSelect(); }
+  if(pg==="admin"){
+    renderAdmin(); initReportPlateSelect();
+    syncBoxPartsFromServer().then(function(){ renderAdmin(); });
+  }
   if(pg==="repair"){ renderRepairList(); syncRepairsFromServer().then(renderRepairList); }
   if(pg==="equip"){
     renderEquip();
@@ -2920,7 +2927,8 @@ async function openBox(id){
   var loc=getEditLoc();
   // 先用本地快取渲染（立即顯示）
   renderPartList(loc);
-  // 再從 Sheets 同步最新庫存（背景更新）
+  // 再從 Sheets 同步最新品項清單＋庫存（背景更新）
+  await syncBoxPartsFromServer();
   await syncStocksFromSheets(loc);
   renderPartList(loc);  // 更新後重繪
 }
@@ -3120,11 +3128,13 @@ function confirmPartForm(){
   if(partFormMode === "add"){
     var exists = curBox.parts.find(function(p){ return p.name === name; });
     if(exists){ alert("此工具已存在！"); return; }
-    curBox.parts.push({ name:name, sub:sub, minQty:minQty });
+    var newPart = { name:name, sub:sub, minQty:minQty };
+    curBox.parts.push(newPart);
     stocks["台南"][gk(curBox.id, name)] = 0;
     stocks["屏東"][gk(curBox.id, name)] = 0;
     closePartForm();
     renderAdmPartList(); renderBoxes();
+    pushBoxPartPatch(curBox.id, newPart, null); // ★ 真正存到雲端，不然重整/換裝置就不見了
     sendToSheets({type:"新增工具",box:curBox.name,part:name,qty:0,name:curUser.name,email:curUser.email,
       note:"新增，分類:"+(sub||"無")+"，"+minNote,time:nowStr(),loc:curLoc});
     // 輕量提示，不用 alert 打斷流程
@@ -3149,6 +3159,7 @@ function confirmPartForm(){
     p.minQty = minQty;
     closePartForm();
     renderAdmPartList(); renderBoxes();
+    pushBoxPartPatch(curBox.id, p, oldName); // ★ 真正存到雲端
     sendToSheets({type:"編輯工具",box:curBox.name,part:oldName+"→"+name,qty:0,name:curUser.name,email:curUser.email,
       note:"分類:"+sub+"，"+minNote,time:nowStr(),loc:curLoc});
     showToast("已更新「" + name + "」");
@@ -3181,6 +3192,7 @@ function executeDel(){
   delete stocks["屏東"][gk(curBox.id,part)];
   closeOverlay("del-overlay");
   renderAdmPartList();renderBoxes();
+  pushBoxPartDelete(curBox.id, part); // ★ 真正把刪除同步到雲端，不然別人手機還是看得到
   sendToSheets({type:"刪除工具",box:curBox.name,part:part,qty:0,name:curUser.name,email:curUser.email,note:"管理者刪除",time:nowStr(),loc:curLoc});
   alert("已刪除「"+part+"」");
 }
@@ -3310,8 +3322,17 @@ async function confirmAction(){
   document.getElementById("ok-title").textContent=title;
   document.getElementById("ok-detail").textContent=detail;
   pshow("s-ok");
-  // 傳送時附上 newQty（給 Sheets 直接覆寫）和 boxId
-  sendToSheets({type:type,box:curBox.name,boxId:curBox.id,part:curPart,qty:logQty,newQty:stocks[loc][key],name:curUser.name,email:curUser.email,note:note,time:t,loc:loc,serial:serialVal});
+  // 領取/進貨送「差值」讓後端用當下真正的數字加減（避免多人同時操作互相蓋掉）；
+  // 調整維持送絕對值（使用者盤點後就是要設定成這個數字）
+  var payload = {type:type,box:curBox.name,boxId:curBox.id,part:curPart,qty:logQty,name:curUser.name,email:curUser.email,note:note,time:t,loc:loc,serial:serialVal};
+  if(curAction==="take"){
+    payload.deltaQty = -mQty;
+  } else if(curAction==="in"){
+    payload.deltaQty = mQty;
+  } else {
+    payload.newQty = stocks[loc][key];
+  }
+  sendToSheets(payload);
 }
 
 function afterOk(){
@@ -3462,11 +3483,22 @@ function renderAdmin(){
   BOXES.forEach(function(b){b.parts.forEach(function(p){allP.push({b:b,p:p});});});
 
   function getLowCount(targetLoc){
+    if(targetLoc === "全部"){
+      // 「全部」只要任一地點低於安全量就算一項，不重複計算同一個工具
+      // （這樣才不會被「兩地加起來夠、但其中一地其實已經缺貨」的假象蓋過去）
+      var distinct = {};
+      allP.forEach(function(x){
+        ["台南","屏東"].forEach(function(locName){
+          var min=getMinQty(x.p, locName);
+          var q=stocks[locName]?stocks[locName][gk(x.b.id,x.p.name)]||0:0;
+          if(min>0&&q<min) distinct[x.b.id+"|"+x.p.name]=true;
+        });
+      });
+      return Object.keys(distinct).length;
+    }
     return allP.filter(function(x){
       var min=getMinQty(x.p, targetLoc);
-      var q;
-      if(targetLoc==="全部"){q=(stocks["台南"][gk(x.b.id,x.p.name)]||0)+(stocks["屏東"][gk(x.b.id,x.p.name)]||0);}
-      else{q=stocks[targetLoc]?stocks[targetLoc][gk(x.b.id,x.p.name)]||0:0;}
+      var q=stocks[targetLoc]?stocks[targetLoc][gk(x.b.id,x.p.name)]||0:0;
       return min>0&&q<min;
     }).length;
   }
@@ -3513,35 +3545,44 @@ function renderAdmin(){
   var filterLoc = (loc==="全部") ? restockFilterLoc : loc;
   var alerts=document.getElementById("adm-alerts");
   alerts.innerHTML="";
-  var lowP=allP.filter(function(x){
-    var min=getMinQty(x.p, filterLoc);
-    var q=(filterLoc==="全部")?((stocks["台南"][gk(x.b.id,x.p.name)]||0)+(stocks["屏東"][gk(x.b.id,x.p.name)]||0)):(stocks[filterLoc]?stocks[filterLoc][gk(x.b.id,x.p.name)]||0:0);
-    return min>0&&q<min;
+  // 「全部」檢視：拆成「台南」「屏東」各自獨立列出，每一筆都清楚標示地點，
+  // 不會有「不知道這筆是哪個倉庫」的疑慮，也不會被合併加總掩蓋掉單一倉庫真正的缺貨
+  var lowP=[];
+  var locsToCheck = (filterLoc==="全部") ? ["台南","屏東"] : [filterLoc];
+  allP.forEach(function(x){
+    locsToCheck.forEach(function(locName){
+      var min=getMinQty(x.p, locName);
+      var q=stocks[locName]?stocks[locName][gk(x.b.id,x.p.name)]||0:0;
+      if(min>0&&q<min) lowP.push({b:x.b,p:x.p,loc:locName,q:q,min:min});
+    });
   });
   if(!lowP.length){
     var noAlert=document.createElement("div");noAlert.className="no-alert";noAlert.textContent="目前無需補貨項目";alerts.appendChild(noAlert);
   } else {
     lowP.forEach(function(x){
-      var min=getMinQty(x.p, filterLoc);
-      var q=(filterLoc==="全部")?((stocks["台南"][gk(x.b.id,x.p.name)]||0)+(stocks["屏東"][gk(x.b.id,x.p.name)]||0)):(stocks[filterLoc]?stocks[filterLoc][gk(x.b.id,x.p.name)]||0:0);
       var ai=document.createElement("div");ai.className="alert-item";
       ai.style.cursor="pointer";
-      ai.title="點一下直接安排進貨";
-      ai.onclick=(function(box,partName){ return function(){
+      ai.title="點一下直接安排"+x.loc+"的進貨";
+      ai.onclick=(function(box,partName,locName){ return function(){
         curBox = box;
         openModal("in", partName, true);
-        // 進貨表單預設帶入目前篩選的倉庫
-        if(filterLoc!=="全部"){
-          var sel=document.getElementById("modal-loc-select");
-          if(sel){ sel.value=filterLoc; onModalLocChange(); }
-        }
-      }; })(x.b, x.p.name);
+        // 進貨表單直接鎖定這一筆對應的倉庫，不會猜錯
+        var sel=document.getElementById("modal-loc-select");
+        if(sel){ sel.value=locName; onModalLocChange(); }
+      }; })(x.b, x.p.name, x.loc);
       var ic=document.createElement("i");ic.className="ti ti-alert-triangle";
       var info=document.createElement("div");
       var an=document.createElement("div");an.className="alert-name";an.textContent=x.p.name;
-      var ab=document.createElement("div");ab.className="alert-box";ab.textContent=x.b.name;
+      var ab=document.createElement("div");ab.className="alert-box";
+      // 地點標籤：台南/屏東 用不同顏色，一眼就看得出來是哪個倉庫
+      var locTag=document.createElement("span");
+      locTag.textContent=x.loc;
+      locTag.style.cssText="display:inline-block;padding:1px 7px;border-radius:6px;font-size:10px;font-weight:700;margin-right:5px;"
+        + (x.loc==="台南" ? "background:#E6F1FB;color:#185FA5;" : "background:#F1E8FB;color:#6B3FA0;");
+      ab.appendChild(locTag);
+      ab.appendChild(document.createTextNode(x.b.name));
       info.appendChild(an);info.appendChild(ab);
-      var aq=document.createElement("div");aq.className="alert-qty";aq.textContent=q+" / "+min;
+      var aq=document.createElement("div");aq.className="alert-qty";aq.textContent=x.q+" / "+x.min;
       var arrow=document.createElement("i");arrow.className="ti ti-chevron-right";arrow.style.cssText="color:var(--sub);margin-left:4px;";
       ai.appendChild(ic);ai.appendChild(info);ai.appendChild(aq);ai.appendChild(arrow);
       alerts.appendChild(ai);
@@ -4460,6 +4501,66 @@ function pushSyncPatch(key, setObj, delKeys){
     if(delKeys) payload.patchDel = JSON.stringify(delKeys);
     sendToSheets(payload);
   }catch(e){}
+}
+
+// ─────────────────────────────────────────────
+// 工具箱「品項」的持久化同步（新增/編輯/刪除工具）
+// ★ 這是修復「新增的工具會憑空消失」的關鍵：
+// 之前 confirmPartForm/executeDel 只改瀏覽器記憶體裡的 BOXES 陣列，
+// 完全沒有存到任何地方（連 localStorage 都沒存），
+// 重新整理頁面、或換一台裝置，新增/編輯的東西就會不見。
+// 這裡用同一套 key-value 同步機制，key 統一用 "boxId|品項名稱"，
+// value 是完整的品項物件（新增/編輯），或 null（表示已刪除的墓碑標記）。
+// ─────────────────────────────────────────────
+function boxPartKey(boxId, partName){ return boxId + "|" + partName; }
+
+// 新增或編輯品項時呼叫：把這一筆品項推上雲端
+function pushBoxPartPatch(boxId, partObj, oldName){
+  var setObj = {}; 
+  setObj[boxPartKey(boxId, partObj.name)] = partObj;
+  var delKeys = null;
+  if(oldName && oldName !== partObj.name){
+    delKeys = [boxPartKey(boxId, oldName)]; // 改名的話，舊 key 要標記刪除，不然雲端會同時存在新舊兩筆
+  }
+  pushSyncPatch("boxParts", setObj, delKeys);
+}
+
+// 刪除品項時呼叫：用 null 當墓碑標記（不能直接刪 key，不然其他裝置無法分辨
+// 「這是刪除過的」還是「這本來就沒異動過」，會誤把本機的舊資料當作還存在）
+function pushBoxPartDelete(boxId, partName){
+  var setObj = {};
+  setObj[boxPartKey(boxId, partName)] = null;
+  pushSyncPatch("boxParts", setObj, null);
+}
+
+// 把從雲端拉回來的 boxParts 套用到本機的 BOXES 陣列
+// value 是品項物件 → 新增或覆蓋；value 是 null → 從 BOXES 裡移除（刪除墓碑）
+function applyBoxPartsOverride(obj){
+  if(!obj) return;
+  Object.keys(obj).forEach(function(compositeKey){
+    var sep = compositeKey.indexOf("|");
+    if(sep < 0) return;
+    var boxId = compositeKey.slice(0, sep);
+    var partName = compositeKey.slice(sep + 1);
+    var box = BOXES.find(function(b){ return b.id === boxId; });
+    if(!box) return;
+    var val = obj[compositeKey];
+    var idx = box.parts.findIndex(function(p){ return p.name === partName; });
+    if(val === null || val === undefined){
+      if(idx > -1) box.parts.splice(idx, 1);
+    } else {
+      if(idx > -1) box.parts[idx] = val;
+      else box.parts.push(val);
+    }
+  });
+}
+
+// 進「領取」「後台」頁面前，先跟雲端對一次最新的工具品項清單
+async function syncBoxPartsFromServer(){
+  var remote = await pullSyncState("boxParts");
+  if(remote && typeof remote === "object"){
+    applyBoxPartsOverride(remote);
+  }
 }
 
 // ─── 跨裝置同步：把本機最新狀態推上 Google Sheets ───
