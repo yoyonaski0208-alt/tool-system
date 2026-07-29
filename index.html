@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260729-01">
+<meta name="app-version" content="20260729-02">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -2798,6 +2798,8 @@ function runAutoRefreshFor(pg){
     syncRepairsFromServer().then(renderRepairList);
   } else if(pg === "admin"){
     syncBoxPartsFromServer().then(renderAdmin);
+  } else if(pg === "serial"){
+    syncSerialRecordsFromServer().then(renderSerial);
   }
 }
 
@@ -2849,7 +2851,7 @@ function navTo(pg,el){
   }
 
   if(pg==="log"){ renderLogs(); syncLogsFromServer().then(function(){ syncTakePhotosFromServer().then(renderLogs); renderLogs(); }); }
-  if(pg==="serial")renderSerial();
+  if(pg==="serial"){ renderSerial(); syncSerialRecordsFromServer().then(renderSerial); }
   if(pg==="admin"){
     renderAdmin(); initReportPlateSelect();
     syncBoxPartsFromServer().then(function(){ renderAdmin(); });
@@ -3426,6 +3428,18 @@ function renderLogs(){
   });
 }
 
+
+// ─── 「工具箱」序號頁：從 Google Sheets 拉回最新序號記錄（跨裝置一致）───
+async function syncSerialRecordsFromServer(){
+  if(!GAS_URL) return;
+  try{
+    var res = await fetch(GAS_URL + "?action=readSerialRecords", { mode:"cors", cache:"no-cache" });
+    var d = await res.json();
+    if(d.ok && Array.isArray(d.data)){
+      serialRecords = d.data;
+    }
+  }catch(e){ console.warn("syncSerialRecordsFromServer 失敗", e); }
+}
 
 function renderSerial(){
   var grouped={};
@@ -4592,37 +4606,31 @@ async function pullSyncState(key){
 }
 
 // ─── 車輛基本資料（保養公里數/驗車日期/車險…）統一存檔＋同步入口 ───
-// 之前這幾個功能各自只存 localStorage，沒有同步到其他裝置，這裡統一收斂成一個函式
-function saveVehiclesOverride(){
+// ★ 改成 patch 安全版本：只送「這一台車」的異動，讀取/合併/寫入都在後端同一把鎖裡完成，
+// 不再是整包陣列覆蓋（舊做法在兩人同時改不同車輛時會互相蓋掉）
+function saveVehiclesOverride(plate, isDelete){
   try{ localStorage.setItem("vehicles_override", JSON.stringify(VEHICLES)); }catch(e){}
-  pushSyncStateArray("vehicles", VEHICLES, "plate");
+  if(isDelete && plate){
+    pushSyncPatch("vehiclesById", null, [plate]);
+  } else if(plate){
+    var v = VEHICLES.find(function(x){ return x.plate===plate; });
+    if(v) pushSyncPatch("vehiclesById", { [plate]: v }, null);
+  }
 }
 
-// 陣列型資料的同步（VEHICLES 是陣列，用 plate 當唯一鍵跟遠端合併）
-async function pushSyncStateArray(key, arr, idField){
-  try{
-    var remote = await pullSyncState(key);
-    if(remote && Array.isArray(remote)){
-      var localIds = {};
-      arr.forEach(function(item){ localIds[item[idField]] = true; });
-      remote.forEach(function(rItem){
-        if(!localIds[rItem[idField]]) arr.push(rItem); // 遠端有、本機沒有的項目（別人新增的車）補回來
-      });
-    }
-    sendToSheets({type:"同步狀態", syncKey:key, syncData: JSON.stringify(arr),
-      name: curUser?curUser.name:"", email: curUser?curUser.email:"",
-      box:"", part:"", qty:0, note:"", time: nowStr(), loc:"", serial:""});
-  }catch(e){}
-}
-
-// 進車輛頁前，把 VEHICLES 基本資料也一起從伺服器拉回來合併
+// 進車輛頁前，把車輛基本資料從伺服器拉回來合併（新增/更新用覆蓋，刪除用墓碑標記移除）
 async function pullVehiclesFromServer(){
-  var remote = await pullSyncState("vehicles");
-  if(remote && Array.isArray(remote) && remote.length){
-    var byPlate = {};
-    remote.forEach(function(r){ byPlate[r.plate] = r; });
-    VEHICLES.forEach(function(v, i){
-      if(byPlate[v.plate]) VEHICLES[i] = byPlate[v.plate]; // 用遠端最新版本覆蓋
+  var remote = await pullSyncState("vehiclesById");
+  if(remote && typeof remote === "object"){
+    Object.keys(remote).forEach(function(plate){
+      var val = remote[plate];
+      var idx = VEHICLES.findIndex(function(v){ return v.plate === plate; });
+      if(val === null || val === undefined){
+        if(idx > -1) VEHICLES.splice(idx, 1);
+      } else {
+        if(idx > -1) VEHICLES[idx] = val;
+        else VEHICLES.push(val);
+      }
     });
     try{ localStorage.setItem("vehicles_override", JSON.stringify(VEHICLES)); }catch(e){}
   }
@@ -5287,9 +5295,11 @@ var bcPhotos      = {};  // groupId/itemId → 壓縮後的 base64 dataURL 陣�
 function loadBigCheckData(){
   try{ var s=localStorage.getItem("bigcheck_data"); if(s) bigCheckData=JSON.parse(s); }catch(e){}
 }
-function saveBigCheckData(){
+function saveBigCheckData(plate){
   try{ localStorage.setItem("bigcheck_data", JSON.stringify(bigCheckData)); }catch(e){}
-  pushSyncState("bigCheckData", bigCheckData);
+  if(plate && bigCheckData[plate] !== undefined){
+    pushSyncPatch("bigCheckData", { [plate]: bigCheckData[plate] }, null);
+  }
 }
 
 function openWorkerBigCheck(plate){
@@ -5502,7 +5512,7 @@ function submitBigCheck(){
   if(!bigCheckData[curBCPlate]) bigCheckData[curBCPlate] = [];
   bigCheckData[curBCPlate].unshift(rec);
   if(bigCheckData[curBCPlate].length > 20) bigCheckData[curBCPlate] = bigCheckData[curBCPlate].slice(0,20);
-  saveBigCheckData();
+  saveBigCheckData(curBCPlate);
 
   // 準備照片清單：每個項目底下可能有多張照片，逐張攤平成一筆一筆送出
   var photosPayload = [];
@@ -5561,9 +5571,11 @@ var curMaintPlate = null;
 function loadMaintData(){
   try{ var s=localStorage.getItem("maint_data"); if(s) maintData=JSON.parse(s); }catch(e){}
 }
-function saveMaintData(){
+function saveMaintData(plate){
   try{ localStorage.setItem("maint_data", JSON.stringify(maintData)); }catch(e){}
-  pushSyncState("maintData", maintData);
+  if(plate && maintData[plate] !== undefined){
+    pushSyncPatch("maintData", { [plate]: maintData[plate] }, null);
+  }
 }
 
 function openWorkerMaint(plate){
@@ -5710,11 +5722,11 @@ function submitMaintRecord(){
   if(!maintData[curMaintPlate]) maintData[curMaintPlate] = [];
   maintData[curMaintPlate].unshift(rec);
   if(maintData[curMaintPlate].length>30) maintData[curMaintPlate]=maintData[curMaintPlate].slice(0,30);
-  saveMaintData();
+  saveMaintData(curMaintPlate);
   // 更新車輛的上次保養里程
   if(km){
     var v = VEHICLES.find(function(x){ return x.plate===curMaintPlate; });
-    if(v){ v.lastMaintKm=km; try{saveVehiclesOverride();}catch(e){} }
+    if(v){ v.lastMaintKm=km; try{saveVehiclesOverride(v.plate);}catch(e){} }
   }
   closeMaintOverlay();
   sendToSheets({type:isMaintOverhaul?"大修記錄":"保養記錄",box:curMaintPlate,part:garage,qty:fee,
@@ -5750,9 +5762,11 @@ function loadInsData(){
     if(s) insData = JSON.parse(s);
   }catch(e){ insData = {}; }
 }
-function saveInsData(){
+function saveInsData(plate){
   try{ localStorage.setItem("ins_data", JSON.stringify(insData)); }catch(e){}
-  pushSyncState("insData", insData);
+  if(plate && insData[plate] !== undefined){
+    pushSyncPatch("insData", { [plate]: insData[plate] }, null);
+  }
 }
 
 async function openInsOverlay(plate, tab){
@@ -5885,7 +5899,7 @@ function saveInsurance(type){
     insData[plate].compulsory = rec;
     // 同步更新車輛的車險到期日
     var v = VEHICLES.find(function(x){ return x.plate===plate; });
-    if(v && end){ v.insuranceExp = end.replace(/-/g,"/"); v.insurance = rec.company; try{ saveVehiclesOverride(); }catch(e){} }
+    if(v && end){ v.insuranceExp = end.replace(/-/g,"/"); v.insurance = rec.company; try{ saveVehiclesOverride(v.plate); }catch(e){} }
   } else {
     rec = {
       company: document.getElementById("ins-v-company").value.trim(),
@@ -5897,7 +5911,7 @@ function saveInsurance(type){
     };
     insData[plate].voluntary = rec;
   }
-  saveInsData();
+  saveInsData(plate);
   renderInsCurrent(plate);
   sendToSheets({type:"車險更新",box:plate,part:type==="compulsory"?"強制險":"任意險",
     qty:rec.fee,name:curUser?curUser.name:"",email:curUser?curUser.email:"",
@@ -5914,7 +5928,7 @@ function saveTax(type){
   var paid = type==="plate" ? taxPlatePaid : taxFuelPaid;
   var key  = type==="plate" ? "taxPlate" : "taxFuel";
   insData[plate][key] = { year:year, fee:fee, paid:paid, updatedAt:t };
-  saveInsData();
+  saveInsData(plate);
   renderInsCurrent(plate);
   sendToSheets({type:"稅費更新",box:plate,part:type==="plate"?"牌照稅":"燃料稅",
     qty:fee,name:curUser?curUser.name:"",email:curUser?curUser.email:"",
@@ -5936,9 +5950,11 @@ function loadInspectRecords(){
   }catch(e){ inspectRecords = {}; }
 }
 
-function saveInspectRecords(){
+function saveInspectRecords(plate){
   try{ localStorage.setItem("inspect_records", JSON.stringify(inspectRecords)); }catch(e){}
-  pushSyncState("inspectRecords", inspectRecords);
+  if(plate && inspectRecords[plate] !== undefined){
+    pushSyncPatch("inspectRecords", { [plate]: inspectRecords[plate] }, null);
+  }
 }
 
 async function openInspectOverlay(plate){
@@ -6007,8 +6023,8 @@ function submitInspectRecord(){
   if(inspectRecords[plate].length > 10) inspectRecords[plate] = inspectRecords[plate].slice(0,10);
   // 同步更新車輛下次驗車日期
   var v = VEHICLES.find(function(x){ return x.plate===plate; });
-  if(v && nextDate){ v.inspect = nextDate.replace(/-/g,"/"); try{ saveVehiclesOverride(); }catch(e){} }
-  saveInspectRecords();
+  if(v && nextDate){ v.inspect = nextDate.replace(/-/g,"/"); try{ saveVehiclesOverride(v.plate); }catch(e){} }
+  saveInspectRecords(plate);
   renderInspectRecords(plate);
   document.getElementById("inspect-km").value = "";
   document.getElementById("inspect-note").value = "";
@@ -6242,7 +6258,7 @@ function confirmVehEdit(){
   }
 
   // 存到 localStorage
-  try{ saveVehiclesOverride(); }catch(e){}
+  try{ saveVehiclesOverride(plate); }catch(e){}
   sendToSheets({type:"新增/更新車輛",box:plate,part:company,qty:0,
     name:curUser?curUser.name:"",email:curUser?curUser.email:"",
     note:type+"，"+loc+"，狀態:"+status,time:nowStr(),loc:loc,serial:""});
@@ -6254,7 +6270,7 @@ function deleteVehicle(plate){
   if(!confirm("確定要刪除 " + plate + "？此操作無法復原")) return;
   var idx = VEHICLES.findIndex(function(v){ return v.plate === plate; });
   if(idx >= 0){ VEHICLES.splice(idx, 1); }
-  try{ saveVehiclesOverride(); }catch(e){}
+  try{ saveVehiclesOverride(plate, true); }catch(e){}
   sendToSheets({type:"刪除車輛",box:plate,part:"",qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"管理員刪除",time:nowStr(),loc:"",serial:""});
   closeVehEditOverlay();
   closeVehDetail();
@@ -6409,7 +6425,7 @@ function confirmDeleteVehicle(){
   var idx = VEHICLES.findIndex(function(v){ return v.plate===plate; });
   if(idx >= 0) VEHICLES.splice(idx, 1);
   delete vehAssignments[plate];
-  try{ saveVehiclesOverride(); }catch(e){}
+  try{ saveVehiclesOverride(plate, true); }catch(e){}
   saveVehicleData();
   pushSyncPatch("vehAssignments", null, [plate]);
   sendToSheets({type:"刪除車輛",box:plate,part:"",qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"管理員刪除",time:nowStr(),loc:"",serial:""});
@@ -6975,7 +6991,7 @@ function saveMaintKmEdit(){
   var nextKm = parseInt(document.getElementById("maintkm-edit-next").value) || 0;
   v.lastMaintKm = lastKm;
   v.nextMaintKm = nextKm;
-  try{ saveVehiclesOverride(); }catch(e){}
+  try{ saveVehiclesOverride(maintKmEditPlate); }catch(e){}
   // 寫入操作記錄（純留存修改紀錄，不會另外建立保養事件）
   sendToSheets({type:"保養里程校正",box:maintKmEditPlate,part:curUser?curUser.name:"",qty:lastKm,
     name:curUser?curUser.name:"",email:curUser?curUser.email:"",
@@ -7107,9 +7123,9 @@ function confirmReturnLicenseWithInspect(){
     time: t
   });
   if(inspectRecords[plate].length > 10) inspectRecords[plate] = inspectRecords[plate].slice(0,10);
-  saveInspectRecords();
+  saveInspectRecords(plate);
   var v = VEHICLES.find(function(x){ return x.plate===plate; });
-  if(v){ v.inspect = nextDate; try{ saveVehiclesOverride(); }catch(e){} }
+  if(v){ v.inspect = nextDate; try{ saveVehiclesOverride(v.plate); }catch(e){} }
 
   sendToSheets({type:"驗車紀錄",box:plate,part:inspectDate,qty:0,
     name:curUser?curUser.name:"",email:curUser?curUser.email:"",
