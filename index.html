@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260729-02">
+<meta name="app-version" content="20260729-03">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -839,6 +839,9 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       <div class="veh-action-row">
         <button class="veh-action-btn" onclick="openVehInsurance()"><i class="ti ti-shield"></i>車險/稅費</button>
         <button class="veh-action-btn" onclick="openLicenseOverlay(curVehPlate)"><i class="ti ti-id-badge"></i>行照管理</button>
+        <button class="veh-action-btn" onclick="openInspectOverlay(curVehPlate)"><i class="ti ti-clipboard-check"></i>驗車紀錄</button>
+      </div>
+      <div class="veh-action-row">
         <button class="veh-action-btn" onclick="openVehEdit()"><i class="ti ti-edit"></i>編輯車輛</button>
       </div>
       <!-- 工具箱管理快捷入口 -->
@@ -1493,6 +1496,9 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       <button class="ins-tab active" id="ins-tab-compulsory" onclick="switchInsTab('compulsory',this)">強制險</button>
       <button class="ins-tab" id="ins-tab-voluntary" onclick="switchInsTab('voluntary',this)">任意險</button>
       <button class="ins-tab" id="ins-tab-tax" onclick="switchInsTab('tax',this)">稅費</button>
+    </div>
+    <div style="font-size:11px;color:var(--sub);padding:6px 2px 0;">
+      💡 這三個是切換「要填哪一種資料」，不是三選一——同一台車可以同時有強制險、任意險、稅費資料，互不影響
     </div>
 
     <!-- 強制險 panel -->
