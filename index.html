@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260810-01">
+<meta name="app-version" content="20260812-01">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -622,6 +622,16 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     <button class="equip-cancel-btn" style="margin-bottom:12px;" onclick="openTakePhotoConfirm()">
       <i class="ti ti-camera"></i> 拍照確認今日領取
     </button>
+    <!-- 搜尋工具：新人不知道工具在哪個箱子時用 -->
+    <div style="position:relative;margin-bottom:14px;">
+      <i class="ti ti-search" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--sub);font-size:16px;"></i>
+      <input type="text" id="tool-search-input" placeholder="搜尋工具名稱，找出在哪個工具箱…"
+        style="width:100%;padding:11px 14px 11px 38px;border:1.5px solid var(--border);border-radius:12px;font-size:14px;font-family:inherit;box-sizing:border-box;"
+        oninput="onToolSearchInput(this.value)">
+      <i id="tool-search-clear" class="ti ti-x" onclick="clearToolSearch()"
+        style="display:none;position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--sub);font-size:16px;cursor:pointer;"></i>
+    </div>
+    <div id="tool-search-results" style="display:none;"></div>
     <div class="box-grid" id="box-grid"></div>
   </div>
 
@@ -880,6 +890,16 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     </div>
     <div id="adm-alerts" class="restock-body"></div>
     <div class="section-hd" style="margin-top:16px;">所有工具箱</div>
+    <!-- 搜尋工具：後台版本，跟領取頁共用同一套邏輯 -->
+    <div style="position:relative;margin:8px 0 12px;">
+      <i class="ti ti-search" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--sub);font-size:16px;"></i>
+      <input type="text" id="adm-tool-search-input" placeholder="搜尋工具名稱，找出在哪個工具箱…"
+        style="width:100%;padding:11px 14px 11px 38px;border:1.5px solid var(--border);border-radius:12px;font-size:14px;font-family:inherit;box-sizing:border-box;"
+        oninput="onAdmToolSearchInput(this.value)">
+      <i id="adm-tool-search-clear" class="ti ti-x" onclick="clearAdmToolSearch()"
+        style="display:none;position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--sub);font-size:16px;cursor:pointer;"></i>
+    </div>
+    <div id="adm-tool-search-results" style="display:none;"></div>
     <div id="adm-boxes"></div>
 
     <!-- 後台報表區塊 -->
@@ -1160,6 +1180,21 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     <div style="margin-bottom:12px;">
       <div class="field-lbl" style="margin-bottom:5px;">分類標籤 <span style="color:var(--sub);font-weight:400;">（選填）</span></div>
       <input class="overlay-input" id="pf-sub" placeholder="例：A0、A1、副F1" maxlength="10" style="margin-bottom:0;">
+    </div>
+    <!-- 工具照片：新人看不懂名稱時可以對照長相 -->
+    <div style="margin-bottom:12px;">
+      <div class="field-lbl" style="margin-bottom:5px;">工具照片 <span style="color:var(--sub);font-weight:400;">（選填，讓新人看得懂這是什麼工具）</span></div>
+      <input type="file" accept="image/*" id="pf-photo-input" style="display:none;" onchange="onPartPhotoPicked(this)">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div id="pf-photo-preview-wrap" style="width:56px;height:56px;border-radius:10px;border:1.5px dashed var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;background:var(--bg);">
+          <img id="pf-photo-preview" style="display:none;width:100%;height:100%;object-fit:cover;">
+          <i id="pf-photo-placeholder" class="ti ti-photo" style="color:var(--sub);font-size:22px;"></i>
+        </div>
+        <button type="button" class="equip-cancel-btn" style="margin:0;padding:8px 14px;flex:0 0 auto;" onclick="document.getElementById('pf-photo-input').click()">
+          <i class="ti ti-camera"></i> 拍照/選圖
+        </button>
+        <span id="pf-photo-status" style="font-size:12px;color:var(--sub);"></span>
+      </div>
     </div>
     <!-- 最低安全量：台南／屏東分開設定 -->
     <div style="margin-bottom:6px;">
@@ -2884,6 +2919,156 @@ function getMinQty(p, loc){
   return loc === "全部" ? v*2 : v;
 }
 
+// ─────────────────────────────────────────────
+// 搜尋工具：新人不知道某個工具在哪個箱子時用
+// ─────────────────────────────────────────────
+function onToolSearchInput(query){
+  var resultsEl = document.getElementById("tool-search-results");
+  var gridEl = document.getElementById("box-grid");
+  var clearBtn = document.getElementById("tool-search-clear");
+  query = query.trim();
+  clearBtn.style.display = query ? "block" : "none";
+
+  if(!query){
+    resultsEl.style.display = "none";
+    gridEl.style.display = "";
+    return;
+  }
+
+  var loc = curUser && curUser.role==="admin" ? curLoc : (curUser?curUser.location:"台南");
+  var matches = [];
+  BOXES.forEach(function(b){
+    b.parts.forEach(function(p){
+      if(p.name.indexOf(query) > -1 || (p.sub && p.sub.indexOf(query) > -1)){
+        var q;
+        if(loc==="全部"){ q = (stocks["台南"][gk(b.id,p.name)]||0) + (stocks["屏東"][gk(b.id,p.name)]||0); }
+        else { q = stocks[loc] ? (stocks[loc][gk(b.id,p.name)]||0) : 0; }
+        matches.push({box:b, part:p, qty:q});
+      }
+    });
+  });
+
+  gridEl.style.display = "none";
+  resultsEl.style.display = "block";
+  resultsEl.innerHTML = "";
+
+  if(!matches.length){
+    resultsEl.innerHTML = '<div style="text-align:center;padding:24px 0;color:var(--sub);font-size:13px;">找不到符合「'+query+'」的工具</div>';
+    return;
+  }
+
+  var hint = document.createElement("div");
+  hint.style.cssText = "font-size:12px;color:var(--sub);margin-bottom:8px;";
+  hint.textContent = "找到 "+matches.length+" 項，點下去直接進入該工具箱";
+  resultsEl.appendChild(hint);
+
+  matches.forEach(function(m){
+    var item = document.createElement("div");
+    item.className = "log-item"; // 沿用現有卡片樣式
+    item.style.cursor = "pointer";
+    item.onclick = (function(boxId){ return function(){ clearToolSearch(); openBox(boxId); }; })(m.box.id);
+    var left = document.createElement("div");
+    left.style.cssText = "display:flex;align-items:center;gap:10px;";
+    var thumbHtml = m.part.photo
+      ? '<img src="'+m.part.photo+'" style="width:34px;height:34px;object-fit:cover;border-radius:7px;border:1px solid var(--border);flex-shrink:0;">'
+      : '';
+    left.innerHTML = thumbHtml + '<div><div style="font-weight:700;font-size:14px;">'+m.part.name+'</div>'
+      + '<div style="font-size:12px;color:var(--sub);margin-top:2px;">'
+      + '<i class="ti ti-package" style="font-size:12px;"></i> '+m.box.name
+      + (m.part.sub?'　'+m.part.sub:'')
+      + '</div></div>';
+    var right = document.createElement("div");
+    right.style.cssText = "font-size:15px;font-weight:700;color:var(--blue);display:flex;align-items:center;gap:6px;";
+    right.innerHTML = "庫存 "+m.qty+' <i class="ti ti-chevron-right" style="color:var(--sub);font-size:14px;"></i>';
+    item.appendChild(left); item.appendChild(right);
+    resultsEl.appendChild(item);
+  });
+}
+
+function clearToolSearch(){
+  document.getElementById("tool-search-input").value = "";
+  document.getElementById("tool-search-clear").style.display = "none";
+  document.getElementById("tool-search-results").style.display = "none";
+  document.getElementById("box-grid").style.display = "";
+}
+
+// 後台版本的搜尋（結果點下去會直接進入管理員的工具箱明細頁）
+function onAdmToolSearchInput(query){
+  var resultsEl = document.getElementById("adm-tool-search-results");
+  var boxesEl = document.getElementById("adm-boxes");
+  var clearBtn = document.getElementById("adm-tool-search-clear");
+  query = query.trim();
+  clearBtn.style.display = query ? "block" : "none";
+
+  if(!query){
+    resultsEl.style.display = "none";
+    boxesEl.style.display = "";
+    return;
+  }
+
+  var loc = curLoc || "全部";
+  var matches = [];
+  BOXES.forEach(function(b){
+    b.parts.forEach(function(p){
+      if(p.name.indexOf(query) > -1 || (p.sub && p.sub.indexOf(query) > -1)){
+        var q;
+        if(loc==="全部"){ q = (stocks["台南"][gk(b.id,p.name)]||0) + (stocks["屏東"][gk(b.id,p.name)]||0); }
+        else { q = stocks[loc] ? (stocks[loc][gk(b.id,p.name)]||0) : 0; }
+        matches.push({box:b, part:p, qty:q});
+      }
+    });
+  });
+
+  boxesEl.style.display = "none";
+  resultsEl.style.display = "block";
+  resultsEl.innerHTML = "";
+
+  if(!matches.length){
+    resultsEl.innerHTML = '<div style="text-align:center;padding:24px 0;color:var(--sub);font-size:13px;">找不到符合「'+query+'」的工具</div>';
+    return;
+  }
+
+  var hint = document.createElement("div");
+  hint.style.cssText = "font-size:12px;color:var(--sub);margin-bottom:8px;";
+  hint.textContent = "找到 "+matches.length+" 項，點下去直接進入該工具箱管理";
+  resultsEl.appendChild(hint);
+
+  matches.forEach(function(m){
+    var item = document.createElement("div");
+    item.className = "log-item";
+    item.style.cursor = "pointer";
+    item.onclick = (function(boxId){ return function(){
+      clearAdmToolSearch();
+      curBox = BOXES.find(function(b){ return b.id===boxId; });
+      document.getElementById("adm-parts-h2").textContent = curBox.name;
+      renderAdmPartList();
+      pshow("s-adm-parts");
+    }; })(m.box.id);
+    var left = document.createElement("div");
+    left.style.cssText = "display:flex;align-items:center;gap:10px;";
+    var thumbHtml = m.part.photo
+      ? '<img src="'+m.part.photo+'" style="width:34px;height:34px;object-fit:cover;border-radius:7px;border:1px solid var(--border);flex-shrink:0;">'
+      : '';
+    left.innerHTML = thumbHtml + '<div><div style="font-weight:700;font-size:14px;">'+m.part.name+'</div>'
+      + '<div style="font-size:12px;color:var(--sub);margin-top:2px;">'
+      + '<i class="ti ti-package" style="font-size:12px;"></i> '+m.box.name
+      + (m.part.sub?'　'+m.part.sub:'')
+      + '</div></div>';
+    var right = document.createElement("div");
+    right.style.cssText = "font-size:15px;font-weight:700;color:var(--blue);display:flex;align-items:center;gap:6px;";
+    right.innerHTML = "庫存 "+m.qty+' <i class="ti ti-chevron-right" style="color:var(--sub);font-size:14px;"></i>';
+    item.appendChild(left); item.appendChild(right);
+    resultsEl.appendChild(item);
+  });
+}
+
+function clearAdmToolSearch(){
+  document.getElementById("adm-tool-search-input").value = "";
+  document.getElementById("adm-tool-search-clear").style.display = "none";
+  document.getElementById("adm-tool-search-results").style.display = "none";
+  document.getElementById("adm-boxes").style.display = "";
+}
+
 function renderBoxes(){
   var loc=curUser&&curUser.role==="admin"?curLoc:curUser?curUser.location:"台南";
   var showWarning=curUser&&curUser.role==="admin";
@@ -2980,6 +3165,27 @@ function renderPartList(loc){
     var item=document.createElement("div");item.className="part-item";
     if(outOfStock)item.style.opacity="0.6";
     var info=document.createElement("div");info.className="part-info";
+    if(p.photo){
+      info.style.cssText="display:flex;align-items:center;gap:10px;";
+      var thumb=document.createElement("img");
+      thumb.src=p.photo;
+      thumb.style.cssText="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--border);flex-shrink:0;cursor:pointer;";
+      thumb.onclick=(function(url){return function(e){ e.stopPropagation(); viewPhotoFull(url); };})(p.photo);
+      var textWrap=document.createElement("div");
+      var name=document.createElement("div");name.className="part-name";name.textContent=p.name;
+      var sub=document.createElement("div");sub.className="part-sub";
+      var subTag=document.createElement("span");subTag.className="sub-tag";subTag.textContent=p.sub;
+      sub.appendChild(subTag);
+      if(outOfStock){
+        var noStock2=document.createElement("span");
+        noStock2.className="badge badge-low";
+        noStock2.style.marginLeft="4px";
+        noStock2.textContent="無庫存";
+        sub.appendChild(noStock2);
+      }
+      textWrap.appendChild(name);textWrap.appendChild(sub);
+      info.appendChild(thumb);info.appendChild(textWrap);
+    } else {
     var name=document.createElement("div");name.className="part-name";name.textContent=p.name;
     var sub=document.createElement("div");sub.className="part-sub";
     var subTag=document.createElement("span");subTag.className="sub-tag";subTag.textContent=p.sub;
@@ -2992,6 +3198,7 @@ function renderPartList(loc){
       sub.appendChild(noStock);
     }
     info.appendChild(name);info.appendChild(sub);
+    }
     var btn=document.createElement("button");
     btn.className="take-btn";
     btn.textContent=outOfStock?"無庫存":"領取";
@@ -3037,6 +3244,19 @@ function renderAdmPartList(){
     var item=document.createElement("div");item.className="part-item";
     item.style.flexWrap="wrap";
     var info=document.createElement("div");info.className="part-info";
+    if(p.photo){
+      info.style.cssText="display:flex;align-items:flex-start;gap:10px;";
+      var admThumb=document.createElement("img");
+      admThumb.src=p.photo;
+      admThumb.style.cssText="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--border);flex-shrink:0;cursor:pointer;margin-top:2px;";
+      admThumb.onclick=(function(url){return function(e){ e.stopPropagation(); viewPhotoFull(url); };})(p.photo);
+      info.appendChild(admThumb);
+      var admTextWrap=document.createElement("div");
+      info.appendChild(admTextWrap);
+      var nmWrap = admTextWrap;
+    } else {
+      var nmWrap = info;
+    }
     var nm=document.createElement("div");nm.className="part-name";nm.textContent=p.name;
     var sb=document.createElement("div");sb.className="part-sub";
     if(p.sub){
@@ -3059,7 +3279,7 @@ function renderAdmPartList(){
       : "(安全量："+(p.minQty||0)+")";
     minSpan.textContent = minText;
     sb.appendChild(minSpan);
-    info.appendChild(nm);info.appendChild(sb);
+    nmWrap.appendChild(nm);nmWrap.appendChild(sb);
     var btns=document.createElement("div");btns.style.cssText="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;";
     var b1=document.createElement("button");b1.className="btn-sm btn-sm-green";b1.style.fontSize="11px";b1.textContent="進貨";
     b1.onclick=(function(pn){return function(){openModal("in",pn,true);};})(p.name);
@@ -3096,6 +3316,7 @@ function openPartForm(mode, partName){
   var overlay = document.getElementById("part-form-overlay");
   var title   = document.getElementById("part-form-title");
   var btn     = document.getElementById("part-form-confirm-btn");
+  pfPhotoData = null; // 本次表單暫存的照片（base64），還沒上傳前先放這裡
 
   if(mode === "add"){
     title.textContent = "新增工具到「" + curBox.name + "」";
@@ -3105,6 +3326,7 @@ function openPartForm(mode, partName){
     document.getElementById("pf-min-tainan").value = 1;
     document.getElementById("pf-min-pingtung").value = 1;
     partFormEditName = "";
+    resetPartPhotoUI();
   } else {
     // 編輯模式：帶入現有資料
     var p = curBox.parts.find(function(x){ return x.name === partName; });
@@ -3122,10 +3344,81 @@ function openPartForm(mode, partName){
       document.getElementById("pf-min-tainan").value   = sameVal;
       document.getElementById("pf-min-pingtung").value = sameVal;
     }
+    resetPartPhotoUI();
+    if(p.photo){
+      document.getElementById("pf-photo-preview").src = p.photo;
+      document.getElementById("pf-photo-preview").style.display = "block";
+      document.getElementById("pf-photo-placeholder").style.display = "none";
+      document.getElementById("pf-photo-status").textContent = "已有照片";
+    }
   }
 
   overlay.classList.add("show");
   setTimeout(function(){ document.getElementById("pf-name").focus(); }, 200);
+}
+
+// ─── 工具照片：拍照/選圖 → 壓縮 → 上傳到 Drive 拿回網址（存表單暫存，等按確認才真正存進工具資料）───
+var pfPhotoData = null;      // 壓縮後的 base64（還沒上傳）
+var pfPhotoUrl = null;       // 上傳成功後拿到的 Drive 網址
+var pfPhotoUploading = false;
+
+function resetPartPhotoUI(){
+  pfPhotoData = null;
+  pfPhotoUrl = null;
+  pfPhotoUploading = false;
+  document.getElementById("pf-photo-input").value = "";
+  document.getElementById("pf-photo-preview").style.display = "none";
+  document.getElementById("pf-photo-placeholder").style.display = "block";
+  document.getElementById("pf-photo-status").textContent = "";
+}
+
+function onPartPhotoPicked(input){
+  var file = input.files && input.files[0];
+  if(!file) return;
+  document.getElementById("pf-photo-status").textContent = "處理中…";
+  compressImageToBase64(file, 600, 0.6, function(dataUrl){
+    if(!dataUrl){ document.getElementById("pf-photo-status").textContent = "❌ 讀取失敗，請再試一次"; return; }
+    var preview = document.getElementById("pf-photo-preview");
+    preview.src = dataUrl;
+    preview.style.display = "block";
+    document.getElementById("pf-photo-placeholder").style.display = "none";
+    pfPhotoData = dataUrl;
+    pfPhotoUrl = null; // 換了新照片，之前上傳成功的網址要作廢，等下面重新上傳
+    uploadPartPhotoNow();
+  });
+}
+
+// 選好照片就先在背景上傳，使用者按「確認新增/修改」時不用再等
+async function uploadPartPhotoNow(){
+  if(!pfPhotoData) return;
+  pfPhotoUploading = true;
+  document.getElementById("pf-photo-status").textContent = "上傳中…";
+  var boxId = curBox ? curBox.id : "";
+  var name = document.getElementById("pf-name").value.trim() || "工具";
+  var photoName = boxId + "_" + name + "_" + Date.now() + ".jpg";
+  try{
+    var res = await fetch(GAS_URL, {
+      method: "POST",
+      mode: "cors",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({
+        type: "工具縮圖上傳", box: boxId, part: name,
+        photoData: pfPhotoData, photoName: photoName,
+        name: curUser?curUser.name:"", email: curUser?curUser.email:"",
+        qty:0, note:"", time: nowStr(), loc:"", serial:""
+      })
+    });
+    var data = await res.json();
+    if(data.ok && data.photoUrl){
+      pfPhotoUrl = data.photoUrl;
+      document.getElementById("pf-photo-status").textContent = "✅ 上傳完成";
+    } else {
+      document.getElementById("pf-photo-status").textContent = "❌ 上傳失敗，請重試";
+    }
+  }catch(e){
+    document.getElementById("pf-photo-status").textContent = "❌ 上傳失敗，請確認網路";
+  }
+  pfPhotoUploading = false;
 }
 
 function closePartForm(){
@@ -3141,11 +3434,13 @@ function confirmPartForm(){
   var minNote = "安全量:台南"+minTainan+"/屏東"+minPingtung;
 
   if(!name){ alert("請輸入工具名稱"); return; }
+  if(pfPhotoUploading){ alert("照片還在上傳中，請稍等一下再送出"); return; }
 
   if(partFormMode === "add"){
     var exists = curBox.parts.find(function(p){ return p.name === name; });
     if(exists){ alert("此工具已存在！"); return; }
     var newPart = { name:name, sub:sub, minQty:minQty };
+    if(pfPhotoUrl) newPart.photo = pfPhotoUrl;
     curBox.parts.push(newPart);
     stocks["台南"][gk(curBox.id, name)] = 0;
     stocks["屏東"][gk(curBox.id, name)] = 0;
@@ -3174,6 +3469,7 @@ function confirmPartForm(){
     p.name   = name;
     p.sub    = sub;
     p.minQty = minQty;
+    if(pfPhotoUrl) p.photo = pfPhotoUrl; // 有選新照片才更新，沒選就保留原本的
     closePartForm();
     renderAdmPartList(); renderBoxes();
     pushBoxPartPatch(curBox.id, p, oldName); // ★ 真正存到雲端
