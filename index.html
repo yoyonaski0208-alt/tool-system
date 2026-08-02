@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260812-01">
+<meta name="app-version" content="20260813-01">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -889,6 +889,27 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       <span id="restock-arrow" style="font-size:11px;color:var(--blue);white-space:nowrap;">▼展開</span>
     </div>
     <div id="adm-alerts" class="restock-body"></div>
+
+    <!-- 本月盤點進度：讓行政/盤點者一眼看出還有哪些沒盤 -->
+    <div class="section-hd" style="margin-top:16px;">📋 本月盤點進度</div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:6px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+        <span style="font-size:12px;color:var(--sub);width:34px;flex-shrink:0;">台南</span>
+        <div style="flex:1;height:8px;background:var(--bg);border-radius:20px;overflow:hidden;">
+          <div id="count-bar-tainan" style="height:100%;background:var(--green);width:0%;transition:width .3s;"></div>
+        </div>
+        <span id="count-pct-tainan" style="font-size:12px;font-weight:700;width:70px;text-align:right;flex-shrink:0;">0/0</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:12px;color:var(--sub);width:34px;flex-shrink:0;">屏東</span>
+        <div style="flex:1;height:8px;background:var(--bg);border-radius:20px;overflow:hidden;">
+          <div id="count-bar-pingtung" style="height:100%;background:var(--green);width:0%;transition:width .3s;"></div>
+        </div>
+        <span id="count-pct-pingtung" style="font-size:12px;font-weight:700;width:70px;text-align:right;flex-shrink:0;">0/0</span>
+      </div>
+      <div style="font-size:11px;color:var(--sub);margin-top:8px;">只要在畫面裡按過一次「調整」就算這個月盤點過，跟進貨/領取無關</div>
+    </div>
+
     <div class="section-hd" style="margin-top:16px;">所有工具箱</div>
     <!-- 搜尋工具：後台版本，跟領取頁共用同一套邏輯 -->
     <div style="position:relative;margin:8px 0 12px;">
@@ -2909,6 +2930,15 @@ function showMain(pg){pshow("s-main");navTo(pg,document.getElementById("nav-"+pg
 
 // 安全量支援「每個地點不同」：p.minQty 可以是單一數字（兩地共用，舊資料相容）
 // 或 {台南:x, 屏東:y} 物件（分開設定）。loc==="全部" 時回傳兩地相加的總合。
+// 判斷某個時間字串是不是「這個月」（用來判斷盤點狀態）
+function isCountedThisMonth(dateStr){
+  if(!dateStr) return false;
+  var d = new Date(String(dateStr).replace(/\//g,"-").slice(0,10));
+  if(isNaN(d.getTime())) return false;
+  var now = new Date();
+  return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth();
+}
+
 function getMinQty(p, loc){
   if(!p) return 0;
   if(p.minQty && typeof p.minQty === "object"){
@@ -3279,7 +3309,21 @@ function renderAdmPartList(){
       : "(安全量："+(p.minQty||0)+")";
     minSpan.textContent = minText;
     sb.appendChild(minSpan);
-    nmWrap.appendChild(nm);nmWrap.appendChild(sb);
+    // 本月盤點狀態：綠色=這個月盤點過（有做過「調整」），紅色=還沒盤
+    var countWrap = document.createElement("div");
+    countWrap.style.cssText = "margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;";
+    var lcd = p.lastCountDate || {};
+    var countLocs = (curLoc==="全部") ? ["台南","屏東"] : [curLoc];
+    countLocs.forEach(function(cl){
+      var counted = isCountedThisMonth(lcd[cl]);
+      var tag = document.createElement("span");
+      tag.style.cssText = "font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;"
+        + (counted ? "background:var(--green-light);color:var(--green);" : "background:var(--red-light);color:var(--red);");
+      tag.title = counted ? (cl+"　"+lcd[cl]+" 已盤點") : (cl+"　本月尚未盤點");
+      tag.textContent = cl+"："+(counted?"✅ 已盤點":"❌ 未盤點");
+      countWrap.appendChild(tag);
+    });
+    nmWrap.appendChild(nm);nmWrap.appendChild(sb);nmWrap.appendChild(countWrap);
     var btns=document.createElement("div");btns.style.cssText="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;";
     var b1=document.createElement("button");b1.className="btn-sm btn-sm-green";b1.style.fontSize="11px";b1.textContent="進貨";
     b1.onclick=(function(pn){return function(){openModal("in",pn,true);};})(p.name);
@@ -3656,6 +3700,13 @@ async function confirmAction(){
   } else {
     var old=stocks[loc][key]||0;logQty=mQty-old;stocks[loc][key]=mQty;
     type="調整";icon="🔧";title="庫存調整完成！";detail=curPart+"（"+loc+"）調整為 "+mQty+" 個";
+    // 「調整」代表這個品項這次真的有被實際盤點過，記錄盤點日期（分地點記錄）
+    var curPartObj = curBox.parts.find(function(x){ return x.name===curPart; });
+    if(curPartObj){
+      if(!curPartObj.lastCountDate) curPartObj.lastCountDate = {};
+      curPartObj.lastCountDate[loc] = t;
+      pushBoxPartPatch(curBox.id, curPartObj, null);
+    }
   }
   // 操作後讓快取失效，下次開箱強制重抓
   stockSyncTime[loc] = 0;
@@ -3843,6 +3894,22 @@ function renderAdmin(){
   if(loc !== "全部") restockFilterLoc = loc; // 已經在單一地點模式時，篩選跟著頁面走
   var allP=[];
   BOXES.forEach(function(b){b.parts.forEach(function(p){allP.push({b:b,p:p});});});
+
+  // 本月盤點進度：台南/屏東各自算「有做過調整」的品項數 / 總品項數
+  ["台南","屏東"].forEach(function(cl){
+    var countedN = allP.filter(function(x){
+      var lcd = x.p.lastCountDate || {};
+      return isCountedThisMonth(lcd[cl]);
+    }).length;
+    var totalN = allP.length;
+    var pct = totalN ? Math.round(countedN/totalN*100) : 0;
+    var barId = cl==="台南" ? "count-bar-tainan" : "count-bar-pingtung";
+    var pctId = cl==="台南" ? "count-pct-tainan" : "count-pct-pingtung";
+    var barEl = document.getElementById(barId);
+    var pctEl = document.getElementById(pctId);
+    if(barEl){ barEl.style.width = pct+"%"; barEl.style.background = pct>=100 ? "var(--green)" : pct>=50 ? "var(--amber)" : "var(--red)"; }
+    if(pctEl){ pctEl.textContent = countedN+"/"+totalN+"（"+pct+"%）"; }
+  });
 
   function getLowCount(targetLoc){
     if(targetLoc === "全部"){
