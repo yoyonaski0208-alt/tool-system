@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260807-01">
+<meta name="app-version" content="20260810-01">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -2936,9 +2936,9 @@ async function openBox(id){
   var loc=getEditLoc();
   // 先用本地快取渲染（立即顯示）
   renderPartList(loc);
-  // 再從 Sheets 同步最新品項清單＋庫存（背景更新）
+  // 再從 Sheets 強制重抓最新品項清單＋庫存（不要相信可能過時的快取）
   await syncBoxPartsFromServer();
-  await syncStocksFromSheets(loc);
+  await syncStocksFromSheets(loc, true);
   renderPartList(loc);  // 更新後重繪
 }
 
@@ -3006,12 +3006,18 @@ function renderPartList(loc){
   });
 }
 
-function admOpenBox(el){
+async function admOpenBox(el){
   var id=el.getAttribute("data-id");
   curBox=BOXES.find(function(b){return b.id===id;});
   document.getElementById("adm-parts-h2").textContent=curBox.name;
+  // 先用本地快取畫一次，不要讓畫面空白卡住
   renderAdmPartList();
   pshow("s-adm-parts");
+  // 再強制重抓最新品項清單＋庫存（不要相信可能過時的快取，這是這次特別修的）
+  await syncBoxPartsFromServer();
+  await syncStocksFromSheets("台南", true);
+  await syncStocksFromSheets("屏東", true);
+  renderAdmPartList();
 }
 
 function renderAdmPartList(){
