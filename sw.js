@@ -1,56 +1,92 @@
-function randDelay(min,max){ return new Promise(r=>setTimeout(r, min+Math.random()*(max-min))); }
+// =====================================================
+// 森清淨工具系統 — Service Worker
+// 每次更新時，只需更改 CACHE_NAME 的版本號
+// =====================================================
+var CACHE_NAME = "senjing-v20260807-01";
+// 需要快取的靜態資源
+var PRECACHE = [
+  "./",
+  "./index.html",
+  "./manifest.json"
+];
 
-class MockSheet {
-  constructor(initial){ this.qty = initial; }
-}
-class MockLock {
-  constructor(){ this._locked=false; this._q=[]; }
-  async wait(){ if(!this._locked){this._locked=true;return;} return new Promise(res=>{ this._q.push(()=>{this._locked=true;res();}); }); }
-  release(){ this._locked=false; const n=this._q.shift(); if(n) n(); }
-}
+// ── 安裝：快取靜態資源 ──
+self.addEventListener("install", function(e){
+  e.waitUntil(
+    caches.open(CACHE_NAME).then(function(cache){
+      return cache.addAll(PRECACHE).catch(function(err){
+        // 就算某個檔案快取失敗，也不要讓整個安裝失敗
+        console.warn("SW precache 失敗（不影響安裝）：", err);
+      });
+    })
+  );
+  // 立即接管，不等舊 SW 結束
+  self.skipWaiting();
+});
 
-// 舊版：前端算好絕對值，後端直接覆寫（沒有lock內重讀）
-async function oldWayOperate(sheet, lock, delta){
-  // 模擬：前端先讀一次現有庫存（可能過時）
-  await randDelay(3,15);
-  var clientSeenQty = sheet.qty; // 前端此刻看到的庫存
-  await randDelay(3,15); // 使用者操作到送出之間的時間
-  var newQty = clientSeenQty + delta; // 前端自己算好的絕對值
-  await lock.wait();
-  try{
-    await randDelay(3,10);
-    sheet.qty = newQty; // 直接覆寫
-  } finally { lock.release(); }
-}
+// ── 啟動：刪除舊版本的快取 ──
+self.addEventListener("activate", function(e){
+  e.waitUntil(
+    caches.keys().then(function(names){
+      return Promise.all(
+        names.filter(function(n){ return n !== CACHE_NAME; })
+             .map(function(n){ return caches.delete(n); })
+      );
+    }).then(function(){
+      return self.clients.claim();
+    })
+  );
+});
 
-// 新版：送delta，後端在鎖內重讀現在的值再加
-async function newWayOperate(sheet, lock, delta){
-  await randDelay(3,15); // 操作到送出的時間（跟前端算不算沒關係了）
-  await lock.wait();
-  try{
-    await randDelay(3,10);
-    sheet.qty = sheet.qty + delta; // 鎖內讀現在真正的值再加
-    if(sheet.qty<0) sheet.qty=0;
-  } finally { lock.release(); }
-}
+// ── 攔截請求 ──
+self.addEventListener("fetch", function(e){
+  var req = e.request;
+  if(req.method !== "GET") return; // 只處理 GET，避免攔截到寫入類請求
 
-async function runTest(label, operateFn, n, initialQty, deltas){
-  const sheet = new MockSheet(initialQty);
-  const lock = new MockLock();
-  await Promise.all(deltas.slice(0,n).map(d => operateFn(sheet, lock, d)));
-  const expected = initialQty + deltas.slice(0,n).reduce((a,b)=>a+b,0);
-  const pass = sheet.qty === Math.max(0,expected);
-  console.log(`${label} (${n}人同時操作): 預期=${Math.max(0,expected)} 實際=${sheet.qty}  ${pass?"✅":"❌"}`);
-  return pass;
-}
+  var url = new URL(req.url);
 
-(async()=>{
-  console.log("=== 舊版（前端算絕對值覆寫）===");
-  for(let n=2;n<=5;n++){
-    await runTest("舊版", oldWayOperate, n, 10, [-2,-1,-3,+5,-1]);
+  // 外部網域（Google Sheets / Apps Script / 字型 / CDN…）
+  // 用 origin 判斷是不是同網域，比列舉網址字串更嚴謹，
+  // 以後多接其他外部服務也不用回來改這裡
+  if(url.origin !== self.location.origin){
+    e.respondWith(fetch(req).catch(function(){ return caches.match(req); }));
+    return;
   }
-  console.log("\n=== 新版（送delta，後端鎖內重讀）===");
-  for(let n=2;n<=5;n++){
-    await runTest("新版", newWayOperate, n, 10, [-2,-1,-3,+5,-1]);
+
+  // index.html／根目錄：永遠走網路優先，確保拿到最新版本，離線才退回用快取
+  if(url.pathname.endsWith("index.html") || url.pathname.endsWith("/")){
+    e.respondWith(
+      fetch(req, { cache:"no-store" })
+        .then(function(res){
+          var copy = res.clone();
+          caches.open(CACHE_NAME).then(function(cache){ cache.put(req, copy); });
+          return res;
+        })
+        .catch(function(){
+          return caches.match(req).then(function(cached){
+            return cached || caches.match("./index.html");
+          });
+        })
+    );
+    return;
   }
-})();
+
+  // 其他同網域靜態資源（manifest.json、圖示等不常變動的檔案）：
+  // 快取優先，同時背景偷偷去要最新版本更新快取，兼顧速度跟資料不過時
+  e.respondWith(
+    caches.match(req).then(function(cached){
+      var fetchPromise = fetch(req).then(function(res){
+        caches.open(CACHE_NAME).then(function(cache){ cache.put(req, res.clone()); });
+        return res;
+      }).catch(function(){ return cached; });
+      return cached || fetchPromise;
+    })
+  );
+});
+
+// ── 接收主頁面的訊息（SKIP_WAITING），備用機制 ──
+self.addEventListener("message", function(e){
+  if(e.data && e.data.type === "SKIP_WAITING"){
+    self.skipWaiting();
+  }
+});
