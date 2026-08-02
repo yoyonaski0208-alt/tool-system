@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260729-03">
+<meta name="app-version" content="20260807-01">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -1000,6 +1000,7 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       </div>
     </div>
     <div class="field-lbl" id="qty-lbl">領取數量</div>
+    <div id="qty-current-hint" style="display:none;font-size:12px;color:var(--sub);margin:-6px 0 8px;"></div>
     <!-- 進貨/調整時，管理員可以直接選要動哪個倉庫，不用依賴上面切換鈕 -->
     <div id="modal-loc-wrap" style="display:none;margin-bottom:14px;">
       <div class="field-lbl" style="margin-bottom:7px;">選擇倉庫</div>
@@ -2352,7 +2353,7 @@ async function syncLogsFromServer(){
       logs = d.data.map(function(r){
         var ts = Date.now();
         try{ var parsed = new Date(String(r.time).replace(/\//g,"-")).getTime(); if(!isNaN(parsed)) ts = parsed; }catch(e){}
-        return { type:r.type, box:r.box, part:r.part, qty:r.qty, name:r.name, note:r.note, time:r.time, loc:r.loc, serial:r.serial, timestamp: ts };
+        return { type:r.type, box:r.box, part:r.part, qty:r.qty, name:r.name, note:r.note, time:r.time, loc:r.loc, serial:r.serial, finalQty:r.finalQty, timestamp: ts };
       });
       saveLogsToStorage();
     }
@@ -2942,11 +2943,13 @@ async function openBox(id){
 }
 
 // 從 Sheets 拉最新庫存並更新本地 stocks
-async function syncStocksFromSheets(loc){
+async function syncStocksFromSheets(loc, force){
   if(!GAS_URL) return;
   var now = Date.now();
-  // 30秒內同一地點不重複抓
-  if(stockSyncTime[loc] && (now - stockSyncTime[loc]) < STOCK_CACHE_MS) return;
+  // 30秒內同一地點不重複抓（一般瀏覽用的節流，減少沒必要的請求）
+  // ★ 但 force=true 時一定要略過節流：進貨/調整這種要以「當下真正庫存」為基準的動作，
+  // 絕對不能相信可能過時的快取，不然會拿舊數字去蓋掉別人剛寫入的正確值
+  if(!force && stockSyncTime[loc] && (now - stockSyncTime[loc]) < STOCK_CACHE_MS) return;
   try{
     var res = await fetch(GAS_URL + "?action=readStocks&loc=" + encodeURIComponent(loc), {
       mode: "cors", cache: "no-cache"
@@ -3218,7 +3221,7 @@ function setReason(r){
   });
 }
 
-function openModal(action,partName,fromAdmin){
+async function openModal(action,partName,fromAdmin){
   curAction=action;
   if(partName)curPart=partName;
   var loc=getEditLoc();
@@ -3259,16 +3262,47 @@ function openModal(action,partName,fromAdmin){
   var c=cs[action];
   var btn=document.getElementById("mod-confirm");btn.style.background=c.bg;btn.style.color="#fff";btn.textContent=c.txt;
   pshow("s-modal");
+
+  // ★ 進貨/調整這種要以「當下真正庫存」為基準的動作，先用快取畫面立刻顯示（不卡畫面），
+  // 背景強制重新跟 Sheets 要一次絕對最新的數字，避免拿到過時的快取當基準，
+  // 把別人剛寫入的正確值蓋掉（這是這次特別抓出來修的問題）
+  var hint = document.getElementById("qty-current-hint");
+  if(action==="in" || action==="adj"){
+    hint.style.display = "block";
+    hint.textContent = "正在確認目前系統庫存…";
+    var checkLoc = loc, checkAction = action, checkPart = curPart;
+    await syncStocksFromSheets(checkLoc, true);
+    // 確認使用者還在看同一個彈窗、同一個項目，才更新畫面（避免使用者已經切走）
+    if(curAction===checkAction && curPart===checkPart && document.getElementById("s-modal").classList.contains("active")){
+      var freshLoc = document.getElementById("modal-loc-select") && locWrap.style.display!=="none"
+        ? document.getElementById("modal-loc-select").value : checkLoc;
+      var freshQ = stocks[freshLoc] ? (stocks[freshLoc][gk(curBox.id,curPart)]||0) : 0;
+      hint.textContent = "目前系統庫存（"+freshLoc+"）："+freshQ;
+      if(checkAction==="adj"){
+        mQty = freshQ;
+        document.getElementById("qty-show").value = mQty;
+      }
+    }
+  } else {
+    hint.style.display = "none";
+  }
 }
 
 // 進貨/調整彈窗切換倉庫時，重新抓該倉庫目前的庫存數字，並更新標籤文字
-function onModalLocChange(){
+async function onModalLocChange(){
   var loc = document.getElementById("modal-loc-select").value;
   document.getElementById("mod-box").textContent = curBox.name + (curAction==="take" ? " | "+loc : "");
   var lbls={take:"領取數量",in:"進貨數量（"+loc+"）",adj:"調整後數量（"+loc+"）"};
   document.getElementById("qty-lbl").textContent = lbls[curAction];
+  var hint = document.getElementById("qty-current-hint");
+  var actionAtCall = curAction, partAtCall = curPart;
+  hint.style.display = "block";
+  hint.textContent = "正在確認目前系統庫存…";
+  await syncStocksFromSheets(loc, true); // 切換倉庫也強制重抓，不要用可能過時的快取
+  if(curAction!==actionAtCall || curPart!==partAtCall) return; // 使用者已經切走，不更新畫面
+  var curQ = stocks[loc] ? (stocks[loc][gk(curBox.id,curPart)]||0) : 0;
+  hint.textContent = "目前系統庫存（"+loc+"）："+curQ;
   if(curAction==="adj"){
-    var curQ = stocks[loc] ? (stocks[loc][gk(curBox.id,curPart)]||0) : 0;
     mQty = curQ;
     document.getElementById("qty-show").value = mQty;
   }
@@ -3324,7 +3358,7 @@ async function confirmAction(){
   // 操作後讓快取失效，下次開箱強制重抓
   stockSyncTime[loc] = 0;
 
-  logs.unshift({type:type,box:curBox.name,part:curPart,qty:logQty,name:curUser.name,note:note,time:t,loc:loc,serial:serialVal,timestamp:Date.now()});
+  logs.unshift({type:type,box:curBox.name,part:curPart,qty:logQty,name:curUser.name,note:note,time:t,loc:loc,serial:serialVal,finalQty:stocks[loc][key],timestamp:Date.now()});
   saveLogsToStorage();
   document.getElementById("ok-icon").textContent=icon;
   document.getElementById("ok-title").textContent=title;
@@ -3332,7 +3366,7 @@ async function confirmAction(){
   pshow("s-ok");
   // 領取/進貨送「差值」讓後端用當下真正的數字加減（避免多人同時操作互相蓋掉）；
   // 調整維持送絕對值（使用者盤點後就是要設定成這個數字）
-  var payload = {type:type,box:curBox.name,boxId:curBox.id,part:curPart,qty:logQty,name:curUser.name,email:curUser.email,note:note,time:t,loc:loc,serial:serialVal};
+  var payload = {type:type,box:curBox.name,boxId:curBox.id,part:curPart,qty:logQty,name:curUser.name,email:curUser.email,note:note,time:t,loc:loc,serial:serialVal,finalQty:stocks[loc][key]};
   if(curAction==="take"){
     payload.deltaQty = -mQty;
   } else if(curAction==="in"){
@@ -3414,6 +3448,12 @@ function renderLogs(){
     var qty=document.createElement("div");qty.className="log-qty";
     qty.style.color=l.type==="領取"?"var(--red)":l.type==="進貨"?"var(--blue)":"var(--amber)";
     qty.textContent=(l.type==="領取"?"-":l.type==="進貨"?"+":"")+Math.abs(l.qty||0);
+    if(l.finalQty !== undefined && l.finalQty !== null){
+      var finalSpan=document.createElement("div");
+      finalSpan.style.cssText="font-size:11px;color:var(--sub);font-weight:400;margin-top:2px;";
+      finalSpan.textContent="現在："+l.finalQty;
+      qty.appendChild(finalSpan);
+    }
     item.appendChild(left);item.appendChild(qty);
 
     // 領取拍照確認縮圖（只有當天且同一位操作人有拍照才會顯示）
@@ -5213,6 +5253,58 @@ function submitTakePhotos(photos){
   showToast("✅ 已新增 "+photos.length+" 張領取確認照片");
 }
 
+// ─────────────────────────────────────────────
+// 通用「滑動刪除」列表項目包裝器
+// 用法：makeSwipeDeleteItem(innerHTML字串, 刪除時要執行的callback)，回傳一個可以直接 appendChild 的節點
+// 手機上左滑會露出紅色刪除按鈕，點下去才會真的刪除（不是滑一下就刪，避免誤觸）
+// ─────────────────────────────────────────────
+function makeSwipeDeleteItem(innerHTML, onDelete){
+  var wrap = document.createElement("div");
+  wrap.style.cssText = "position:relative;overflow:hidden;border-radius:11px;margin-bottom:8px;";
+
+  var delBtn = document.createElement("div");
+  delBtn.innerHTML = '<i class="ti ti-trash" style="font-size:18px;"></i>';
+  delBtn.style.cssText = "position:absolute;top:0;right:0;bottom:0;width:64px;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:0;";
+  delBtn.onclick = function(){
+    if(confirm("確定要刪除這筆資料嗎？此操作無法復原。")) onDelete();
+  };
+
+  var content = document.createElement("div");
+  content.innerHTML = innerHTML;
+  content.style.cssText = "position:relative;background:var(--card);transition:transform 0.2s ease;touch-action:pan-y;z-index:1;";
+
+  wrap.appendChild(delBtn);
+  wrap.appendChild(content);
+
+  var startX=0, curX=0, dragging=false, revealed=false;
+  var REVEAL_PX = 64;
+
+  content.addEventListener("touchstart", function(e){
+    startX = e.touches[0].clientX; curX = startX; dragging = true;
+    content.style.transition = "none";
+  }, {passive:true});
+  content.addEventListener("touchmove", function(e){
+    if(!dragging) return;
+    curX = e.touches[0].clientX;
+    var dx = curX - startX;
+    var base = revealed ? -REVEAL_PX : 0;
+    var offset = Math.max(-REVEAL_PX, Math.min(0, base + dx));
+    content.style.transform = "translateX(" + offset + "px)";
+  }, {passive:true});
+  content.addEventListener("touchend", function(){
+    if(!dragging) return;
+    dragging = false;
+    content.style.transition = "transform 0.2s ease";
+    var dx = curX - startX;
+    if(!revealed && dx < -30){ content.style.transform = "translateX(-"+REVEAL_PX+"px)"; revealed = true; }
+    else if(revealed && dx > 30){ content.style.transform = "translateX(0)"; revealed = false; }
+    else { content.style.transform = revealed ? "translateX(-"+REVEAL_PX+"px)" : "translateX(0)"; }
+    startX = curX = 0;
+  }, {passive:true});
+
+  return wrap;
+}
+
 function compressImageToBase64(file, maxWidth, quality, cb){
   var reader = new FileReader();
   reader.onload = function(e){
@@ -5668,17 +5760,20 @@ function renderMaintLatest(plate, isAdmin){
     latest.innerHTML = '<div style="font-size:13px;color:var(--sub);padding:6px 0;">尚無保養記錄</div>';
   } else {
     var r = visible[0];
-    latest.innerHTML = '<div class="ins-card ins-active">'
+    var cardHTML = '<div class="ins-card ins-active">'
       + '<div class="ins-card-hd">'
       + '<span style="font-size:13px;font-weight:700;">'+r.garage+'</span>'
+      + '<span style="margin-left:auto;display:flex;align-items:center;gap:8px;">'
       + (r.isOverhaul?'<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:var(--amber-light);color:var(--amber);font-weight:600;">大修</span>':'')
-      + '</div>'
+      + (isAdmin?'<i class="ti ti-trash" style="color:var(--red);cursor:pointer;font-size:16px;" onclick="deleteMaintRecord(\''+plate+'\','+JSON.stringify(r.id)+')" title="刪除這筆資料"></i>':'')
+      + '</span></div>'
       + '<div class="ins-row"><span>日期：<b>'+r.date+'</b></span>'
       + (r.km?'<span>里程：<b>'+Number(r.km).toLocaleString()+' km</b></span>':'')+'</div>'
       + (r.fee?'<div class="ins-row"><span>費用：<b>'+Number(r.fee).toLocaleString()+' 元</b></span></div>':'')
       + (r.items&&r.items.length?'<div class="ins-row"><span>項目：'+r.items.join("、")+'</span></div>':'')
       + (r.note?'<div class="ins-row"><span>'+r.note+'</span></div>':'')
       + '</div>';
+    latest.innerHTML = cardHTML;
   }
   // 大修列表（管理員）
   if(isAdmin){
@@ -5689,19 +5784,35 @@ function renderMaintLatest(plate, isAdmin){
       oList.innerHTML = '<div style="font-size:13px;color:var(--sub);padding:6px 0;">尚無大修記錄</div>';
     } else {
       overhauls.forEach(function(r){
-        var item = document.createElement("div");
-        item.className = "overhaul-item";
-        item.innerHTML = '<div class="overhaul-hd">'+r.date+'　'+r.garage+'</div>'
+        var innerHTML = '<div class="overhaul-item" style="margin-bottom:0;">'
+          + '<div class="overhaul-hd">'+r.date+'　'+r.garage+'</div>'
           + '<div class="overhaul-meta">'
           + (r.km?'里程：'+Number(r.km).toLocaleString()+' km　':'')
           + (r.fee?'費用：'+Number(r.fee).toLocaleString()+' 元':'')+'</div>'
           + (r.items&&r.items.length?'<div class="overhaul-meta" style="margin-top:3px;">'+r.items.join("、")+'</div>':'')
           + (r.note?'<div class="overhaul-meta" style="margin-top:3px;">'+r.note+'</div>':'')
-          + '<div class="overhaul-meta" style="margin-top:3px;color:var(--sub);">登記人：'+r.recorder+'</div>';
+          + '<div class="overhaul-meta" style="margin-top:3px;color:var(--sub);">登記人：'+r.recorder+'</div>'
+          + '</div>';
+        var item = makeSwipeDeleteItem(innerHTML, (function(recId){
+          return function(){ deleteMaintRecord(plate, recId); };
+        })(r.id));
         oList.appendChild(item);
       });
     }
   }
+}
+
+// 刪除單筆保養/大修紀錄（用唯一 id 找，避免陣列順序不一致刪錯筆）
+function deleteMaintRecord(plate, recId){
+  if(!maintData[plate]) return;
+  maintData[plate] = maintData[plate].filter(function(r){ return r.id !== recId; });
+  saveMaintData(plate);
+  var isAdmin = curUser && curUser.role==="admin";
+  renderMaintLatest(plate, isAdmin);
+  sendToSheets({type:"保養記錄刪除",box:plate,part:"",qty:0,
+    name:curUser?curUser.name:"",email:curUser?curUser.email:"",
+    note:"管理員刪除一筆保養/大修紀錄",time:nowStr(),loc:"",serial:""});
+  showToast("已刪除這筆紀錄");
 }
 
 function submitMaintRecord(){
@@ -5715,6 +5826,7 @@ function submitMaintRecord(){
   var checkedItems = MAINT_ITEMS.filter(function(i){ return maintChecked[i.id]; }).map(function(i){ return i.name; });
   var t = nowStr();
   var rec = {
+    id: Date.now() + Math.floor(Math.random()*1000),
     isOverhaul: isMaintOverhaul,
     garage: garage,
     date: date.replace(/-/g,"/"),
@@ -5862,7 +5974,10 @@ function renderInsCard(ins, type){
   var cardCls = days===null||days>60?"ins-active":days<=0?"ins-danger":"ins-warn";
   return '<div class="ins-card '+cardCls+'">'
     + '<div class="ins-card-hd"><span class="ins-type '+typeCls+'">'+typeLabel+'</span>'
-    + (daysText?'<span class="ins-days '+daysCls+'">'+daysText+'</span>':'')+'</div>'
+    + '<span style="margin-left:auto;display:flex;align-items:center;gap:8px;">'
+    + (daysText?'<span class="ins-days '+daysCls+'">'+daysText+'</span>':'')
+    + '<i class="ti ti-trash" style="color:var(--red);cursor:pointer;font-size:16px;" onclick="deleteInsRecord(\''+type+'\')" title="刪除這筆資料"></i>'
+    + '</span></div>'
     + '<div class="ins-company">'+(ins.company||"未填寫")+'</div>'
     + '<div class="ins-row"><span>投保：'+(ins.start||"—")+'</span><span>到期：<b>'+(ins.end||"—")+'</b></span></div>'
     + '<div class="ins-row"><span>保費：<b>'+(ins.fee?Number(ins.fee).toLocaleString()+" 元":"未填")+'</b></span></div>'
@@ -5874,9 +5989,27 @@ function renderTaxCard(tax, type){
   var paid = tax.paid === "yes";
   return '<div class="ins-card '+(paid?"ins-active":"ins-danger")+'" style="margin-bottom:8px;">'
     + '<div class="ins-card-hd"><span style="font-size:12px;font-weight:600;color:var(--text);">'+(tax.year||"")+'年</span>'
-    + '<span class="ins-paid '+(paid?"ins-paid-yes":"ins-paid-no")+'">'+(paid?"已繳":"未繳")+'</span></div>'
+    + '<span style="margin-left:auto;display:flex;align-items:center;gap:8px;">'
+    + '<span class="ins-paid '+(paid?"ins-paid-yes":"ins-paid-no")+'">'+(paid?"已繳":"未繳")+'</span>'
+    + '<i class="ti ti-trash" style="color:var(--red);cursor:pointer;font-size:16px;" onclick="deleteInsRecord(\''+(type==="plate"?"taxPlate":"taxFuel")+'\')" title="刪除這筆資料"></i>'
+    + '</span></div>'
     + '<div style="font-size:14px;font-weight:700;color:var(--text);">'+(tax.fee?Number(tax.fee).toLocaleString()+" 元":"金額未填")+'</div>'
     + '</div>';
+}
+
+// 刪除單一類別的車險/稅費資料（強制險/任意險/牌照稅/燃料稅各自獨立）
+function deleteInsRecord(category){
+  var plate = curVehPlate;
+  if(!plate || !insData[plate]) return;
+  var labels = {compulsory:"強制險", voluntary:"任意險", taxPlate:"牌照稅", taxFuel:"燃料稅"};
+  if(!confirm("確定要刪除「"+(labels[category]||category)+"」這筆資料嗎？此操作無法復原。")) return;
+  delete insData[plate][category];
+  saveInsData(plate);
+  renderInsCurrent(plate);
+  sendToSheets({type:"車險/稅費刪除",box:plate,part:labels[category]||category,qty:0,
+    name:curUser?curUser.name:"",email:curUser?curUser.email:"",
+    note:"管理員刪除",time:nowStr(),loc:"",serial:""});
+  showToast("已刪除「"+(labels[category]||category)+"」");
 }
 
 function setTaxPaid(type, val){
@@ -5995,18 +6128,33 @@ function renderInspectRecords(plate){
     return;
   }
   records.forEach(function(r, i){
-    var item = document.createElement("div");
-    item.className = "inspect-record" + (i===0?" latest":"");
-    item.innerHTML =
+    var innerHTML =
+      '<div class="inspect-record" style="margin-bottom:0;">' +
       '<div class="inspect-record-left">' +
         '<div class="inspect-record-date">' + r.date + '</div>' +
         '<div class="inspect-record-km">里程：' + (r.km ? Number(r.km).toLocaleString()+" km" : "未記錄") + '</div>' +
         (r.nextDate ? '<div style="font-size:11px;color:var(--blue);margin-top:3px;">下次：'+r.nextDate+'</div>' : '') +
         (r.note ? '<div style="font-size:11px;color:var(--sub);margin-top:2px;">'+r.note+'</div>' : '') +
       '</div>' +
-      (i===0 ? '<span class="inspect-record-badge">最新</span>' : '');
+      (i===0 ? '<span class="inspect-record-badge">最新</span>' : '') +
+      '</div>';
+    var item = makeSwipeDeleteItem(innerHTML, (function(recId){
+      return function(){ deleteInspectRecord(plate, recId); };
+    })(r.id));
     list.appendChild(item);
   });
+}
+
+// 刪除單筆驗車紀錄（用唯一 id 找，避免陣列順序不一致刪錯筆）
+function deleteInspectRecord(plate, recId){
+  if(!inspectRecords[plate]) return;
+  inspectRecords[plate] = inspectRecords[plate].filter(function(r){ return r.id !== recId; });
+  saveInspectRecords(plate);
+  renderInspectRecords(plate);
+  sendToSheets({type:"驗車紀錄刪除",box:plate,part:"",qty:0,
+    name:curUser?curUser.name:"",email:curUser?curUser.email:"",
+    note:"管理員刪除一筆驗車紀錄",time:nowStr(),loc:"",serial:""});
+  showToast("已刪除這筆驗車紀錄");
 }
 
 function submitInspectRecord(){
@@ -6018,6 +6166,7 @@ function submitInspectRecord(){
   var plate = curVehPlate;
   if(!inspectRecords[plate]) inspectRecords[plate] = [];
   var record = {
+    id: Date.now() + Math.floor(Math.random()*1000),
     date: date.replace(/-/g,"/"),
     km: km ? parseInt(km) : null,
     nextDate: nextDate ? nextDate.replace(/-/g,"/") : "",
@@ -7121,6 +7270,7 @@ function confirmReturnLicenseWithInspect(){
   renderLicenseRecords();
   if(!inspectRecords[plate]) inspectRecords[plate] = [];
   inspectRecords[plate].unshift({
+    id: Date.now() + Math.floor(Math.random()*1000),
     date: inspectDate,
     km: null,
     nextDate: nextDate,
