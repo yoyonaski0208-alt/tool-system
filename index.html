@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260813-01">
+<meta name="app-version" content="20260813-02">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -3271,60 +3271,73 @@ function renderAdmPartList(){
     var qCheck=curLoc==="全部"?(qT+qP):(curLoc==="台南"?qT:qP);
     var minCheck=getMinQty(p, curLoc);
     var low=minCheck>0&&qCheck<minCheck;
-    var item=document.createElement("div");item.className="part-item";
-    item.style.flexWrap="wrap";
-    var info=document.createElement("div");info.className="part-info";
+    var minText = (p.minQty && typeof p.minQty === "object")
+      ? "安全量 台南"+(p.minQty["台南"]||0)+"／屏東"+(p.minQty["屏東"]||0)
+      : "安全量 "+(p.minQty||0);
+
+    var item=document.createElement("div");
+    item.className="part-item";
+    item.style.cssText="flex-wrap:wrap;display:block;padding:12px;";
+
+    // ── 頂部：照片 + 名稱/分類 + 正常或需補 ──
+    var topRow=document.createElement("div");
+    topRow.style.cssText="display:flex;align-items:center;gap:10px;";
     if(p.photo){
-      info.style.cssText="display:flex;align-items:flex-start;gap:10px;";
       var admThumb=document.createElement("img");
       admThumb.src=p.photo;
-      admThumb.style.cssText="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--border);flex-shrink:0;cursor:pointer;margin-top:2px;";
+      admThumb.style.cssText="width:44px;height:44px;object-fit:cover;border-radius:9px;border:1px solid var(--border);flex-shrink:0;cursor:pointer;";
       admThumb.onclick=(function(url){return function(e){ e.stopPropagation(); viewPhotoFull(url); };})(p.photo);
-      info.appendChild(admThumb);
-      var admTextWrap=document.createElement("div");
-      info.appendChild(admTextWrap);
-      var nmWrap = admTextWrap;
-    } else {
-      var nmWrap = info;
+      topRow.appendChild(admThumb);
     }
-    var nm=document.createElement("div");nm.className="part-name";nm.textContent=p.name;
-    var sb=document.createElement("div");sb.className="part-sub";
+    var nameWrap=document.createElement("div");
+    nameWrap.style.cssText="flex:1;min-width:0;";
+    var nmRow=document.createElement("div");
+    nmRow.style.cssText="display:flex;align-items:center;gap:6px;flex-wrap:wrap;";
+    var nm=document.createElement("span");nm.className="part-name";nm.style.cssText="font-size:14px;";nm.textContent=p.name;
+    nmRow.appendChild(nm);
     if(p.sub){
       var st=document.createElement("span");st.className="sub-tag";st.textContent=p.sub;
-      sb.appendChild(st);
+      nmRow.appendChild(st);
     }
-    var bdg=document.createElement("span");bdg.className="badge "+(low?"badge-low":"badge-ok");bdg.textContent=(low?"⚠️ 需補（點我進貨）":"正常");
+    nameWrap.appendChild(nmRow);
+    topRow.appendChild(nameWrap);
+    var bdg=document.createElement("span");bdg.className="badge "+(low?"badge-low":"badge-ok");
+    bdg.style.cssText="flex-shrink:0;white-space:nowrap;";
+    bdg.textContent=(low?"⚠️ 需補":"正常");
     if(low){
       bdg.style.cursor="pointer";
       bdg.title="點一下直接安排進貨";
       bdg.onclick=(function(pn){return function(e){ e.stopPropagation(); openModal("in",pn,true); };})(p.name);
     }
-    sb.appendChild(document.createTextNode(" 庫存："+qShow+" "));
-    sb.appendChild(bdg);
-    // 顯示最低安全量（兩地不同時分開顯示）
-    var minSpan=document.createElement("span");
-    minSpan.style.cssText="font-size:10px;color:var(--sub);margin-left:4px;";
-    var minText = (p.minQty && typeof p.minQty === "object")
-      ? "(安全量：台南"+(p.minQty["台南"]||0)+" / 屏東"+(p.minQty["屏東"]||0)+")"
-      : "(安全量："+(p.minQty||0)+")";
-    minSpan.textContent = minText;
-    sb.appendChild(minSpan);
-    // 本月盤點狀態：綠色=這個月盤點過（有做過「調整」），紅色=還沒盤
-    var countWrap = document.createElement("div");
-    countWrap.style.cssText = "margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;";
+    topRow.appendChild(bdg);
+    item.appendChild(topRow);
+
+    // ── 第二列：庫存數字 + 安全量（小字，一行）──
+    var qtyRow=document.createElement("div");
+    qtyRow.style.cssText="font-size:11.5px;color:var(--sub);margin-top:6px;padding-left:"+(p.photo?"54px":"0")+";";
+    qtyRow.textContent="庫存 "+qShow+"　·　"+minText;
+    item.appendChild(qtyRow);
+
+    // ── 第三列：本月盤點狀態，用小圓點取代大徽章，緊湊排一行 ──
     var lcd = p.lastCountDate || {};
     var countLocs = (curLoc==="全部") ? ["台南","屏東"] : [curLoc];
+    var countRow=document.createElement("div");
+    countRow.style.cssText="display:flex;align-items:center;gap:12px;margin-top:5px;padding-left:"+(p.photo?"54px":"0")+";";
     countLocs.forEach(function(cl){
       var counted = isCountedThisMonth(lcd[cl]);
-      var tag = document.createElement("span");
-      tag.style.cssText = "font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;"
-        + (counted ? "background:var(--green-light);color:var(--green);" : "background:var(--red-light);color:var(--red);");
-      tag.title = counted ? (cl+"　"+lcd[cl]+" 已盤點") : (cl+"　本月尚未盤點");
-      tag.textContent = cl+"："+(counted?"✅ 已盤點":"❌ 未盤點");
-      countWrap.appendChild(tag);
+      var wrap=document.createElement("span");
+      wrap.style.cssText="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:"+(counted?"var(--green)":"var(--red)")+";font-weight:600;";
+      wrap.title = counted ? (cl+"　"+lcd[cl]+" 已盤點") : (cl+"　本月尚未盤點");
+      var dot=document.createElement("span");
+      dot.style.cssText="width:7px;height:7px;border-radius:50%;background:"+(counted?"var(--green)":"var(--red)")+";flex-shrink:0;";
+      wrap.appendChild(dot);
+      wrap.appendChild(document.createTextNode(cl+" 盤點"+(counted?"✓":"未")));
+      countRow.appendChild(wrap);
     });
-    nmWrap.appendChild(nm);nmWrap.appendChild(sb);nmWrap.appendChild(countWrap);
-    var btns=document.createElement("div");btns.style.cssText="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;";
+    item.appendChild(countRow);
+
+    // ── 底部：操作按鈕 ──
+    var btns=document.createElement("div");btns.style.cssText="display:flex;gap:5px;flex-wrap:wrap;margin-top:9px;";
     var b1=document.createElement("button");b1.className="btn-sm btn-sm-green";b1.style.fontSize="11px";b1.textContent="進貨";
     b1.onclick=(function(pn){return function(){openModal("in",pn,true);};})(p.name);
     var b2=document.createElement("button");b2.className="btn-sm btn-sm-amber";b2.style.fontSize="11px";b2.textContent="調整";
@@ -3335,7 +3348,7 @@ function renderAdmPartList(){
     var ic=document.createElement("i");ic.className="ti ti-trash";b3.appendChild(ic);
     b3.onclick=(function(pn){return function(){askDel(pn);};})(p.name);
     btns.appendChild(b1);btns.appendChild(b2);btns.appendChild(b4);btns.appendChild(b3);
-    item.appendChild(info);item.appendChild(btns);
+    item.appendChild(btns);
     container.appendChild(item);
   });
 }
