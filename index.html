@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260813-02">
+<meta name="app-version" content="20260814-02">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -2842,7 +2842,7 @@ function runAutoRefreshFor(pg){
   if(!curUser || !GAS_URL) return;
   if(pg === "take"){
     // 領取頁：工具品項清單（新增/編輯/刪除）＋庫存數字＋低庫存警示都要新的資料
-    Promise.all([syncStocksFromSheets("台南"), syncStocksFromSheets("屏東"), syncBoxPartsFromServer()]).then(function(){
+    Promise.all([syncStocksFromSheets("台南", true), syncStocksFromSheets("屏東", true), syncBoxPartsFromServer()]).then(function(){
       renderBoxes();
       if(curBox) renderPartList(getEditLoc());
     });
@@ -2860,7 +2860,7 @@ function runAutoRefreshFor(pg){
   } else if(pg === "repair"){
     syncRepairsFromServer().then(renderRepairList);
   } else if(pg === "admin"){
-    syncBoxPartsFromServer().then(renderAdmin);
+    Promise.all([syncBoxPartsFromServer(), syncStocksFromSheets("台南", true), syncStocksFromSheets("屏東", true)]).then(renderAdmin);
   } else if(pg === "serial"){
     syncSerialRecordsFromServer().then(renderSerial);
   }
@@ -2915,9 +2915,24 @@ function navTo(pg,el){
 
   if(pg==="log"){ renderLogs(); syncLogsFromServer().then(function(){ syncTakePhotosFromServer().then(renderLogs); renderLogs(); }); }
   if(pg==="serial"){ renderSerial(); syncSerialRecordsFromServer().then(renderSerial); }
+  if(pg==="take"){
+    renderBoxes(); // 先用本地快取畫一次，不要讓畫面空白
+    Promise.all([
+      syncBoxPartsFromServer(),
+      syncStocksFromSheets("台南", true),
+      syncStocksFromSheets("屏東", true)
+    ]).then(function(){
+      renderBoxes();
+      if(curBox) renderPartList(getEditLoc());
+    });
+  }
   if(pg==="admin"){
     renderAdmin(); initReportPlateSelect();
-    syncBoxPartsFromServer().then(function(){ renderAdmin(); });
+    Promise.all([
+      syncBoxPartsFromServer(),
+      syncStocksFromSheets("台南", true),
+      syncStocksFromSheets("屏東", true)
+    ]).then(function(){ renderAdmin(); });
   }
   if(pg==="repair"){ renderRepairList(); syncRepairsFromServer().then(renderRepairList); }
   if(pg==="equip"){
