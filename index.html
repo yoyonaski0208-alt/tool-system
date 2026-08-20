@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260816-01">
+<meta name="app-version" content="20260817-01">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -633,7 +633,6 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       <div style="font-size:18px;font-weight:700;margin-bottom:4px;" id="greeting-name">早安！</div>
       <div style="font-size:13px;opacity:.85;" id="greeting-text">今天也是美好的一天！</div>
     </div>
-    <div class="notice"><i class="ti ti-brand-google-drive" style="font-size:14px;"></i>每筆操作自動寫入 Google Sheets</div>
     <button class="equip-cancel-btn" style="margin-bottom:12px;" onclick="openTakePhotoConfirm()">
       <i class="ti ti-camera"></i> 拍照確認今日領取
     </button>
@@ -1011,6 +1010,15 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     <button class="equip-cancel-btn" style="margin-top:10px;" onclick="openNotifConfigPanel()">
       <i class="ti ti-settings"></i> 設定通知收件人
     </button>
+
+    <!-- 調貨清單 -->
+    <div class="section-hd" style="margin-top:20px;">🔀 調貨清單</div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:12px;color:var(--sub);line-height:1.6;">
+      查看所有台南／屏東之間調貨中、以及已完成的紀錄，倉管收到貨後在這裡確認收貨。
+    </div>
+    <button class="equip-cancel-btn" style="margin-top:10px;border-color:#6B3FA0;color:#6B3FA0;" onclick="openTransferList()">
+      <i class="ti ti-arrows-left-right"></i> 查看調貨清單
+    </button>
   </div><!-- end pg-admin -->
 
   <!-- 通知設定 overlay -->
@@ -1022,6 +1030,66 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       </div>
       <div style="font-size:12px;color:var(--sub);margin-bottom:12px;">每種事件可以選多個人，不選任何人＝預設發給全部管理員</div>
       <div id="notif-config-list"></div>
+    </div>
+  </div>
+
+  <!-- 調貨表單 overlay -->
+  <div class="equip-overlay" id="transfer-form-overlay">
+    <div class="equip-sheet">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div class="equip-sheet-title" style="margin-bottom:0;">🔀 調貨</div>
+        <button onclick="closeTransferForm()" style="background:none;border:none;font-size:22px;color:var(--sub);cursor:pointer;">✕</button>
+      </div>
+      <div id="transfer-form-part-name" style="font-weight:700;font-size:15px;margin-bottom:2px;"></div>
+      <div id="transfer-form-box-name" style="font-size:12px;color:var(--sub);margin-bottom:14px;"></div>
+
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <div style="flex:1;">
+          <div class="field-lbl" style="margin-bottom:5px;">從</div>
+          <select class="equip-select" id="transfer-from-loc" onchange="onTransferFromLocChange()">
+            <option value="台南">台南</option>
+            <option value="屏東">屏東</option>
+          </select>
+        </div>
+        <i class="ti ti-arrow-right" style="font-size:18px;color:var(--sub);margin-top:16px;"></i>
+        <div style="flex:1;">
+          <div class="field-lbl" style="margin-bottom:5px;">到</div>
+          <select class="equip-select" id="transfer-to-loc">
+            <option value="屏東">屏東</option>
+            <option value="台南">台南</option>
+          </select>
+        </div>
+      </div>
+      <div id="transfer-from-stock-hint" style="font-size:12px;color:var(--sub);margin:-8px 0 12px;"></div>
+
+      <div class="field-lbl" style="margin-bottom:7px;">調貨數量</div>
+      <div style="display:flex;align-items:center;border:1px solid var(--border);border-radius:13px;overflow:hidden;margin-bottom:14px;width:100%;">
+        <button onclick="adjTransferQty(-1)" style="width:52px;height:52px;border:none;background:var(--bg);font-size:26px;font-weight:300;color:var(--text);cursor:pointer;flex-shrink:0;">−</button>
+        <input id="transfer-qty-show" type="text" value="1" inputmode="numeric" style="flex:1;text-align:center;font-size:22px;font-weight:700;border:none;outline:none;background:transparent;font-family:inherit;min-width:0;">
+        <button onclick="adjTransferQty(1)" style="width:52px;height:52px;border:none;background:var(--bg);font-size:26px;font-weight:300;color:var(--text);cursor:pointer;flex-shrink:0;">＋</button>
+      </div>
+
+      <div class="note-wrap">
+        <div class="field-lbl">備註（選填）</div>
+        <input class="note-input" id="transfer-note" placeholder="例：屏東缺貨支援">
+      </div>
+
+      <div style="background:var(--amber-light);color:var(--amber);border-radius:10px;padding:10px 12px;font-size:12px;margin:12px 0;line-height:1.5;">
+        ⚠️ 送出後會立刻從「來源倉庫」扣庫存，但「目的倉庫」要等對方倉管實際收到東西、按下「確認收貨」才會加進去
+      </div>
+
+      <button class="confirm-btn" style="background:#6B3FA0;" onclick="submitTransfer()">送出調貨申請</button>
+    </div>
+  </div>
+
+  <!-- 調貨清單 overlay -->
+  <div class="equip-overlay" id="transfer-list-overlay">
+    <div class="equip-sheet" style="max-height:85vh;overflow-y:auto;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div class="equip-sheet-title" style="margin-bottom:0;">🔀 調貨清單</div>
+        <button onclick="closeTransferList()" style="background:none;border:none;font-size:22px;color:var(--sub);cursor:pointer;">✕</button>
+      </div>
+      <div id="transfer-list-content"></div>
     </div>
   </div>
 
@@ -1105,7 +1173,10 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       <input class="note-input" id="f-note" placeholder="例：維修冷氣、廠商補貨…">
     </div>
   </div>
-  <div class="modal-footer">
+  <div class="modal-footer" style="display:flex;flex-direction:column;gap:8px;">
+    <button class="equip-cancel-btn" id="mod-count-btn" style="display:none;margin:0;border-color:var(--green);color:var(--green);" onclick="submitCountOnly()">
+      <i class="ti ti-clipboard-check"></i> 📋 盤點（數字沒變，只記錄今天有盤點過）
+    </button>
     <button class="confirm-btn" id="mod-confirm" onclick="confirmAction()">確認領取</button>
   </div>
 </div>
@@ -3103,6 +3174,14 @@ function showMain(pg){pshow("s-main");navTo(pg,document.getElementById("nav-"+pg
 // 安全量支援「每個地點不同」：p.minQty 可以是單一數字（兩地共用，舊資料相容）
 // 或 {台南:x, 屏東:y} 物件（分開設定）。loc==="全部" 時回傳兩地相加的總合。
 // 判斷某個時間字串是不是「這個月」（用來判斷盤點狀態）
+// 把完整日期字串轉成簡短的 M/D 格式（例如 "2026/08/13 14:30:00" → "8/13"）
+function formatShortDate(dateStr){
+  if(!dateStr) return "";
+  var m = String(dateStr).match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+  if(!m) return "";
+  return parseInt(m[2])+"/"+parseInt(m[3]);
+}
+
 function isCountedThisMonth(dateStr){
   if(!dateStr) return false;
   var d = new Date(String(dateStr).replace(/\//g,"-").slice(0,10));
@@ -3503,7 +3582,9 @@ function renderAdmPartList(){
       var dot=document.createElement("span");
       dot.style.cssText="width:7px;height:7px;border-radius:50%;background:"+(counted?"var(--green)":"var(--red)")+";flex-shrink:0;";
       wrap.appendChild(dot);
-      wrap.appendChild(document.createTextNode(cl+" 盤點"+(counted?"✓":"未")));
+      var label = cl+" 盤點"+(counted?"✓":"未");
+      if(counted){ label += " "+formatShortDate(lcd[cl]); }
+      wrap.appendChild(document.createTextNode(label));
       countRow.appendChild(wrap);
     });
     item.appendChild(countRow);
@@ -3514,15 +3595,185 @@ function renderAdmPartList(){
     b1.onclick=(function(pn){return function(){openModal("in",pn,true);};})(p.name);
     var b2=document.createElement("button");b2.className="btn-sm btn-sm-amber";b2.style.fontSize="11px";b2.textContent="調整";
     b2.onclick=(function(pn){return function(){openModal("adj",pn,true);};})(p.name);
+    var b5=document.createElement("button");b5.className="btn-sm";b5.style.cssText="font-size:11px;background:#F1E8FB;color:#6B3FA0;";b5.textContent="調貨";
+    b5.onclick=(function(part,box){return function(){openTransferForm(part,box);};})(p,curBox);
     var b4=document.createElement("button");b4.className="btn-sm";b4.style.cssText="font-size:11px;background:var(--blue-light);color:var(--blue);";b4.textContent="編輯";
     b4.onclick=(function(pn){return function(){openEditPart(pn);};})(p.name);
     var b3=document.createElement("button");b3.className="adm-del-btn";
     var ic=document.createElement("i");ic.className="ti ti-trash";b3.appendChild(ic);
     b3.onclick=(function(pn){return function(){askDel(pn);};})(p.name);
-    btns.appendChild(b1);btns.appendChild(b2);btns.appendChild(b4);btns.appendChild(b3);
+    btns.appendChild(b1);btns.appendChild(b2);btns.appendChild(b5);btns.appendChild(b4);btns.appendChild(b3);
     item.appendChild(btns);
     container.appendChild(item);
   });
+}
+
+// ─────────────────────────────────────────────
+// 調貨：台南／屏東倉庫間調動工具
+// ─────────────────────────────────────────────
+var transferPart = null, transferBox = null, transferQty = 1;
+
+function openTransferForm(part, box){
+  transferPart = part;
+  transferBox = box;
+  transferQty = 1;
+  document.getElementById("transfer-form-part-name").textContent = part.name + (part.sub?"（"+part.sub+"）":"");
+  document.getElementById("transfer-form-box-name").textContent = box.name;
+  // 預設「從」目前篩選的地點出發，「到」另一邊
+  var curLocForTransfer = (curLoc && curLoc!=="全部") ? curLoc : "台南";
+  document.getElementById("transfer-from-loc").value = curLocForTransfer;
+  document.getElementById("transfer-to-loc").value = curLocForTransfer==="台南" ? "屏東" : "台南";
+  document.getElementById("transfer-qty-show").value = 1;
+  document.getElementById("transfer-note").value = "";
+  updateTransferStockHint();
+  document.getElementById("transfer-form-overlay").classList.add("show");
+}
+
+function closeTransferForm(){
+  document.getElementById("transfer-form-overlay").classList.remove("show");
+}
+
+function onTransferFromLocChange(){
+  var fromLoc = document.getElementById("transfer-from-loc").value;
+  document.getElementById("transfer-to-loc").value = fromLoc==="台南" ? "屏東" : "台南";
+  updateTransferStockHint();
+}
+
+function updateTransferStockHint(){
+  var fromLoc = document.getElementById("transfer-from-loc").value;
+  var q = stocks[fromLoc] ? (stocks[fromLoc][gk(transferBox.id, transferPart.name)]||0) : 0;
+  document.getElementById("transfer-from-stock-hint").textContent = fromLoc+"目前庫存："+q;
+}
+
+function adjTransferQty(d){
+  transferQty = Math.max(1, transferQty + d);
+  document.getElementById("transfer-qty-show").value = transferQty;
+}
+
+async function submitTransfer(){
+  var fromLoc = document.getElementById("transfer-from-loc").value;
+  var toLoc = document.getElementById("transfer-to-loc").value;
+  var qty = parseInt(document.getElementById("transfer-qty-show").value) || 1;
+  var note = document.getElementById("transfer-note").value.trim();
+
+  if(fromLoc === toLoc){ alert("從跟到不能選一樣的地點"); return; }
+  var curQ = stocks[fromLoc] ? (stocks[fromLoc][gk(transferBox.id, transferPart.name)]||0) : 0;
+  if(qty > curQ){ if(!confirm(fromLoc+"目前庫存只有 "+curQ+"，數量比庫存多，確定要送出嗎？")) return; }
+
+  // 前端先樂觀更新來源地的本機快取，畫面立刻反映
+  var key = gk(transferBox.id, transferPart.name);
+  stocks[fromLoc][key] = Math.max(0, (stocks[fromLoc][key]||0) - qty);
+
+  await fetch(GAS_URL, {
+    method: "POST", mode: "cors", headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify({
+      type: "發起調貨", boxId: transferBox.id, box: transferBox.name, part: transferPart.name,
+      qty: qty, fromLoc: fromLoc, toLoc: toLoc, note: note,
+      name: curUser?curUser.name:"", email: curUser?curUser.email:"",
+      time: nowStr(), loc: fromLoc, serial: ""
+    })
+  });
+
+  closeTransferForm();
+  renderAdmPartList();
+  showToast("✅ 調貨申請已送出，"+toLoc+"倉管收到貨後記得確認收貨");
+}
+
+// ── 調貨清單：查看所有調貨中/已完成的紀錄，並可以確認收貨 ──
+var transferListData = [];
+
+async function openTransferList(){
+  document.getElementById("transfer-list-overlay").classList.add("show");
+  document.getElementById("transfer-list-content").innerHTML = '<div style="text-align:center;padding:20px 0;color:var(--sub);font-size:13px;">載入中…</div>';
+  await syncTransferListFromServer();
+  renderTransferList();
+}
+
+function closeTransferList(){
+  document.getElementById("transfer-list-overlay").classList.remove("show");
+}
+
+async function syncTransferListFromServer(){
+  if(!GAS_URL) return;
+  try{
+    var res = await fetch(GAS_URL + "?action=readTransfers", { mode:"cors", cache:"no-cache" });
+    var d = await res.json();
+    if(d.ok && Array.isArray(d.data)) transferListData = d.data;
+  }catch(e){ console.warn("syncTransferListFromServer 失敗", e); }
+}
+
+function renderTransferList(){
+  var container = document.getElementById("transfer-list-content");
+  container.innerHTML = "";
+  if(!transferListData.length){
+    container.innerHTML = '<div style="text-align:center;padding:30px 0;color:var(--sub);font-size:13px;">目前沒有調貨紀錄</div>';
+    return;
+  }
+  var pending = transferListData.filter(function(t){ return t.status==="調貨中"; });
+  var done = transferListData.filter(function(t){ return t.status!=="調貨中"; });
+
+  if(pending.length){
+    var hd1 = document.createElement("div");
+    hd1.style.cssText = "font-weight:700;font-size:13px;margin:6px 0;color:var(--amber);";
+    hd1.textContent = "🚚 調貨中（"+pending.length+"）";
+    container.appendChild(hd1);
+    pending.forEach(function(t){ container.appendChild(buildTransferCard(t, true)); });
+  }
+  if(done.length){
+    var hd2 = document.createElement("div");
+    hd2.style.cssText = "font-weight:700;font-size:13px;margin:16px 0 6px;color:var(--sub);";
+    hd2.textContent = "✅ 已完成（"+done.length+"）";
+    container.appendChild(hd2);
+    done.forEach(function(t){ container.appendChild(buildTransferCard(t, false)); });
+  }
+}
+
+function buildTransferCard(t, canConfirm){
+  var card = document.createElement("div");
+  card.style.cssText = "background:var(--card);border:1px solid var(--border);border-radius:11px;padding:12px;margin-bottom:8px;";
+  card.innerHTML =
+    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'
+    + '<span style="font-weight:700;font-size:13.5px;flex:1;">'+t.box+'／'+t.part+'</span>'
+    + '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;'+(canConfirm?"background:var(--amber-light);color:var(--amber);":"background:var(--green-light);color:var(--green);")+'">'+t.status+'</span>'
+    + '</div>'
+    + '<div style="font-size:12.5px;color:var(--sub);">'+t.fromLoc+' → '+t.toLoc+'　數量：'+t.qty+'</div>'
+    + '<div style="font-size:11.5px;color:var(--sub);margin-top:3px;">發起人：'+t.initiator+'　'+t.time+'</div>'
+    + (t.note?'<div style="font-size:11.5px;color:var(--sub);margin-top:2px;">📝 備註：'+t.note+'</div>':'')
+    + (t.receiver?'<div style="font-size:11.5px;color:var(--green);margin-top:3px;">收貨人：'+t.receiver+'　'+t.receiveTime+'</div>':'');
+  if(canConfirm){
+    var btn = document.createElement("button");
+    btn.className = "equip-cancel-btn";
+    btn.style.cssText = "margin-top:8px;border-color:var(--green);color:var(--green);width:100%;";
+    btn.innerHTML = '<i class="ti ti-package-import"></i> 確認收貨（'+t.toLoc+'）';
+    btn.onclick = (function(transferId, toLoc, boxId, box, part, qty){
+      return function(){
+        if(!confirm("確定「"+box+"／"+part+"」共 "+qty+" 個，已經實際送達 "+toLoc+" 了嗎？確認後會加進 "+toLoc+" 的庫存。")) return;
+        confirmTransferReceiptNow(transferId, toLoc, boxId, box, part, qty);
+      };
+    })(t.transferId, t.toLoc, t.boxId, t.box, t.part, t.qty);
+    card.appendChild(btn);
+  }
+  return card;
+}
+
+async function confirmTransferReceiptNow(transferId, toLoc, boxId, box, part, qty){
+  // 前端樂觀更新目的地的本機快取
+  var key = gk(boxId, part);
+  if(!stocks[toLoc]) stocks[toLoc] = {};
+  stocks[toLoc][key] = (stocks[toLoc][key]||0) + qty;
+
+  await fetch(GAS_URL, {
+    method: "POST", mode: "cors", headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify({
+      type: "確認收貨", transferId: transferId,
+      name: curUser?curUser.name:"", email: curUser?curUser.email:"",
+      box:"", part:"", qty:0, note:"", time: nowStr(), loc:"", serial:""
+    })
+  });
+
+  showToast("✅ 已確認收貨，"+toLoc+"庫存已更新");
+  await syncTransferListFromServer();
+  renderTransferList();
 }
 
 function openEditPart(partName){
@@ -3778,6 +4029,8 @@ async function openModal(action,partName,fromAdmin){
   document.getElementById("qty-show").value=mQty;
   document.getElementById("serial-input").value="";
   document.getElementById("f-note").value="";
+  // 「盤點」按鈕只在調整動作時顯示
+  document.getElementById("mod-count-btn").style.display = (action==="adj") ? "flex" : "none";
   // 領取原因：只在領取時顯示，預設為「首次領取」
   var reasonWrap = document.getElementById("take-reason-wrap");
   if(action === "take"){
@@ -3855,6 +4108,32 @@ function adjQ(d){
   el.value=mQty;
 }
 function getQty(){var v=parseInt(document.getElementById("qty-show").value.replace(/[^0-9]/g,""));if(isNaN(v)||v<0)v=0;mQty=v;return mQty;}
+
+// 「盤點」：只記錄今天有盤過這個品項，不動庫存數字，適合「數過了、數字沒錯」的情況
+async function submitCountOnly(){
+  var loc = getModalLoc();
+  var t = nowStr();
+  var curPartObj = curBox.parts.find(function(x){ return x.name===curPart; });
+  if(!curPartObj){ alert("找不到這個品項，請重新整理再試一次"); return; }
+
+  if(!curPartObj.lastCountDate) curPartObj.lastCountDate = {};
+  curPartObj.lastCountDate[loc] = t;
+  pushBoxPartPatch(curBox.id, curPartObj, null);
+
+  // 盤點紀錄也要寫進 Google Sheets，方便事後查誰在什麼時候盤過這個品項
+  var curQtyForLog = stocks[loc] ? (stocks[loc][gk(curBox.id,curPart)]||0) : 0;
+  sendToSheets({type:"盤點確認", box:curBox.name, boxId:curBox.id, part:curPart,
+    qty:curQtyForLog, finalQty:curQtyForLog, name:curUser.name, email:curUser.email,
+    note:"盤點確認，數字未變動", time:t, loc:loc, serial:""});
+
+  document.getElementById("ok-icon").textContent="📋";
+  document.getElementById("ok-title").textContent="盤點完成！";
+  document.getElementById("ok-detail").textContent=curPart+"（"+loc+"）已記錄今天盤點過";
+  pshow("s-ok");
+
+  // 立刻更新畫面上的盤點狀態徽章（不管現在是不是在看這頁，反正重繪很輕量，下次切回來就是最新的）
+  renderAdmPartList();
+}
 
 async function confirmAction(){
   var loc=getModalLoc();
@@ -6465,7 +6744,7 @@ function renderMaintLatest(plate, isAdmin){
       + (r.km?'<span>里程：<b>'+Number(r.km).toLocaleString()+' km</b></span>':'')+'</div>'
       + (r.fee?'<div class="ins-row"><span>費用：<b>'+Number(r.fee).toLocaleString()+' 元</b></span></div>':'')
       + (r.items&&r.items.length?'<div class="ins-row"><span>項目：'+r.items.join("、")+'</span></div>':'')
-      + (r.note?'<div class="ins-row"><span>'+r.note+'</span></div>':'')
+      + (r.note?'<div class="ins-row"><span>📝 備註：'+r.note+'</span></div>':'')
       + '</div>';
     latest.innerHTML = cardHTML;
   }
@@ -6484,7 +6763,7 @@ function renderMaintLatest(plate, isAdmin){
           + (r.km?'里程：'+Number(r.km).toLocaleString()+' km　':'')
           + (r.fee?'費用：'+Number(r.fee).toLocaleString()+' 元':'')+'</div>'
           + (r.items&&r.items.length?'<div class="overhaul-meta" style="margin-top:3px;">'+r.items.join("、")+'</div>':'')
-          + (r.note?'<div class="overhaul-meta" style="margin-top:3px;">'+r.note+'</div>':'')
+          + (r.note?'<div class="overhaul-meta" style="margin-top:3px;">📝 備註：'+r.note+'</div>':'')
           + '<div class="overhaul-meta" style="margin-top:3px;color:var(--sub);">登記人：'+r.recorder+'</div>'
           + '</div>';
         var item = makeSwipeDeleteItem(innerHTML, (function(recId){
@@ -6828,7 +7107,7 @@ function renderInspectRecords(plate){
         '<div class="inspect-record-date">' + r.date + '</div>' +
         '<div class="inspect-record-km">里程：' + (r.km ? Number(r.km).toLocaleString()+" km" : "未記錄") + '</div>' +
         (r.nextDate ? '<div style="font-size:11px;color:var(--blue);margin-top:3px;">下次：'+r.nextDate+'</div>' : '') +
-        (r.note ? '<div style="font-size:11px;color:var(--sub);margin-top:2px;">'+r.note+'</div>' : '') +
+        (r.note ? '<div style="font-size:11px;color:var(--sub);margin-top:2px;">📝 備註：'+r.note+'</div>' : '') +
       '</div>' +
       (i===0 ? '<span class="inspect-record-badge">最新</span>' : '') +
       '</div>';
@@ -7752,7 +8031,7 @@ function renderFuelReport(){
       row.className = "fuel-detail-row";
       row.innerHTML = '<div><div style="font-size:13px;font-weight:600;">'+(r.plate||"")+(r.name?' <span style="color:var(--sub);font-size:11px;">'+r.name+'</span>':'')+'</div>'
         + '<div style="font-size:11px;color:var(--sub);">'+(r.time||"").slice(0,10)+(r.mileage?' ‧ '+r.mileage.toLocaleString()+' km':'')+'</div>'
-        + (r.note?'<div style="font-size:11px;color:var(--sub);">'+r.note+'</div>':'')+'</div>'
+        + (r.note?'<div style="font-size:11px;color:var(--sub);">📝 備註：'+r.note+'</div>':'')+'</div>'
         + '<div style="font-size:15px;font-weight:700;color:var(--amber);">$'+(r.amount||0).toLocaleString()+'</div>';
       list.appendChild(row);
     });
@@ -8392,7 +8671,7 @@ function renderMaintAndOverhaul(maintData, overhaulData){
       + '<div style="font-size:11px;color:var(--sub);margin-top:2px;">'+dateStr+'　'+(r.garage||"")+(r.name?" ‧ "+r.name:"")+'</div>'
       + (r.km ? '<div style="font-size:11px;color:var(--sub);">里程：'+Number(r.km).toLocaleString()+' km</div>' : "")
       + (r.items ? '<div style="font-size:11px;color:var(--sub);">'+r.items+'</div>' : "")
-      + (r.note ? '<div style="font-size:11px;color:var(--sub);">'+r.note+'</div>' : "")
+      + (r.note ? '<div style="font-size:11px;color:var(--sub);">📝 備註：'+r.note+'</div>' : "")
       + '</div>'
       + '<div style="font-size:14px;font-weight:700;color:'+(r.isOverhaul?"var(--amber)":"var(--blue)")+';">$'+Number(r.fee||0).toLocaleString()+'</div>';
     el.appendChild(row);
