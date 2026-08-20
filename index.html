@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260817-10">
+<meta name="app-version" content="20260817-13">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -901,6 +901,7 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       <div class="admin-stat"><div class="admin-stat-num" id="adm-n-low" style="color:var(--red);">0</div><div class="admin-stat-lbl">需補貨</div></div>
       <div class="admin-stat"><div class="admin-stat-num" id="adm-n-boxes" style="color:var(--green);">0</div><div class="admin-stat-lbl">箱子數量</div></div>
       <div class="admin-stat"><div class="admin-stat-num" id="adm-n-logs" style="color:var(--red);">0</div><div class="admin-stat-lbl">待處理報修</div></div>
+      <div class="admin-stat" style="cursor:pointer;" onclick="openTransferList()"><div class="admin-stat-num" id="adm-n-transfer" style="color:#6B3FA0;">0</div><div class="admin-stat-lbl">🔀 調貨中</div></div>
     </div>
     <div id="adm-restock-hdr" class="restock-header" onclick="toggleRestock()" style="margin-top:12px;">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -930,11 +931,6 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       </div>
       <div style="font-size:11px;color:var(--sub);margin-top:8px;">只要在畫面裡按過一次「調整」就算這個月盤點過，跟進貨/領取無關</div>
     </div>
-
-    <!-- 一鍵轉換安全量格式（單一數字 → 台南/屏東分開存） -->
-    <button class="equip-cancel-btn" style="margin-bottom:10px;" onclick="migrateAllMinQtyFormat()">
-      <i class="ti ti-arrows-exchange"></i> 統一安全量格式（台南/屏東分開顯示）
-    </button>
 
     <div class="section-hd" style="margin-top:16px;">所有工具箱</div>
     <!-- 搜尋工具：後台版本，跟領取頁共用同一套邏輯 -->
@@ -1137,7 +1133,7 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     </div>
   </div>
   <div class="modal-footer" style="display:flex;flex-direction:column;gap:8px;">
-    <button class="confirm-btn" id="mod-count-btn" style="display:none;background:var(--green);" onclick="submitCountOnly()">盤點</button>
+    <button class="confirm-btn" id="mod-count-btn" style="display:none;background:var(--green);color:#fff;text-align:center;align-items:center;justify-content:center;" onclick="submitCountOnly()">盤點</button>
     <button class="confirm-btn" id="mod-confirm" onclick="confirmAction()">確認領取</button>
   </div>
 </div>
@@ -4070,7 +4066,11 @@ async function openModal(action,partName,fromAdmin){
   document.getElementById("serial-input").value="";
   document.getElementById("f-note").value="";
   // 「盤點」按鈕只在調整動作時顯示
-  document.getElementById("mod-count-btn").style.display = (action==="adj") ? "flex" : "none";
+  var countBtn = document.getElementById("mod-count-btn");
+  countBtn.style.display = (action==="adj") ? "flex" : "none";
+  countBtn.style.alignItems = "center";
+  countBtn.style.justifyContent = "center";
+  countBtn.style.color = "#fff";
   // 領取原因：只在領取時顯示，預設為「首次領取」
   var reasonWrap = document.getElementById("take-reason-wrap");
   if(action === "take"){
@@ -4449,6 +4449,14 @@ function renderAdmin(){
   document.getElementById("adm-n-low").textContent=lowAll;
   document.getElementById("adm-n-boxes").textContent=BOXES.length;
   document.getElementById("adm-n-logs").textContent=repairRecords.filter(function(r){return r.status!=="已完成";}).length;
+  var transferNumEl = document.getElementById("adm-n-transfer");
+  if(transferNumEl){
+    transferNumEl.textContent = transferListData.filter(function(t){ return t.status==="調貨中"; }).length;
+  }
+  // 背景同步一次調貨清單，確保這張統計卡片的數字是最新的
+  syncTransferListFromServer().then(function(){
+    if(transferNumEl) transferNumEl.textContent = transferListData.filter(function(t){ return t.status==="調貨中"; }).length;
+  });
 
   // 更新補貨 badges（台南/屏東可以點擊篩選下面的清單）
   var badgesEl=document.getElementById("restock-badges");
@@ -5624,35 +5632,6 @@ function boxPartKey(boxId, partName){ return boxId + "|" + partName; }
 // 一次性動作，但轉換結果會用同一個 patch 請求整批送出，
 // 確保立即同步到雲端，不是只改本機顯示
 // ─────────────────────────────────────────────
-async function migrateAllMinQtyFormat(){
-  var setObj = {};
-  var count = 0;
-  BOXES.forEach(function(b){
-    b.parts.forEach(function(p){
-      if(p.minQty !== undefined && typeof p.minQty !== "object"){
-        var val = Number(p.minQty) || 0;
-        p.minQty = {"台南": val, "屏東": val}; // 先更新本機，畫面立刻反映
-        setObj[boxPartKey(b.id, p.name)] = p;   // 收集起來，最後一次性送出
-        count++;
-      }
-    });
-  });
-
-  if(count === 0){
-    showToast("目前所有工具都已經是新格式了，不用轉換");
-    return;
-  }
-
-  if(!confirm("將把 "+count+" 個工具的安全量從「單一數字」轉成「台南／屏東分開存」的格式\n（兩地會先設成原本的數字，之後可以再各自調整）\n\n確定要轉換嗎？")) return;
-
-  showToast("轉換中，請稍候…");
-  pushSyncPatch("boxParts", setObj, null); // 整批一次送出，立即同步到雲端
-
-  renderAdmPartList();
-  renderAdmin();
-  showToast("✅ 已轉換 "+count+" 個工具的安全量格式，並同步到雲端");
-}
-
 function pushBoxPartPatch(boxId, partObj, oldName){
   var setObj = {}; 
   setObj[boxPartKey(boxId, partObj.name)] = partObj;
