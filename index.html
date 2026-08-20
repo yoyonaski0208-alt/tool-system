@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260817-06">
+<meta name="app-version" content="20260817-07">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -1041,53 +1041,9 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
   </div>
 
   <!-- 調貨表單 overlay -->
-  <div class="equip-overlay" id="transfer-form-overlay">
-    <div class="equip-sheet">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <div class="equip-sheet-title" style="margin-bottom:0;">🔀 調貨</div>
-        <button onclick="closeTransferForm()" style="background:none;border:none;font-size:22px;color:var(--sub);cursor:pointer;">✕</button>
-      </div>
-      <div id="transfer-form-part-name" style="font-weight:700;font-size:15px;margin-bottom:2px;"></div>
-      <div id="transfer-form-box-name" style="font-size:12px;color:var(--sub);margin-bottom:14px;"></div>
-
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-        <div style="flex:1;">
-          <div class="field-lbl" style="margin-bottom:5px;">從</div>
-          <select class="equip-select" id="transfer-from-loc" onchange="onTransferFromLocChange()">
-            <option value="台南">台南</option>
-            <option value="屏東">屏東</option>
-          </select>
-        </div>
-        <i class="ti ti-arrow-right" style="font-size:18px;color:var(--sub);margin-top:16px;"></i>
-        <div style="flex:1;">
-          <div class="field-lbl" style="margin-bottom:5px;">到</div>
-          <select class="equip-select" id="transfer-to-loc">
-            <option value="屏東">屏東</option>
-            <option value="台南">台南</option>
-          </select>
-        </div>
-      </div>
-      <div id="transfer-from-stock-hint" style="font-size:12px;color:var(--sub);margin:-8px 0 12px;"></div>
-
-      <div class="field-lbl" style="margin-bottom:7px;">調貨數量</div>
-      <div style="display:flex;align-items:center;border:1px solid var(--border);border-radius:13px;overflow:hidden;margin-bottom:14px;width:100%;">
-        <button onclick="adjTransferQty(-1)" style="width:52px;height:52px;border:none;background:var(--bg);font-size:26px;font-weight:300;color:var(--text);cursor:pointer;flex-shrink:0;">−</button>
-        <input id="transfer-qty-show" type="text" value="1" inputmode="numeric" style="flex:1;text-align:center;font-size:22px;font-weight:700;border:none;outline:none;background:transparent;font-family:inherit;min-width:0;">
-        <button onclick="adjTransferQty(1)" style="width:52px;height:52px;border:none;background:var(--bg);font-size:26px;font-weight:300;color:var(--text);cursor:pointer;flex-shrink:0;">＋</button>
-      </div>
-
-      <div class="note-wrap">
-        <div class="field-lbl">備註（選填）</div>
-        <input class="note-input" id="transfer-note" placeholder="例：屏東缺貨支援">
-      </div>
-
-      <div style="background:var(--amber-light);color:var(--amber);border-radius:10px;padding:10px 12px;font-size:12px;margin:12px 0;line-height:1.5;">
-        ⚠️ 送出後會立刻從「來源倉庫」扣庫存，但「目的倉庫」要等對方倉管實際收到東西、按下「確認收貨」才會加進去
-      </div>
-
-      <button class="confirm-btn" style="background:#6B3FA0;" onclick="submitTransfer()">送出調貨申請</button>
-    </div>
-  </div>
+  <!-- 調貨表單改成動態產生（在JS裡的openTransferForm函式），
+       不是像其他overlay一樣切換固定存在元素的顯示狀態，
+       這是為了徹底繞開「畫面算出來該顯示、但沒真的畫出來」這個問題 -->
 
   <!-- 調貨清單 overlay -->
   <div class="equip-overlay" id="transfer-list-overlay">
@@ -3622,40 +3578,66 @@ function openTransferForm(part, box){
   transferPart = part;
   transferBox = box;
   transferQty = 1;
-  document.getElementById("transfer-form-part-name").textContent = part.name + (part.sub?"（"+part.sub+"）":"");
-  document.getElementById("transfer-form-box-name").textContent = box.name;
-  // 預設「從」目前篩選的地點出發，「到」另一邊
-  var curLocForTransfer = (curLoc && curLoc!=="全部") ? curLoc : "台南";
-  document.getElementById("transfer-from-loc").value = curLocForTransfer;
-  document.getElementById("transfer-to-loc").value = curLocForTransfer==="台南" ? "屏東" : "台南";
-  document.getElementById("transfer-qty-show").value = 1;
-  document.getElementById("transfer-note").value = "";
-  updateTransferStockHint();
-  forceShowOverlay("transfer-form-overlay");
-}
 
-// 強力版的顯示 overlay：專門解決「CSS 算出來是 display:flex，但畫面沒真的畫出來」
-// 這種 iOS Safari／PWA 獨立模式下的頑固重繪 bug。
-// 做法：先讓瀏覽器建立一個新的合成圖層（transform 觸發），
-// 再用極輕微的 scroll 去強制瀏覽器重新合成畫面，這是這類問題公認最有效的組合技。
-function forceShowOverlay(id){
-  var overlay = document.getElementById(id);
-  overlay.classList.add("show");
-  overlay.style.transform = "translateZ(0)";
-  void overlay.offsetHeight; // 強制立刻重新計算版面
-  requestAnimationFrame(function(){
-    overlay.style.transform = "translateZ(0.001px)";
-    // 輕微捲動一下畫面，強制瀏覽器重新合成畫面（這是已知對這類 bug 最有效的手法之一）
-    window.scrollTo(window.scrollX, window.scrollY + 1);
-    requestAnimationFrame(function(){
-      window.scrollTo(window.scrollX, window.scrollY - 1);
-      overlay.style.transform = "";
-    });
-  });
+  // 先確保沒有殘留的舊節點（防止重複點擊疊出兩個視窗）
+  var old = document.getElementById("transfer-form-overlay");
+  if(old) old.remove();
+
+  var fromLocDefault = (curLoc && curLoc!=="全部") ? curLoc : "台南";
+  var toLocDefault = fromLocDefault==="台南" ? "屏東" : "台南";
+  var curQ = stocks[fromLocDefault] ? (stocks[fromLocDefault][gk(box.id, part.name)]||0) : 0;
+
+  var overlay = document.createElement("div");
+  overlay.className = "equip-overlay show"; // 建立時就直接帶 show，不用另外切換
+  overlay.id = "transfer-form-overlay";
+  overlay.innerHTML =
+    '<div class="equip-sheet">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">'
+    + '<div class="equip-sheet-title" style="margin-bottom:0;">🔀 調貨</div>'
+    + '<button id="transfer-close-btn" style="background:none;border:none;font-size:22px;color:var(--sub);cursor:pointer;">✕</button>'
+    + '</div>'
+    + '<div style="font-weight:700;font-size:15px;margin-bottom:2px;">'+part.name+(part.sub?"（"+part.sub+"）":"")+'</div>'
+    + '<div style="font-size:12px;color:var(--sub);margin-bottom:14px;">'+box.name+'</div>'
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">'
+    + '<div style="flex:1;"><div class="field-lbl" style="margin-bottom:5px;">從</div>'
+    + '<select class="equip-select" id="transfer-from-loc">'
+    + '<option value="台南"'+(fromLocDefault==="台南"?" selected":"")+'>台南</option>'
+    + '<option value="屏東"'+(fromLocDefault==="屏東"?" selected":"")+'>屏東</option>'
+    + '</select></div>'
+    + '<i class="ti ti-arrow-right" style="font-size:18px;color:var(--sub);margin-top:16px;"></i>'
+    + '<div style="flex:1;"><div class="field-lbl" style="margin-bottom:5px;">到</div>'
+    + '<select class="equip-select" id="transfer-to-loc">'
+    + '<option value="屏東"'+(toLocDefault==="屏東"?" selected":"")+'>屏東</option>'
+    + '<option value="台南"'+(toLocDefault==="台南"?" selected":"")+'>台南</option>'
+    + '</select></div>'
+    + '</div>'
+    + '<div id="transfer-from-stock-hint" style="font-size:12px;color:var(--sub);margin:-8px 0 12px;">'+fromLocDefault+'目前庫存：'+curQ+'</div>'
+    + '<div class="field-lbl" style="margin-bottom:7px;">調貨數量</div>'
+    + '<div style="display:flex;align-items:center;border:1px solid var(--border);border-radius:13px;overflow:hidden;margin-bottom:14px;width:100%;">'
+    + '<button id="transfer-qty-minus" style="width:52px;height:52px;border:none;background:var(--bg);font-size:26px;font-weight:300;color:var(--text);cursor:pointer;flex-shrink:0;">−</button>'
+    + '<input id="transfer-qty-show" type="text" value="1" inputmode="numeric" style="flex:1;text-align:center;font-size:22px;font-weight:700;border:none;outline:none;background:transparent;font-family:inherit;min-width:0;">'
+    + '<button id="transfer-qty-plus" style="width:52px;height:52px;border:none;background:var(--bg);font-size:26px;font-weight:300;color:var(--text);cursor:pointer;flex-shrink:0;">＋</button>'
+    + '</div>'
+    + '<div class="note-wrap"><div class="field-lbl">備註（選填）</div>'
+    + '<input class="note-input" id="transfer-note" placeholder="例：屏東缺貨支援"></div>'
+    + '<div style="background:var(--amber-light);color:var(--amber);border-radius:10px;padding:10px 12px;font-size:12px;margin:12px 0;line-height:1.5;">'
+    + '⚠️ 送出後會立刻從「來源倉庫」扣庫存，但「目的倉庫」要等對方倉管實際收到東西、按下「確認收貨」才會加進去</div>'
+    + '<button class="confirm-btn" id="transfer-submit-btn" style="background:#6B3FA0;">送出調貨申請</button>'
+    + '</div>';
+
+  document.body.appendChild(overlay);
+
+  // 綁定事件（用 addEventListener 直接綁在真實存在的節點上，不透過 onclick 字串）
+  document.getElementById("transfer-close-btn").addEventListener("click", closeTransferForm);
+  document.getElementById("transfer-from-loc").addEventListener("change", onTransferFromLocChange);
+  document.getElementById("transfer-qty-minus").addEventListener("click", function(){ adjTransferQty(-1); });
+  document.getElementById("transfer-qty-plus").addEventListener("click", function(){ adjTransferQty(1); });
+  document.getElementById("transfer-submit-btn").addEventListener("click", submitTransfer);
 }
 
 function closeTransferForm(){
-  document.getElementById("transfer-form-overlay").classList.remove("show");
+  var overlay = document.getElementById("transfer-form-overlay");
+  if(overlay) overlay.remove(); // 直接整個砍掉，不是切換顯示狀態
 }
 
 function onTransferFromLocChange(){
