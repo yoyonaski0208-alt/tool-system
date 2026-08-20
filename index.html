@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260817-01">
+<meta name="app-version" content="20260817-03">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -605,10 +605,17 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
   <!-- 通知列表 overlay -->
   <div class="equip-overlay" id="notif-panel-overlay">
     <div class="equip-sheet" style="max-height:85vh;overflow-y:auto;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
         <div class="equip-sheet-title" style="margin-bottom:0;">🔔 通知</div>
         <button onclick="closeNotifPanel()" style="background:none;border:none;font-size:22px;color:var(--sub);cursor:pointer;">✕</button>
       </div>
+      <div style="display:flex;gap:6px;margin-bottom:10px;">
+        <button id="notif-tab-all" class="notif-tab-btn" onclick="switchNotifTab('all')" style="flex:1;padding:8px;border-radius:9px;border:1.5px solid var(--blue);background:var(--blue);color:#fff;font-size:12.5px;font-weight:700;cursor:pointer;">全部</button>
+        <button id="notif-tab-mine" class="notif-tab-btn" onclick="switchNotifTab('mine')" style="flex:1;padding:8px;border-radius:9px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:12.5px;font-weight:700;cursor:pointer;">指派給我的<span id="notif-mine-count" style="margin-left:3px;"></span></button>
+      </div>
+      <button onclick="markAllNotifRead()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:12px;color:var(--sub);cursor:pointer;margin-bottom:10px;">
+        <i class="ti ti-checks"></i> 全部標記已讀
+      </button>
       <div id="notif-list"></div>
     </div>
   </div>
@@ -1174,8 +1181,8 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     </div>
   </div>
   <div class="modal-footer" style="display:flex;flex-direction:column;gap:8px;">
-    <button class="equip-cancel-btn" id="mod-count-btn" style="display:none;margin:0;border-color:var(--green);color:var(--green);" onclick="submitCountOnly()">
-      <i class="ti ti-clipboard-check"></i> 📋 盤點（數字沒變，只記錄今天有盤點過）
+    <button class="confirm-btn" id="mod-count-btn" style="display:none;background:var(--green);" onclick="submitCountOnly()">
+      <i class="ti ti-clipboard-check"></i> 📋 盤點
     </button>
     <button class="confirm-btn" id="mod-confirm" onclick="confirmAction()">確認領取</button>
   </div>
@@ -4110,29 +4117,12 @@ function adjQ(d){
 function getQty(){var v=parseInt(document.getElementById("qty-show").value.replace(/[^0-9]/g,""));if(isNaN(v)||v<0)v=0;mQty=v;return mQty;}
 
 // 「盤點」：只記錄今天有盤過這個品項，不動庫存數字，適合「數過了、數字沒錯」的情況
-async function submitCountOnly(){
-  var loc = getModalLoc();
-  var t = nowStr();
-  var curPartObj = curBox.parts.find(function(x){ return x.name===curPart; });
-  if(!curPartObj){ alert("找不到這個品項，請重新整理再試一次"); return; }
-
-  if(!curPartObj.lastCountDate) curPartObj.lastCountDate = {};
-  curPartObj.lastCountDate[loc] = t;
-  pushBoxPartPatch(curBox.id, curPartObj, null);
-
-  // 盤點紀錄也要寫進 Google Sheets，方便事後查誰在什麼時候盤過這個品項
-  var curQtyForLog = stocks[loc] ? (stocks[loc][gk(curBox.id,curPart)]||0) : 0;
-  sendToSheets({type:"盤點確認", box:curBox.name, boxId:curBox.id, part:curPart,
-    qty:curQtyForLog, finalQty:curQtyForLog, name:curUser.name, email:curUser.email,
-    note:"盤點確認，數字未變動", time:t, loc:loc, serial:""});
-
-  document.getElementById("ok-icon").textContent="📋";
-  document.getElementById("ok-title").textContent="盤點完成！";
-  document.getElementById("ok-detail").textContent=curPart+"（"+loc+"）已記錄今天盤點過";
-  pshow("s-ok");
-
-  // 立刻更新畫面上的盤點狀態徽章（不管現在是不是在看這頁，反正重繪很輕量，下次切回來就是最新的）
-  renderAdmPartList();
+// 「盤點」：跟「確認調整」共用同一套完整邏輯（庫存更新、通知、寫入紀錄），
+// 差別只在於：log 類型記錄成「盤點」而不是「調整」，方便事後區分「這是特地去盤點的」還是「單純手動調整」
+var curIsCountAction = false;
+function submitCountOnly(){
+  curIsCountAction = true;
+  confirmAction();
 }
 
 async function confirmAction(){
@@ -4143,6 +4133,8 @@ async function confirmAction(){
   var t=nowStr();
   mQty=getQty();
   var icon,title,detail,type,logQty=mQty;
+  var isCountFlow = curIsCountAction; // 記下來，這個函式結尾會重設全域旗標
+  curIsCountAction = false;
 
   if(curAction==="take"){
     if(mQty<1){alert("請輸入領取數量！");return;}
@@ -4163,8 +4155,14 @@ async function confirmAction(){
     type="進貨";icon="📦";title="進貨登記完成！";detail=curPart+" +"+mQty+"（"+loc+"），現有 "+stocks[loc][key]+" 個";
   } else {
     var old=stocks[loc][key]||0;logQty=mQty-old;stocks[loc][key]=mQty;
-    type="調整";icon="🔧";title="庫存調整完成！";detail=curPart+"（"+loc+"）調整為 "+mQty+" 個";
-    // 「調整」代表這個品項這次真的有被實際盤點過，記錄盤點日期（分地點記錄）
+    if(isCountFlow){
+      type="盤點";icon="📋";
+      title = (logQty===0) ? "盤點完成！" : "盤點完成！數字有更新";
+      detail = curPart+"（"+loc+"）盤點結果："+mQty+" 個"+(logQty!==0?"（原本 "+old+" 個）":"");
+    } else {
+      type="調整";icon="🔧";title="庫存調整完成！";detail=curPart+"（"+loc+"）調整為 "+mQty+" 個";
+    }
+    // 「調整」或「盤點」都代表這個品項這次真的有被實際盤點過，記錄盤點日期（分地點記錄）
     var curPartObj = curBox.parts.find(function(x){ return x.name===curPart; });
     if(curPartObj){
       if(!curPartObj.lastCountDate) curPartObj.lastCountDate = {};
@@ -4620,30 +4618,104 @@ var NOTIF_TYPE_ICON = {
   "行照逾期": "📇", "需要補貨": "📦"
 };
 
+var ASSIGNABLE_NOTIF_TYPES = ["調貨通知", "新增報修", "報修逾期"];
+var curNotifTab = "all"; // "all" | "mine"
+
+function switchNotifTab(tab){
+  curNotifTab = tab;
+  var allBtn = document.getElementById("notif-tab-all");
+  var mineBtn = document.getElementById("notif-tab-mine");
+  [allBtn, mineBtn].forEach(function(b){
+    b.style.background = "var(--card)"; b.style.color = "var(--text)"; b.style.borderColor = "var(--border)";
+  });
+  var activeBtn = tab==="all" ? allBtn : mineBtn;
+  activeBtn.style.background = "var(--blue)"; activeBtn.style.color = "#fff"; activeBtn.style.borderColor = "var(--blue)";
+  renderNotifList();
+}
+
+function updateNotifMineCount(){
+  var el = document.getElementById("notif-mine-count");
+  if(!el || !curUser) return;
+  var n = notifList.filter(function(x){ return x.assignedEmail === curUser.email; }).length;
+  el.textContent = n>0 ? "（"+n+"）" : "";
+}
+
 function renderNotifList(){
   var list = document.getElementById("notif-list");
   list.innerHTML = "";
-  if(!notifList.length){
-    list.innerHTML = '<div style="text-align:center;padding:30px 0;color:var(--sub);font-size:13px;">目前沒有通知</div>';
+  updateNotifMineCount();
+  var dataToShow = curNotifTab === "mine"
+    ? notifList.filter(function(n){ return curUser && n.assignedEmail === curUser.email; })
+    : notifList;
+  if(!dataToShow.length){
+    list.innerHTML = curNotifTab==="mine"
+      ? '<div style="text-align:center;padding:30px 0;color:var(--sub);font-size:13px;">目前沒有指派給你的通知</div>'
+      : '<div style="text-align:center;padding:30px 0;color:var(--sub);font-size:13px;">目前沒有通知</div>';
     return;
   }
   var myEmail = curUser ? curUser.email : "";
-  notifList.forEach(function(n){
+  dataToShow.forEach(function(n){
     var readers = n.readBy ? n.readBy.split(",") : [];
     var isRead = readers.indexOf(myEmail) > -1;
     var item = document.createElement("div");
-    item.style.cssText = "background:"+(isRead?"var(--bg)":"var(--blue-light)")+";border-radius:11px;padding:12px;margin-bottom:8px;cursor:pointer;border:1px solid "+(isRead?"var(--border)":"var(--blue)")+";";
-    item.innerHTML =
+    item.style.cssText = "background:"+(isRead?"var(--bg)":"var(--blue-light)")+";border-radius:11px;padding:12px;margin-bottom:8px;border:1px solid "+(isRead?"var(--border)":"var(--blue)")+";";
+    var contentWrap = document.createElement("div");
+    contentWrap.style.cursor = "pointer";
+    contentWrap.innerHTML =
       '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'
       + '<span style="font-size:15px;">'+(NOTIF_TYPE_ICON[n.type]||"🔔")+'</span>'
       + '<span style="font-weight:700;font-size:13.5px;flex:1;">'+n.title+'</span>'
       + (isRead?'':'<span style="width:7px;height:7px;border-radius:50%;background:var(--blue);flex-shrink:0;"></span>')
       + '</div>'
       + '<div style="font-size:12.5px;color:var(--sub);white-space:pre-line;line-height:1.5;">'+n.message+'</div>'
-      + '<div style="font-size:11px;color:var(--sub);margin-top:6px;">'+n.time+'</div>';
-    item.onclick = (function(notifId){ return function(){ markNotifRead(notifId); }; })(n.id);
+      + '<div style="font-size:11px;color:var(--sub);margin-top:6px;">'+n.time+'</div>'
+      + (n.assignedName?'<div style="font-size:11.5px;color:#6B3FA0;margin-top:4px;font-weight:600;"><i class="ti ti-user-check"></i> 已指派給：'+n.assignedName+'</div>':'');
+    contentWrap.onclick = (function(notifId){ return function(){ markNotifRead(notifId); }; })(n.id);
+    item.appendChild(contentWrap);
+
+    if(ASSIGNABLE_NOTIF_TYPES.indexOf(n.type) > -1){
+      var assignBtn = document.createElement("button");
+      assignBtn.style.cssText = "margin-top:8px;background:none;border:1px solid #6B3FA0;color:#6B3FA0;border-radius:8px;padding:5px 10px;font-size:11.5px;cursor:pointer;";
+      assignBtn.innerHTML = '<i class="ti ti-user-plus"></i> '+(n.assignedName?"改指派給別人":"指派給");
+      assignBtn.onclick = (function(notifId){ return function(e){ e.stopPropagation(); openAssignPicker(notifId); }; })(n.id);
+      item.appendChild(assignBtn);
+    }
     list.appendChild(item);
   });
+}
+
+// 全部標記已讀
+function markAllNotifRead(){
+  if(!curUser) return;
+  var unread = notifList.filter(function(n){
+    var readers = n.readBy ? n.readBy.split(",") : [];
+    return readers.indexOf(curUser.email) === -1;
+  });
+  if(!unread.length){ showToast("目前沒有未讀通知"); return; }
+  unread.forEach(function(n){ markNotifRead(n.id); });
+  showToast("✅ 已全部標記已讀");
+}
+
+// 指派通知給某個人（用簡單的 prompt 從人員清單挑）
+function openAssignPicker(notifId){
+  if(!allDrivers || !allDrivers.length){
+    alert("找不到人員清單，請先進「指派駕駛人員」頁面讓系統抓一次人員資料，再回來指派");
+    return;
+  }
+  var names = allDrivers.map(function(d,i){ return (i+1)+". "+d.name; }).join("\n");
+  var input = prompt("要指派給誰？輸入編號：\n\n"+names);
+  if(!input) return;
+  var idx = parseInt(input) - 1;
+  var person = allDrivers[idx];
+  if(!person){ alert("編號不對，請重新操作一次"); return; }
+
+  var n = notifList.find(function(x){ return x.id===notifId; });
+  if(n){ n.assignedName = person.name; n.assignedEmail = person.email; }
+  renderNotifList();
+
+  sendToSheets({type:"指派通知", notifId:notifId, assignName:person.name, assignEmail:person.email,
+    box:"",part:"",qty:0,name:curUser?curUser.name:"",email:curUser?curUser.email:"",note:"",time:nowStr(),loc:"",serial:""});
+  showToast("✅ 已指派給「"+person.name+"」");
 }
 
 function markNotifRead(notifId){
