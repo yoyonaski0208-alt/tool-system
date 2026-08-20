@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260817-08">
+<meta name="app-version" content="20260817-09">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -3556,8 +3556,19 @@ function renderAdmPartList(){
     b1.onclick=(function(pn){return function(){openModal("in",pn,true);};})(p.name);
     var b2=document.createElement("button");b2.className="btn-sm btn-sm-amber";b2.style.fontSize="11px";b2.textContent="調整";
     b2.onclick=(function(pn){return function(){openModal("adj",pn,true);};})(p.name);
-    var b5=document.createElement("button");b5.className="btn-sm";b5.style.cssText="font-size:11px;background:#F1E8FB;color:#6B3FA0;";b5.textContent="調貨";
-    b5.onclick=(function(part,box){return function(){openTransferForm(part,box);};})(p,curBox);
+    var b5=document.createElement("button");b5.className="btn-sm";b5.style.cssText="font-size:11px;background:#F1E8FB;color:#6B3FA0;touch-action:manipulation;";b5.textContent="調貨";
+    (function(part,box,btn){
+      var fired = false;
+      function trigger(e){
+        if(fired) return; // 避免 touchend 跟 click 兩個都觸發，開兩個視窗
+        fired = true;
+        if(e && e.cancelable) e.preventDefault();
+        openTransferForm(part,box);
+        setTimeout(function(){ fired = false; }, 400); // 400ms後解鎖，避免誤鎖住之後的正常點擊
+      }
+      btn.addEventListener("touchend", trigger, {passive:false});
+      btn.addEventListener("click", trigger);
+    })(p,curBox,b5);
     var b4=document.createElement("button");b4.className="btn-sm";b4.style.cssText="font-size:11px;background:var(--blue-light);color:var(--blue);";b4.textContent="編輯";
     b4.onclick=(function(pn){return function(){openEditPart(pn);};})(p.name);
     var b3=document.createElement("button");b3.className="adm-del-btn";
@@ -3575,7 +3586,6 @@ function renderAdmPartList(){
 var transferPart = null, transferBox = null, transferQty = 1;
 
 function openTransferForm(part, box){
-  alert("🔍診斷：openTransferForm 已經開始執行了！"); // 診斷用，確認後會拿掉
   transferPart = part;
   transferBox = box;
   transferQty = 1;
