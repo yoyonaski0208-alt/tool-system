@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260817-03">
+<meta name="app-version" content="20260817-04">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -1181,9 +1181,7 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
     </div>
   </div>
   <div class="modal-footer" style="display:flex;flex-direction:column;gap:8px;">
-    <button class="confirm-btn" id="mod-count-btn" style="display:none;background:var(--green);" onclick="submitCountOnly()">
-      <i class="ti ti-clipboard-check"></i> 📋 盤點
-    </button>
+    <button class="confirm-btn" id="mod-count-btn" style="display:none;background:var(--green);" onclick="submitCountOnly()">盤點</button>
     <button class="confirm-btn" id="mod-confirm" onclick="confirmAction()">確認領取</button>
   </div>
 </div>
@@ -3633,7 +3631,18 @@ function openTransferForm(part, box){
   document.getElementById("transfer-qty-show").value = 1;
   document.getElementById("transfer-note").value = "";
   updateTransferStockHint();
-  document.getElementById("transfer-form-overlay").classList.add("show");
+  var overlay = document.getElementById("transfer-form-overlay");
+  overlay.classList.add("show");
+  // 強制觸發重繪：部分手機瀏覽器動態切換 fixed 定位元素的顯示狀態時，
+  // 偶爾不會立即重繪畫面，要等下一次版面異動（例如按返回鍵）才會顯示出來。
+  // 讀一次 offsetHeight 強制立刻重新計算版面，再用雙重 requestAnimationFrame
+  // 確保瀏覽器真的排進下一輪繪製，這是這類 iOS Safari 重繪問題的標準修法。
+  void overlay.offsetHeight;
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){
+      overlay.style.display = "flex";
+    });
+  });
 }
 
 function closeTransferForm(){
