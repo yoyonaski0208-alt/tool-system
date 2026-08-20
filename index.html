@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260817-04">
+<meta name="app-version" content="20260817-05">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -3619,6 +3619,7 @@ function renderAdmPartList(){
 var transferPart = null, transferBox = null, transferQty = 1;
 
 function openTransferForm(part, box){
+  showToast("🔍診斷：openTransferForm 已執行"); // 診斷用，之後確認沒問題會拿掉
   transferPart = part;
   transferBox = box;
   transferQty = 1;
@@ -3633,6 +3634,7 @@ function openTransferForm(part, box){
   updateTransferStockHint();
   var overlay = document.getElementById("transfer-form-overlay");
   overlay.classList.add("show");
+  showToast("🔍診斷：show class 已加上，overlay目前的display是：" + getComputedStyle(overlay).display);
   // 強制觸發重繪：部分手機瀏覽器動態切換 fixed 定位元素的顯示狀態時，
   // 偶爾不會立即重繪畫面，要等下一次版面異動（例如按返回鍵）才會顯示出來。
   // 讀一次 offsetHeight 強制立刻重新計算版面，再用雙重 requestAnimationFrame
