@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260814-02">
+<meta name="app-version" content="20260816-01">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -594,7 +594,22 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
           <span class="chip-car-txt" id="hd-car">未設定</span>
         </div>
       </div>
+      <button class="notif-bell-btn" onclick="openNotifPanel()" style="position:relative;background:none;border:1px solid var(--border);border-radius:8px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;margin-right:6px;">
+        <i class="ti ti-bell" style="font-size:17px;color:var(--sub);"></i>
+        <span id="notif-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:20px;display:flex;align-items:center;justify-content:center;padding:0 3px;">0</span>
+      </button>
       <button class="logout-btn" onclick="doLogout()">登出</button>
+    </div>
+  </div>
+
+  <!-- 通知列表 overlay -->
+  <div class="equip-overlay" id="notif-panel-overlay">
+    <div class="equip-sheet" style="max-height:85vh;overflow-y:auto;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div class="equip-sheet-title" style="margin-bottom:0;">🔔 通知</div>
+        <button onclick="closeNotifPanel()" style="background:none;border:none;font-size:22px;color:var(--sub);cursor:pointer;">✕</button>
+      </div>
+      <div id="notif-list"></div>
     </div>
   </div>
   <div class="location-bar" id="location-bar" style="display:none;">
@@ -910,6 +925,11 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       <div style="font-size:11px;color:var(--sub);margin-top:8px;">只要在畫面裡按過一次「調整」就算這個月盤點過，跟進貨/領取無關</div>
     </div>
 
+    <!-- 一鍵轉換安全量格式（單一數字 → 台南/屏東分開存） -->
+    <button class="equip-cancel-btn" style="margin-bottom:10px;" onclick="migrateAllMinQtyFormat()">
+      <i class="ti ti-arrows-exchange"></i> 統一安全量格式（台南/屏東分開顯示）
+    </button>
+
     <div class="section-hd" style="margin-top:16px;">所有工具箱</div>
     <!-- 搜尋工具：後台版本，跟領取頁共用同一套邏輯 -->
     <div style="position:relative;margin:8px 0 12px;">
@@ -982,7 +1002,28 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text
       <i class="ti ti-cloud-upload"></i> 強制推送本機資料到雲端（種子資料用）
     </button>
     <div id="sync-diag-result" style="margin-top:10px;font-size:12px;font-family:monospace;white-space:pre-wrap;background:#111;color:#0f0;border-radius:8px;padding:10px;display:none;max-height:300px;overflow-y:auto;"></div>
+
+    <!-- 通知設定 -->
+    <div class="section-hd" style="margin-top:20px;">🔔 通知設定</div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:12px;color:var(--sub);line-height:1.6;">
+      設定每一種事件要通知給誰，不設定的話預設會發給全部管理員。
+    </div>
+    <button class="equip-cancel-btn" style="margin-top:10px;" onclick="openNotifConfigPanel()">
+      <i class="ti ti-settings"></i> 設定通知收件人
+    </button>
   </div><!-- end pg-admin -->
+
+  <!-- 通知設定 overlay -->
+  <div class="equip-overlay" id="notif-config-overlay">
+    <div class="equip-sheet" style="max-height:85vh;overflow-y:auto;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div class="equip-sheet-title" style="margin-bottom:0;">🔔 通知設定</div>
+        <button onclick="closeNotifConfigPanel()" style="background:none;border:none;font-size:22px;color:var(--sub);cursor:pointer;">✕</button>
+      </div>
+      <div style="font-size:12px;color:var(--sub);margin-bottom:12px;">每種事件可以選多個人，不選任何人＝預設發給全部管理員</div>
+      <div id="notif-config-list"></div>
+    </div>
+  </div>
 
   <div class="bottom-nav">
     <button class="nav-btn active" id="nav-take" onclick="navTo('take',this)"><i class="ti ti-package"></i>領取</button>
@@ -2659,6 +2700,11 @@ function enterMainApp(){
   showGreeting();
   // 背景同步工具箱品項清單（新增/編輯/刪除的工具，避免重整後消失）
   syncBoxPartsFromServer().then(function(){ renderBoxes(); });
+  // 通知系統：登入時先讀一次，之後每 60 秒背景更新一次未讀數字（跟頁面切換無關，任何頁面都要看得到最新的）
+  syncNotifFromServer();
+  setInterval(function(){
+    if(!document.hidden) syncNotifFromServer();
+  }, 60000);
   // 背景同步器具狀態
   syncEquipFromSheets();
   // 背景同步車輛指派/工具箱指派狀態（跨裝置一致）
@@ -2748,6 +2794,108 @@ async function rawPushSyncState(key, obj){
   }catch(e){}
 }
 
+// ─────────────────────────────────────────────
+// 通知設定：每種事件可以選誰收到通知
+// ─────────────────────────────────────────────
+var notifConfigData = [];
+var notifConfigAdmins = [];
+
+async function openNotifConfigPanel(){
+  document.getElementById("notif-config-overlay").classList.add("show");
+  document.getElementById("notif-config-list").innerHTML = '<div style="text-align:center;padding:20px 0;color:var(--sub);font-size:13px;">載入中…</div>';
+  try{
+    var res = await fetch(GAS_URL + "?action=readNotifConfig", { mode:"cors", cache:"no-cache" });
+    var d = await res.json();
+    if(d.ok){
+      notifConfigData = d.data || [];
+      notifConfigAdmins = d.admins || [];
+      renderNotifConfigList();
+    } else {
+      document.getElementById("notif-config-list").innerHTML = '<div style="color:var(--red);font-size:13px;">讀取失敗，請確認後端已重新部署</div>';
+    }
+  }catch(e){
+    document.getElementById("notif-config-list").innerHTML = '<div style="color:var(--red);font-size:13px;">讀取失敗：'+e.message+'</div>';
+  }
+}
+
+function closeNotifConfigPanel(){
+  document.getElementById("notif-config-overlay").classList.remove("show");
+}
+
+function renderNotifConfigList(){
+  var container = document.getElementById("notif-config-list");
+  container.innerHTML = "";
+  if(!notifConfigAdmins.length){
+    container.innerHTML = '<div style="color:var(--red);font-size:13px;">「使用者設定」表裡找不到任何管理員帳號，請先確認有人是 admin 角色</div>';
+    return;
+  }
+  notifConfigData.forEach(function(cfg){
+    var card = document.createElement("div");
+    card.style.cssText = "background:var(--bg);border-radius:11px;padding:12px;margin-bottom:10px;";
+    var title = document.createElement("div");
+    title.style.cssText = "font-weight:700;font-size:13.5px;margin-bottom:2px;";
+    title.textContent = cfg.type;
+    var desc = document.createElement("div");
+    desc.style.cssText = "font-size:11.5px;color:var(--sub);margin-bottom:8px;";
+    desc.textContent = cfg.desc;
+    card.appendChild(title); card.appendChild(desc);
+
+    var checksWrap = document.createElement("div");
+    checksWrap.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;";
+    notifConfigAdmins.forEach(function(admin){
+      var checked = cfg.emails.indexOf(admin.email) > -1;
+      var chip = document.createElement("label");
+      chip.style.cssText = "display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:20px;border:1.5px solid "+(checked?"var(--blue)":"var(--border)")+";background:"+(checked?"var(--blue-light)":"var(--card)")+";cursor:pointer;font-size:12.5px;";
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = checked;
+      cb.style.cssText = "margin:0;";
+      cb.onchange = (function(cfgType, email, chipEl){
+        return function(){
+          var c = notifConfigData.find(function(x){ return x.type===cfgType; });
+          if(!c) return;
+          var idx = c.emails.indexOf(email);
+          if(this.checked && idx===-1) c.emails.push(email);
+          if(!this.checked && idx>-1) c.emails.splice(idx,1);
+          chipEl.style.borderColor = this.checked ? "var(--blue)" : "var(--border)";
+          chipEl.style.background = this.checked ? "var(--blue-light)" : "var(--card)";
+          saveNotifConfig(cfgType, c.emails);
+        };
+      })(cfg.type, admin.email, chip);
+      chip.appendChild(cb);
+      chip.appendChild(document.createTextNode(admin.name || admin.email));
+      checksWrap.appendChild(chip);
+    });
+    card.appendChild(checksWrap);
+
+    if(!cfg.emails.length){
+      var hint = document.createElement("div");
+      hint.style.cssText = "font-size:11px;color:var(--amber);margin-top:6px;";
+      hint.textContent = "尚未指定 → 目前預設發給全部管理員";
+      card.appendChild(hint);
+    }
+    container.appendChild(card);
+  });
+}
+
+async function saveNotifConfig(notifType, emails){
+  try{
+    await fetch(GAS_URL, {
+      method: "POST",
+      mode: "cors",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({
+        type: "更新通知設定", notifType: notifType, emails: JSON.stringify(emails),
+        name: curUser?curUser.name:"", email: curUser?curUser.email:"",
+        box:"", part:"", qty:0, note:"", time: nowStr(), loc:"", serial:""
+      })
+    });
+    showToast("✅ 已更新「"+notifType+"」的收件人");
+  }catch(e){
+    showToast("❌ 儲存失敗，請確認網路");
+  }
+}
+
 async function forcePushAllLocalData(){
   if(!confirm("確定要把這支裝置目前的車輛指派/工具箱指派/車輛資料/行照記錄，強制覆蓋雲端上的同步資料嗎？\n\n這通常只在「第一次建立雲端基準資料」時用一次，平常操作不需要按這個，按錯可能會蓋掉別人剛更新的東西。")) return;
   var out = document.getElementById("sync-diag-result");
@@ -2766,12 +2914,16 @@ async function forcePushAllLocalData(){
   log("");
   log("全部推送完成！其他裝置現在進「車輛」頁或「行照」視窗，應該就能抓到這份資料了。");
   showToast("✅ 本機資料已強制推送到雲端");
+  sendToSheets({type:"系統維護通知", part:"強制推送本機資料到雲端",
+    name:curUser?curUser.name:"", email:curUser?curUser.email:"",
+    note:"執行了「強制推送種子資料」，可能覆蓋雲端上的車輛指派/工具箱指派/行照資料，請確認資料正確",
+    time:nowStr(), box:"", qty:0, loc:"", serial:""});
 }
 
 function resetLocalLaunchData(){
   if(!confirm("確定要清除這支手機的測試資料嗎？\n\n會清掉：\n・我綁定的車牌\n・車輛指派關係\n・工具箱綁定車輛的紀錄\n\n不會動到 Google Sheets 上的任何紀錄，且只影響這支手機，其他人手機要各自清一次。")) return;
 
-  // 清掉車輛指派 / 工具箱綁定 / 車輛資料覆蓋
+  // 清掉車輛指派 / 工具箱綁定 / 車輛資料覆寫
   localStorage.removeItem("veh_assignments");
   localStorage.removeItem("toolbox_status");
   localStorage.removeItem("vehicles_override");
@@ -2780,6 +2932,11 @@ function resetLocalLaunchData(){
   Object.keys(localStorage).forEach(function(k){
     if(k.indexOf("carPlate_") === 0) localStorage.removeItem(k);
   });
+
+  sendToSheets({type:"系統維護通知", part:"清除本機測試資料",
+    name:curUser?curUser.name:"", email:curUser?curUser.email:"",
+    note:"在這支裝置上執行了「清除本機測試資料」",
+    time:nowStr(), box:"", qty:0, loc:"", serial:""});
 
   showToast("✅ 本機測試資料已清除，請重新整理頁面");
   setTimeout(function(){ location.reload(); }, 1200);
@@ -3756,6 +3913,20 @@ async function confirmAction(){
     payload.newQty = stocks[loc][key];
   }
   sendToSheets(payload);
+
+  // 領取/耗損/遺失/調整後，如果變成低於安全量，額外觸發一筆低庫存通知（進貨不用檢查，進貨是在補貨）
+  if(curAction !== "in"){
+    var curPartObjForNotif = curBox.parts.find(function(x){ return x.name===curPart; });
+    if(curPartObjForNotif){
+      var minForLoc = getMinQty(curPartObjForNotif, loc);
+      var finalQtyForLoc = stocks[loc][key];
+      if(minForLoc > 0 && finalQtyForLoc < minForLoc){
+        sendToSheets({type:"低庫存通知", box:curBox.name, boxId:curBox.id, part:curPart,
+          qty:finalQtyForLoc, minQty:minForLoc, loc:loc,
+          name:curUser.name, email:curUser.email, note:"", time:t, serial:""});
+      }
+    }
+  }
 }
 
 function afterOk(){
@@ -4121,6 +4292,96 @@ function loadEquipFromStorage(){
 }
 
 // 從 Google Sheets 同步最新器具狀態（非同步）
+// ─────────────────────────────────────────────
+// 通知系統：鈴鐺、清單、標記已讀
+// ─────────────────────────────────────────────
+var notifList = [];
+
+async function syncNotifFromServer(){
+  if(!GAS_URL || !curUser) return;
+  try{
+    var res = await fetch(GAS_URL + "?action=readNotifications&days=30", { mode:"cors", cache:"no-cache" });
+    var d = await res.json();
+    if(d.ok && Array.isArray(d.data)){
+      notifList = d.data;
+      updateNotifBadge();
+    }
+  }catch(e){ console.warn("syncNotifFromServer 失敗", e); }
+}
+
+function updateNotifBadge(){
+  var badge = document.getElementById("notif-badge");
+  if(!badge || !curUser) return;
+  var myEmail = curUser.email || "";
+  var unread = notifList.filter(function(n){
+    var readers = n.readBy ? n.readBy.split(",") : [];
+    return readers.indexOf(myEmail) === -1;
+  }).length;
+  if(unread > 0){
+    badge.style.display = "flex";
+    badge.textContent = unread > 99 ? "99+" : unread;
+  } else {
+    badge.style.display = "none";
+  }
+}
+
+function openNotifPanel(){
+  renderNotifList();
+  document.getElementById("notif-panel-overlay").classList.add("show");
+  // 打開來就重抓一次最新的，確保看到的是最新通知
+  syncNotifFromServer().then(renderNotifList);
+}
+
+function closeNotifPanel(){
+  document.getElementById("notif-panel-overlay").classList.remove("show");
+}
+
+var NOTIF_TYPE_ICON = {
+  "車輛到期提醒": "🚗", "報修逾期": "🔧", "新增報修": "🆕",
+  "行照逾期": "📇", "需要補貨": "📦"
+};
+
+function renderNotifList(){
+  var list = document.getElementById("notif-list");
+  list.innerHTML = "";
+  if(!notifList.length){
+    list.innerHTML = '<div style="text-align:center;padding:30px 0;color:var(--sub);font-size:13px;">目前沒有通知</div>';
+    return;
+  }
+  var myEmail = curUser ? curUser.email : "";
+  notifList.forEach(function(n){
+    var readers = n.readBy ? n.readBy.split(",") : [];
+    var isRead = readers.indexOf(myEmail) > -1;
+    var item = document.createElement("div");
+    item.style.cssText = "background:"+(isRead?"var(--bg)":"var(--blue-light)")+";border-radius:11px;padding:12px;margin-bottom:8px;cursor:pointer;border:1px solid "+(isRead?"var(--border)":"var(--blue)")+";";
+    item.innerHTML =
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'
+      + '<span style="font-size:15px;">'+(NOTIF_TYPE_ICON[n.type]||"🔔")+'</span>'
+      + '<span style="font-weight:700;font-size:13.5px;flex:1;">'+n.title+'</span>'
+      + (isRead?'':'<span style="width:7px;height:7px;border-radius:50%;background:var(--blue);flex-shrink:0;"></span>')
+      + '</div>'
+      + '<div style="font-size:12.5px;color:var(--sub);white-space:pre-line;line-height:1.5;">'+n.message+'</div>'
+      + '<div style="font-size:11px;color:var(--sub);margin-top:6px;">'+n.time+'</div>';
+    item.onclick = (function(notifId){ return function(){ markNotifRead(notifId); }; })(n.id);
+    list.appendChild(item);
+  });
+}
+
+function markNotifRead(notifId){
+  if(!curUser) return;
+  var n = notifList.find(function(x){ return x.id===notifId; });
+  if(!n) return;
+  var readers = n.readBy ? n.readBy.split(",") : [];
+  if(readers.indexOf(curUser.email) === -1){
+    readers.push(curUser.email);
+    n.readBy = readers.join(",");
+    updateNotifBadge();
+    renderNotifList();
+    sendToSheets({type:"標記通知已讀", notifId:notifId, email:curUser.email,
+      box:"",part:"",qty:0,name:curUser.name,note:"",time:nowStr(),loc:"",serial:""});
+  }
+}
+
 async function syncEquipFromSheets(){
   if(!GAS_URL) return;
   try{
@@ -4972,6 +5233,42 @@ function pushSyncPatch(key, setObj, delKeys){
 function boxPartKey(boxId, partName){ return boxId + "|" + partName; }
 
 // 新增或編輯品項時呼叫：把這一筆品項推上雲端
+// ─────────────────────────────────────────────
+// 一鍵轉換：把所有「舊格式（單一數字）」的安全量，統一轉成
+// 「台南／屏東分開存」的新格式（轉換時兩地都設成原本的數字，
+// 不會改變原本設定的安全量高低，之後可以再各自個別調整）
+// 一次性動作，但轉換結果會用同一個 patch 請求整批送出，
+// 確保立即同步到雲端，不是只改本機顯示
+// ─────────────────────────────────────────────
+async function migrateAllMinQtyFormat(){
+  var setObj = {};
+  var count = 0;
+  BOXES.forEach(function(b){
+    b.parts.forEach(function(p){
+      if(p.minQty !== undefined && typeof p.minQty !== "object"){
+        var val = Number(p.minQty) || 0;
+        p.minQty = {"台南": val, "屏東": val}; // 先更新本機，畫面立刻反映
+        setObj[boxPartKey(b.id, p.name)] = p;   // 收集起來，最後一次性送出
+        count++;
+      }
+    });
+  });
+
+  if(count === 0){
+    showToast("目前所有工具都已經是新格式了，不用轉換");
+    return;
+  }
+
+  if(!confirm("將把 "+count+" 個工具的安全量從「單一數字」轉成「台南／屏東分開存」的格式\n（兩地會先設成原本的數字，之後可以再各自調整）\n\n確定要轉換嗎？")) return;
+
+  showToast("轉換中，請稍候…");
+  pushSyncPatch("boxParts", setObj, null); // 整批一次送出，立即同步到雲端
+
+  renderAdmPartList();
+  renderAdmin();
+  showToast("✅ 已轉換 "+count+" 個工具的安全量格式，並同步到雲端");
+}
+
 function pushBoxPartPatch(boxId, partObj, oldName){
   var setObj = {}; 
   setObj[boxPartKey(boxId, partObj.name)] = partObj;
