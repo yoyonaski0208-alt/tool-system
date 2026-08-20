@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260817-05">
+<meta name="app-version" content="20260817-06">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -3619,7 +3619,6 @@ function renderAdmPartList(){
 var transferPart = null, transferBox = null, transferQty = 1;
 
 function openTransferForm(part, box){
-  showToast("🔍診斷：openTransferForm 已執行"); // 診斷用，之後確認沒問題會拿掉
   transferPart = part;
   transferBox = box;
   transferQty = 1;
@@ -3632,17 +3631,25 @@ function openTransferForm(part, box){
   document.getElementById("transfer-qty-show").value = 1;
   document.getElementById("transfer-note").value = "";
   updateTransferStockHint();
-  var overlay = document.getElementById("transfer-form-overlay");
+  forceShowOverlay("transfer-form-overlay");
+}
+
+// 強力版的顯示 overlay：專門解決「CSS 算出來是 display:flex，但畫面沒真的畫出來」
+// 這種 iOS Safari／PWA 獨立模式下的頑固重繪 bug。
+// 做法：先讓瀏覽器建立一個新的合成圖層（transform 觸發），
+// 再用極輕微的 scroll 去強制瀏覽器重新合成畫面，這是這類問題公認最有效的組合技。
+function forceShowOverlay(id){
+  var overlay = document.getElementById(id);
   overlay.classList.add("show");
-  showToast("🔍診斷：show class 已加上，overlay目前的display是：" + getComputedStyle(overlay).display);
-  // 強制觸發重繪：部分手機瀏覽器動態切換 fixed 定位元素的顯示狀態時，
-  // 偶爾不會立即重繪畫面，要等下一次版面異動（例如按返回鍵）才會顯示出來。
-  // 讀一次 offsetHeight 強制立刻重新計算版面，再用雙重 requestAnimationFrame
-  // 確保瀏覽器真的排進下一輪繪製，這是這類 iOS Safari 重繪問題的標準修法。
-  void overlay.offsetHeight;
+  overlay.style.transform = "translateZ(0)";
+  void overlay.offsetHeight; // 強制立刻重新計算版面
   requestAnimationFrame(function(){
+    overlay.style.transform = "translateZ(0.001px)";
+    // 輕微捲動一下畫面，強制瀏覽器重新合成畫面（這是已知對這類 bug 最有效的手法之一）
+    window.scrollTo(window.scrollX, window.scrollY + 1);
     requestAnimationFrame(function(){
-      overlay.style.display = "flex";
+      window.scrollTo(window.scrollX, window.scrollY - 1);
+      overlay.style.transform = "";
     });
   });
 }
