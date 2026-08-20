@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#185FA5">
 <!-- 版本號：每次更新 index.html 時，把這個數字改掉，使用者就會看到更新提示 -->
-<meta name="app-version" content="20260817-09">
+<meta name="app-version" content="20260817-10">
 <link rel="manifest" href="manifest.json">
 <title>森清淨-工具系統</title>
 <style>
@@ -3644,6 +3644,14 @@ function openTransferForm(part, box){
   document.getElementById("transfer-qty-minus").addEventListener("click", function(){ adjTransferQty(-1); });
   document.getElementById("transfer-qty-plus").addEventListener("click", function(){ adjTransferQty(1); });
   document.getElementById("transfer-submit-btn").addEventListener("click", submitTransfer);
+
+  // 視窗先立刻顯示（不要因為等網路而延遲跳出），背景再強制重抓最新庫存、更新提示文字
+  syncStocksFromSheets(fromLocDefault, true).then(function(){
+    // 確認使用者還在看同一個品項，才更新畫面（避免使用者已經切走）
+    if(transferPart===part && transferBox===box && document.getElementById("transfer-from-loc")){
+      updateTransferStockHint();
+    }
+  });
 }
 
 function closeTransferForm(){
@@ -3651,9 +3659,12 @@ function closeTransferForm(){
   if(overlay) overlay.remove(); // 直接整個砍掉，不是切換顯示狀態
 }
 
-function onTransferFromLocChange(){
+async function onTransferFromLocChange(){
   var fromLoc = document.getElementById("transfer-from-loc").value;
   document.getElementById("transfer-to-loc").value = fromLoc==="台南" ? "屏東" : "台南";
+  var hintEl = document.getElementById("transfer-from-stock-hint");
+  if(hintEl) hintEl.textContent = "正在確認"+fromLoc+"目前庫存…";
+  await syncStocksFromSheets(fromLoc, true);
   updateTransferStockHint();
 }
 
@@ -3675,7 +3686,18 @@ async function submitTransfer(){
   var note = document.getElementById("transfer-note").value.trim();
 
   if(fromLoc === toLoc){ alert("從跟到不能選一樣的地點"); return; }
+
+  // 送出前強制重新跟 Google Sheets 要一次最新庫存，不要相信表單打開當下的舊快取，
+  // 避免「畫面顯示的數字」跟「送出時驗證用的數字」對不起來
+  var submitBtn = document.getElementById("transfer-submit-btn");
+  if(submitBtn){ submitBtn.disabled = true; submitBtn.textContent = "確認庫存中…"; }
+  await syncStocksFromSheets(fromLoc, true);
+  if(submitBtn){ submitBtn.disabled = false; submitBtn.textContent = "送出調貨申請"; }
+
   var curQ = stocks[fromLoc] ? (stocks[fromLoc][gk(transferBox.id, transferPart.name)]||0) : 0;
+  // 同時更新畫面上顯示的庫存提示，跟驗證用的數字保持一致
+  var hintEl = document.getElementById("transfer-from-stock-hint");
+  if(hintEl) hintEl.textContent = fromLoc+"目前庫存："+curQ;
   if(qty > curQ){ if(!confirm(fromLoc+"目前庫存只有 "+curQ+"，數量比庫存多，確定要送出嗎？")) return; }
 
   // 前端先樂觀更新來源地的本機快取，畫面立刻反映
